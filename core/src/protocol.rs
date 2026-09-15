@@ -268,7 +268,7 @@ record! {
 
 record! {
     /// The wisp introducing itself in the garden, until dismissed with a
-    /// link to `wisp://home/do/got-it/about`.
+    /// link to `glimmerwood://home/do/got-it/about`.
     #[derive(Serialize, Clone, Debug, PartialEq)]
     pub struct HomeAbout {
         pub title: String,
@@ -587,7 +587,7 @@ mod tests {
     fn typescript_file_is_current() {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../ui/protocol.gen.ts");
         let want = typescript();
-        if std::env::var_os("WISP_BLESS").is_some() {
+        if std::env::var_os("GLIMMERWOOD_BLESS").is_some() {
             std::fs::write(path, &want).expect("write ui/protocol.gen.ts");
             return;
         }

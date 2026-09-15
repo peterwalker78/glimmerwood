@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn schemes_that_could_run_code_are_searched_not_opened() {
         assert!(uri("javascript:alert(1)").starts_with(SEARCH));
-        assert!(uri("wisp://chrome/index.html").starts_with(SEARCH));
+        assert!(uri("glimmerwood://chrome/index.html").starts_with(SEARCH));
         assert!(uri("file:///etc/passwd").starts_with(SEARCH));
     }
 

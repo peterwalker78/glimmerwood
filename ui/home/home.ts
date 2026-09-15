@@ -1,6 +1,6 @@
 // Home. The core hands this page everything it shows through
 // `window.wispHome.show`; the page never asks for anything. Its buttons are
-// plain links to wisp://home/do/..., which the core catches.
+// plain links to glimmerwood://home/do/..., which the core catches.
 
 import type { DayPart, HomeData, HomePlant } from "../protocol.gen.js";
 import { showDiary } from "./diary.js";
@@ -81,14 +81,14 @@ function show(data: HomeData): void {
       }),
     );
     aboutDone.textContent = data.about.done;
-    aboutDone.href = "wisp://home/do/got-it/about";
+    aboutDone.href = "glimmerwood://home/do/got-it/about";
     seatWisp();
   }
 
   explain.hidden = !data.explain;
   if (data.explain) {
     explainText.textContent = data.explain.text;
-    explainDone.href = `wisp://home/do/got-it/${data.explain.topic}`;
+    explainDone.href = `glimmerwood://home/do/got-it/${data.explain.topic}`;
   }
 
   places.replaceChildren(
@@ -114,7 +114,7 @@ function show(data: HomeData): void {
       link.append(letter(bookmark.title || bookmark.host), span("title", bookmark.title || bookmark.url), span("host", bookmark.host));
       const forget = document.createElement("a");
       forget.className = "forget";
-      forget.href = `wisp://home/do/forget-bookmark/${bookmark.id}`;
+      forget.href = `glimmerwood://home/do/forget-bookmark/${bookmark.id}`;
       forget.title = "Remove this bookmark";
       forget.setAttribute("aria-label", `Remove ${bookmark.title || bookmark.url}`);
       forget.textContent = "×";

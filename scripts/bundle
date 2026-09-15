@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Build a single-file Flatpak bundle for release: dist/wisp-x86_64.flatpak and
+# Build a single-file Flatpak bundle for release: dist/glimmerwood-x86_64.flatpak and
 # its .sha256. Installing it fetches the GNOME runtime from Flathub if it isn't
 # there. Runs on the host, like scripts/flatpak, in the same memory-capped scope.
 # The names don't carry the version, so a release's
-# releases/latest/download/wisp-x86_64.flatpak URL stays the same.
+# releases/latest/download/glimmerwood-x86_64.flatpak URL stays the same.
 source "$(dirname "$0")/lib.sh"
 require_host
 cd "$ROOT"
 lock_builder
 
-APP_ID=io.github.peterwalker78.Wisp
+APP_ID=io.github.peterwalker78.Glimmerwood
 REPO="$ROOT/.flatpak-repo"
 DIST="$ROOT/dist"
 
@@ -28,7 +28,7 @@ systemd-run --user --scope --quiet --collect \
 mkdir -p "$DIST"
 flatpak build-bundle \
   --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-  "$REPO" "$DIST/wisp-x86_64.flatpak.part" "$APP_ID"
-mv -f "$DIST/wisp-x86_64.flatpak.part" "$DIST/wisp-x86_64.flatpak"
-(cd "$DIST" && sha256sum wisp-x86_64.flatpak > wisp-x86_64.flatpak.sha256)
-echo "Built $DIST/wisp-x86_64.flatpak ($(cut -d ' ' -f 1 "$DIST/wisp-x86_64.flatpak.sha256"))"
+  "$REPO" "$DIST/glimmerwood-x86_64.flatpak.part" "$APP_ID"
+mv -f "$DIST/glimmerwood-x86_64.flatpak.part" "$DIST/glimmerwood-x86_64.flatpak"
+(cd "$DIST" && sha256sum glimmerwood-x86_64.flatpak > glimmerwood-x86_64.flatpak.sha256)
+echo "Built $DIST/glimmerwood-x86_64.flatpak ($(cut -d ' ' -f 1 "$DIST/glimmerwood-x86_64.flatpak.sha256"))"

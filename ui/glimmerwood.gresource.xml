@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/io/github/peterwalker78/Wisp">
+  <gresource prefix="/io/github/peterwalker78/Glimmerwood">
     <file>chrome/sidebar.html</file>
     <file>chrome/toolbar.html</file>
     <file>chrome/chrome.css</file>
@@ -14,6 +14,6 @@
     <file>home/home.css</file>
     <file alias="home/home.js">dist/home/home.js</file>
     <file alias="home/diary.js">dist/home/diary.js</file>
-    <file alias="home/wisp.svg">../data/io.github.peterwalker78.Wisp.svg</file>
+    <file alias="home/wisp.svg">../data/io.github.peterwalker78.Glimmerwood.svg</file>
   </gresource>
 </gresources>

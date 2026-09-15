@@ -17,7 +17,9 @@ pub const MIN_TAB_COLUMN_WIDTH: i32 = 48;
 pub const MAX_TAB_COLUMN_WIDTH: i32 = 360;
 
 fn path() -> PathBuf {
-    glib::user_config_dir().join("wisp").join("window.ini")
+    glib::user_config_dir()
+        .join("glimmerwood")
+        .join("window.ini")
 }
 
 pub fn tab_column_width() -> i32 {
@@ -40,6 +42,6 @@ pub fn set_tab_column_width(width: i32) {
         .map_err(|err| err.to_string())
         .and_then(|()| file.save_to_file(&path).map_err(|err| err.to_string()));
     if let Err(err) = saved {
-        eprintln!("wisp: couldn't remember the tab column width: {err}");
+        eprintln!("glimmerwood: couldn't remember the tab column width: {err}");
     }
 }

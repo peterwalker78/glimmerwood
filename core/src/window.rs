@@ -123,7 +123,7 @@ impl Window {
 
         let window = gtk::ApplicationWindow::builder()
             .application(app)
-            .title("Wisp")
+            .title("Glimmerwood")
             .default_width(1200)
             .default_height(800)
             .child(&overlay)
@@ -420,7 +420,7 @@ impl Window {
         self.stack.set_visible_child(&tab.view);
         let title = tab.view.title().filter(|t| !t.is_empty());
         self.window
-            .set_title(Some(title.as_deref().unwrap_or("Wisp")));
+            .set_title(Some(title.as_deref().unwrap_or("Glimmerwood")));
         self.push_tabs();
         self.push_state();
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
@@ -456,7 +456,7 @@ impl Window {
                     self.select_tab(tab.id);
                 }
                 tab.view.evaluate_javascript(
-                    "if (location.href.startsWith('wisp://home/')) window.wispHome?.reveal()",
+                    "if (location.href.startsWith('glimmerwood://home/')) window.wispHome?.reveal()",
                     None,
                     None,
                     None::<&gio::Cancellable>,
@@ -493,14 +493,14 @@ impl Window {
         let json = serde_json::to_string(&data).expect("home data serialises");
         tab.view.evaluate_javascript(
             &format!(
-                "if (location.href.startsWith('wisp://home/')) {{ window.wispHomeData = {json}; window.wispHome?.show(window.wispHomeData); }}"
+                "if (location.href.startsWith('glimmerwood://home/')) {{ window.wispHomeData = {json}; window.wispHome?.show(window.wispHomeData); }}"
             ),
             None,
             None,
             None::<&gio::Cancellable>,
             |result| {
                 if let Err(err) = result {
-                    eprintln!("wisp: Home didn't take its data: {err}");
+                    eprintln!("glimmerwood: Home didn't take its data: {err}");
                 }
             },
         );
@@ -819,7 +819,7 @@ impl Window {
             if this.selected.get() == id {
                 let title = view.title().filter(|t| !t.is_empty());
                 this.window
-                    .set_title(Some(title.as_deref().unwrap_or("Wisp")));
+                    .set_title(Some(title.as_deref().unwrap_or("Glimmerwood")));
             }
         });
 
@@ -995,7 +995,7 @@ impl Window {
         // for a middle- or Ctrl-click, in front otherwise (through `create`).
         let weak = Rc::downgrade(self);
         view.connect_decide_policy(move |view, decision, kind| {
-            // Home's buttons are links to wisp://home/do/..., caught here and
+            // Home's buttons are links to glimmerwood://home/do/..., caught here and
             // only honoured while the tab is showing Home.
             if kind == webkit::PolicyDecisionType::NavigationAction {
                 let target = decision
@@ -1329,9 +1329,9 @@ impl Window {
 }
 
 /// Where new tabs start, and where its buttons point.
-const HOME: &str = "wisp://home/";
-const HOME_ACTIONS: &str = "wisp://home/do/";
-const HOME_WISP: &str = "wisp://home/#wisp";
+const HOME: &str = "glimmerwood://home/";
+const HOME_ACTIONS: &str = "glimmerwood://home/do/";
+const HOME_WISP: &str = "glimmerwood://home/#wisp";
 
 /// Only web pages can be bookmarked.
 fn can_bookmark(uri: &str) -> bool {
@@ -1343,7 +1343,7 @@ fn home_icon() -> String {
     thread_local! {
         static ICON: String = {
             let svg = gio::resources_lookup_data(
-                "/io/github/peterwalker78/Wisp/home/wisp.svg",
+                "/io/github/peterwalker78/Glimmerwood/home/wisp.svg",
                 gio::ResourceLookupFlags::NONE,
             )
             .expect("the icon is bundled");

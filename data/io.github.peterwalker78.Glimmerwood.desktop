@@ -1,13 +1,13 @@
 [Desktop Entry]
 Type=Application
-Name=Wisp
+Name=Glimmerwood
 GenericName=Web Browser
 Comment=A quiet browser with a living companion
-Exec=wisp %U
-Icon=io.github.peterwalker78.Wisp
+Exec=glimmerwood %U
+Icon=io.github.peterwalker78.Glimmerwood
 Terminal=false
 Categories=Network;WebBrowser;
 MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
 Keywords=web;internet;browser;
 StartupNotify=true
-StartupWMClass=io.github.peterwalker78.Wisp
+StartupWMClass=io.github.peterwalker78.Glimmerwood

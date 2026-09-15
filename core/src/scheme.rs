@@ -1,7 +1,7 @@
-//! The `wisp://` scheme, which serves the chrome from bundled resources.
+//! The `glimmerwood://` scheme, which serves the chrome from bundled resources.
 //!
 //! The chrome is only served to webviews marked with [`trust`]. Tabs get Home
-//! (`wisp://home/`) and nothing else. WebKit is told the scheme is
+//! (`glimmerwood://home/`) and nothing else. WebKit is told the scheme is
 //! display-isolated, so a web page can't navigate to or embed any of it.
 
 use std::cell::RefCell;
@@ -9,8 +9,8 @@ use std::cell::RefCell;
 use gtk::{gio, glib};
 use webkit::prelude::*;
 
-const SCHEME: &str = "wisp";
-const RESOURCE_ROOT: &str = "/io/github/peterwalker78/Wisp/";
+const SCHEME: &str = "glimmerwood";
+const RESOURCE_ROOT: &str = "/io/github/peterwalker78/Glimmerwood/";
 
 thread_local! {
     static TRUSTED: RefCell<Vec<glib::WeakRef<webkit::WebView>>> = const { RefCell::new(Vec::new()) };
@@ -43,11 +43,14 @@ fn is_trusted(view: &webkit::WebView) -> bool {
 fn serve(request: &webkit::URISchemeRequest) {
     let uri = request.uri().map(|u| u.to_string()).unwrap_or_default();
     if !is_home(&uri) && !request.web_view().is_some_and(|view| is_trusted(&view)) {
-        refuse(request, "wisp:// is only served to Wisp's own interface");
+        refuse(
+            request,
+            "glimmerwood:// is only served to Glimmerwood's own interface",
+        );
         return;
     }
     let Some(path) = resource_path(&uri) else {
-        refuse(request, "not a wisp:// resource");
+        refuse(request, "not a glimmerwood:// resource");
         return;
     };
     match gio::resources_lookup_data(&path, gio::ResourceLookupFlags::NONE) {
@@ -56,7 +59,7 @@ fn serve(request: &webkit::URISchemeRequest) {
             let stream = gio::MemoryInputStream::from_bytes(&bytes);
             request.finish(&stream, len, Some(mime_type(&path)));
         }
-        Err(_) => refuse(request, "no such wisp:// resource"),
+        Err(_) => refuse(request, "no such glimmerwood:// resource"),
     }
 }
 
@@ -65,15 +68,15 @@ fn refuse(request: &webkit::URISchemeRequest, why: &str) {
     request.finish_error(&mut error);
 }
 
-/// `wisp://chrome/index.html` → `/io/github/peterwalker78/Wisp/chrome/index.html`
+/// `glimmerwood://chrome/index.html` → `/io/github/peterwalker78/Glimmerwood/chrome/index.html`
 /// Home's own files, which any tab may load.
 pub fn is_home(uri: &str) -> bool {
-    uri.strip_prefix("wisp://home")
+    uri.strip_prefix("glimmerwood://home")
         .is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '?', '#']))
 }
 
 fn resource_path(uri: &str) -> Option<String> {
-    let rest = uri.strip_prefix("wisp://")?;
+    let rest = uri.strip_prefix("glimmerwood://")?;
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
     let rest = if rest == "home" || rest == "home/" {
         "home/index.html"
@@ -103,21 +106,23 @@ mod tests {
     #[test]
     fn resource_paths_stay_inside_the_bundle() {
         assert_eq!(
-            resource_path("wisp://chrome/index.html").as_deref(),
-            Some("/io/github/peterwalker78/Wisp/chrome/index.html")
+            resource_path("glimmerwood://chrome/index.html").as_deref(),
+            Some("/io/github/peterwalker78/Glimmerwood/chrome/index.html")
         );
         assert_eq!(
-            resource_path("wisp://chrome/chrome.js?v=1").as_deref(),
-            Some("/io/github/peterwalker78/Wisp/chrome/chrome.js")
+            resource_path("glimmerwood://chrome/chrome.js?v=1").as_deref(),
+            Some("/io/github/peterwalker78/Glimmerwood/chrome/chrome.js")
         );
-        assert_eq!(resource_path("wisp://chrome/../../etc"), None);
-        assert_eq!(resource_path("wisp://chrome//index.html"), None);
+        assert_eq!(resource_path("glimmerwood://chrome/../../etc"), None);
+        assert_eq!(resource_path("glimmerwood://chrome//index.html"), None);
         assert_eq!(resource_path("https://chrome/index.html"), None);
         assert_eq!(
-            resource_path("wisp://home/").as_deref(),
-            Some("/io/github/peterwalker78/Wisp/home/index.html")
+            resource_path("glimmerwood://home/").as_deref(),
+            Some("/io/github/peterwalker78/Glimmerwood/home/index.html")
         );
-        assert!(is_home("wisp://home/") && is_home("wisp://home/home.js"));
-        assert!(!is_home("wisp://homeless/x") && !is_home("wisp://chrome/toolbar.html"));
+        assert!(is_home("glimmerwood://home/") && is_home("glimmerwood://home/home.js"));
+        assert!(
+            !is_home("glimmerwood://homeless/x") && !is_home("glimmerwood://chrome/toolbar.html")
+        );
     }
 }

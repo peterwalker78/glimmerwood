@@ -23,7 +23,9 @@ pub fn new_pair(on_message: impl Fn(ToCore) + 'static) -> (webkit::WebView, webk
         };
         match serde_json::from_str::<ToCore>(&json) {
             Ok(message) => on_message(message),
-            Err(err) => eprintln!("wisp: ignoring a chrome message the core doesn't know: {err}"),
+            Err(err) => {
+                eprintln!("glimmerwood: ignoring a chrome message the core doesn't know: {err}")
+            }
         }
     });
 
@@ -42,7 +44,7 @@ pub fn new_pair(on_message: impl Fn(ToCore) + 'static) -> (webkit::WebView, webk
         .build();
     for (view, page) in [(&toolbar, "toolbar"), (&sidebar, "sidebar")] {
         prepare(view);
-        view.load_uri(&format!("wisp://chrome/{page}.html"));
+        view.load_uri(&format!("glimmerwood://chrome/{page}.html"));
     }
     (toolbar, sidebar)
 }
@@ -61,7 +63,7 @@ fn prepare(view: &webkit::WebView) {
             .and_then(|d| d.navigation_action())
             .and_then(|action| action.request())
             .and_then(|request| request.uri());
-        if uri.is_some_and(|uri| uri.starts_with("wisp://chrome/")) {
+        if uri.is_some_and(|uri| uri.starts_with("glimmerwood://chrome/")) {
             decision.use_();
         } else {
             decision.ignore();
@@ -83,7 +85,7 @@ pub fn send(view: &webkit::WebView, message: &ToChrome) {
         None::<&gio::Cancellable>,
         |result| {
             if let Err(err) = result {
-                eprintln!("wisp: chrome didn't take a message: {err}");
+                eprintln!("glimmerwood: chrome didn't take a message: {err}");
             }
         },
     );

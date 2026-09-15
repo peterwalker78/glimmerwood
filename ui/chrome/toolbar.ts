@@ -116,7 +116,7 @@ function render(state: State): void {
   progress.hidden = !state.loading;
   progress.style.width = state.loading ? `${Math.max(0.04, state.progress) * 100}%` : "0";
 
-  document.title = state.title || "Wisp";
+  document.title = state.title || "Glimmerwood";
 }
 
 back.addEventListener("click", () => send({ type: "back" }));

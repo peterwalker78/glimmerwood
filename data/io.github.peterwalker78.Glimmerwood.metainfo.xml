@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.peterwalker78.Wisp</id>
-  <name>Wisp</name>
+  <id>io.github.peterwalker78.Glimmerwood</id>
+  <name>Glimmerwood</name>
   <summary>The web browser that's on your side</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <developer id="io.github.peterwalker78">
-    <name>Wisp contributors</name>
+    <name>Glimmerwood contributors</name>
   </developer>
   <description>
     <p>
-      Wisp is a quiet web browser with a small living companion. The wisp, a
+      Glimmerwood is a quiet web browser with a small living companion. The wisp, a
       glowing flame with a friendly face, notices how your time online really
       feels: it brightens somewhere that restores you, clouds over during a
       long scroll, and perks up again when you step away. It never blocks a
@@ -24,21 +24,21 @@
       <li>Private by design: nothing leaves your computer, and the addresses you visit are never recorded</li>
     </ul>
   </description>
-  <launchable type="desktop-id">io.github.peterwalker78.Wisp.desktop</launchable>
-  <url type="homepage">https://github.com/peterwalker78/wisp</url>
-  <url type="bugtracker">https://github.com/peterwalker78/wisp/issues</url>
+  <launchable type="desktop-id">io.github.peterwalker78.Glimmerwood.desktop</launchable>
+  <url type="homepage">https://github.com/peterwalker78/glimmerwood</url>
+  <url type="bugtracker">https://github.com/peterwalker78/glimmerwood/issues</url>
   <screenshots>
     <screenshot type="default">
       <caption>The wisp, bright on a page that restores you</caption>
-      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/browsing.png</image>
+      <image>https://raw.githubusercontent.com/peterwalker78/glimmerwood/main/data/screenshots/browsing.png</image>
     </screenshot>
     <screenshot>
       <caption>Home, with a garden that grows on good days</caption>
-      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/home.png</image>
+      <image>https://raw.githubusercontent.com/peterwalker78/glimmerwood/main/data/screenshots/home.png</image>
     </screenshot>
     <screenshot>
       <caption>The wisp introducing itself</caption>
-      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/welcome.png</image>
+      <image>https://raw.githubusercontent.com/peterwalker78/glimmerwood/main/data/screenshots/welcome.png</image>
     </screenshot>
   </screenshots>
   <categories>
@@ -47,6 +47,15 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.0" date="2026-09-15">
+      <description>
+        <p>Wisp is now called Glimmerwood, since another web browser already goes by Wisp. The companion is still the wisp.</p>
+        <ul>
+          <li>A new app ID, io.github.peterwalker78.Glimmerwood, so it installs beside Wisp 0.1.0 rather than over it</li>
+          <li>Settings, history and bookmarks live under glimmerwood instead of wisp</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-09-15">
       <description>
         <p>The first release.</p>

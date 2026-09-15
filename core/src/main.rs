@@ -25,12 +25,12 @@ use std::rc::Rc;
 
 use gtk::{gio, glib, prelude::*};
 
-const APP_ID: &str = "io.github.peterwalker78.Wisp";
+const APP_ID: &str = "io.github.peterwalker78.Glimmerwood";
 
 fn main() -> glib::ExitCode {
     let resources = gio::Resource::from_data(&glib::Bytes::from_static(include_bytes!(concat!(
         env!("OUT_DIR"),
-        "/wisp.gresource"
+        "/glimmerwood.gresource"
     ))))
     .expect("bundled resources are valid");
     gio::resources_register(&resources);
@@ -38,13 +38,13 @@ fn main() -> glib::ExitCode {
     let (args, lab) = match feel_lab_args(std::env::args().collect()) {
         Ok(parsed) => parsed,
         Err(err) => {
-            eprintln!("wisp: {err}");
+            eprintln!("glimmerwood: {err}");
             return glib::ExitCode::FAILURE;
         }
     };
     let mut flags = gio::ApplicationFlags::HANDLES_COMMAND_LINE;
     if lab.is_some() {
-        // A lab runs beside a real Wisp, never inside it.
+        // A lab runs beside a real Glimmerwood, never inside it.
         flags |= gio::ApplicationFlags::NON_UNIQUE;
     }
     let lab = Rc::new(std::cell::RefCell::new(lab));

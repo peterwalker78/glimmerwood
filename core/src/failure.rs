@@ -8,7 +8,7 @@
 
 use gtk::{gio, glib};
 
-const TEMPLATE: &str = "/io/github/peterwalker78/Wisp/pages/failed.html";
+const TEMPLATE: &str = "/io/github/peterwalker78/Glimmerwood/pages/failed.html";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Reason {
@@ -57,7 +57,7 @@ impl Reason {
             ),
             Reason::Offline => (
                 "Not connected".into(),
-                "Wisp can’t reach the network at the moment.".into(),
+                "Glimmerwood can’t reach the network at the moment.".into(),
             ),
             Reason::Other(message) => (format!("Couldn’t open {host}"), message.clone()),
         }

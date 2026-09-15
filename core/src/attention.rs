@@ -10,7 +10,7 @@ use crate::dose::{Moment, Rates};
 /// renewed well before it runs out.
 pub const SOUND_LEASE_MS: i64 = 60_000;
 
-/// The one place Wisp reads the wall clock. Everything else is handed the
+/// The one place Glimmerwood reads the wall clock. Everything else is handed the
 /// moment it concerns.
 #[allow(clippy::disallowed_methods)]
 pub fn now() -> Moment {
@@ -51,7 +51,7 @@ pub fn presence_until(rates: &Rates, signals: Signals, now: Moment) -> Option<Mo
 }
 
 /// Until when a heard draining site keeps counting with nobody present: the
-/// listening window after the last input in Wisp, or `None` once
+/// listening window after the last input in Glimmerwood, or `None` once
 /// it has passed.
 pub fn listening_until(rates: &Rates, last_input: Option<Moment>, now: Moment) -> Option<Moment> {
     let until = last_input?.ms + (rates.heard.listening_minutes * 60_000.0) as i64;

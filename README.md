@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="data/io.github.peterwalker78.Wisp.svg" width="112" alt="The wisp, a small glowing flame with a friendly face, resting on moss">
+<img src="data/io.github.peterwalker78.Glimmerwood.svg" width="112" alt="The wisp, a small glowing flame with a friendly face, resting on moss">
 
-# Wisp
+# Glimmerwood
 
 ### The web browser that's on your side.
 
@@ -10,14 +10,14 @@ A quiet browser for Linux with a small living companion who notices
 how your time online really feels, so you can spend more of it on the
 things that leave you better off.
 
-[**Download for Linux**](https://github.com/peterwalker78/wisp/releases/latest) ·
+[**Download for Linux**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
 [Meet the wisp](#meet-the-wisp) ·
 [How it works](#how-it-works-in-plain-words) ·
 [Privacy](#everything-stays-on-your-computer)
 
 <br>
 
-<img src="data/screenshots/browsing.png" alt="Wisp showing a Wikipedia article. In the corner of the toolbar the wisp is bright and smiling, and its caption reads: Now, Bright, wikipedia.org, restoring.">
+<img src="data/screenshots/browsing.png" alt="Glimmerwood showing a Wikipedia article. In the corner of the toolbar the wisp is bright and smiling, and its caption reads: Now, Bright, wikipedia.org, restoring.">
 
 </div>
 
@@ -34,8 +34,8 @@ designed, tested and tuned by very large teams to keep you scrolling. Every
 other browser treats that hour exactly the same as an hour spent learning
 something, reading something beautiful or talking to someone you love.
 
-Wisp doesn't. It's a browser built around a simple idea: **you can't change
-what you can't see.** So Wisp helps you see it, gently, while you browse,
+Glimmerwood doesn't. It's a browser built around a simple idea: **you can't change
+what you can't see.** So Glimmerwood helps you see it, gently, while you browse,
 and then gets out of your way.
 
 <br>
@@ -84,18 +84,18 @@ Most tools for "digital wellbeing" lean on blocking, timers and guilt. They
 work for a week, then you find the switch that turns them off, because nobody
 likes being told what to do.
 
-Wisp is built on what tends to stick instead:
+Glimmerwood is built on what tends to stick instead:
 
 - 🪞 **Noticing, not nagging.** Just keeping track of how you use the web has
   been found to leave people less anxious and less afraid of missing out. The
   wisp does the noticing for you, so the choice stays yours.
 - 🌱 **Kindness over shame.** Guilt makes people hide from the problem;
-  self-compassion makes it easier to change. Wisp celebrates good days out
+  self-compassion makes it easier to change. Glimmerwood celebrates good days out
   loud and never lectures you about the rest.
-- 🚪 **You're always in charge.** Wisp never blocks a page, never pops up a
+- 🚪 **You're always in charge.** Glimmerwood never blocks a page, never pops up a
   warning, never makes you prove anything. Every site stays one click away.
 - ☀️ **Time away counts the most.** The best thing for your wisp isn't a
-  "good" website: it's closing the laptop. Wisp is probably the only browser
+  "good" website: it's closing the laptop. Glimmerwood is probably the only browser
   that's happiest when you're not using it.
 - 🌙 **Your evenings matter.** Screens late at night are one of the clearest
   links between life online and poor sleep, so after 11pm the wisp winds down
@@ -105,7 +105,7 @@ Wisp is built on what tends to stick instead:
 
 ## A home that grows with you
 
-<img src="data/screenshots/home.png" alt="Wisp's Home page: a garden under an evening sky with ferns, flowers and fireflies, a greeting that reads 'Good evening. You stepped away for a while today. The wisp noticed.', and cards for good places such as Project Gutenberg and Wikipedia.">
+<img src="data/screenshots/home.png" alt="Glimmerwood's Home page: a garden under an evening sky with ferns, flowers and fireflies, a greeting that reads 'Good evening. You stepped away for a while today. The wisp noticed.', and cards for good places such as Project Gutenberg and Wikipedia.">
 
 Every new tab opens **Home**, a calm page made on your computer rather than
 fetched from anywhere.
@@ -125,7 +125,7 @@ fetched from anywhere.
 
 The first time you open Home, the wisp introduces itself:
 
-<img src="data/screenshots/welcome.png" alt="The wisp sitting in the garden with a speech bubble: Hello. I'm your wisp. Wisp is a web browser that keeps you company...">
+<img src="data/screenshots/welcome.png" alt="The wisp sitting in the garden with a speech bubble: Hello. I'm your wisp. Glimmerwood is a web browser that keeps you company...">
 
 <br>
 
@@ -149,7 +149,7 @@ evenings are always like that.*
 
 ## Start today
 
-Wisp is free and open source. Install it, make it your default browser, and
+Glimmerwood is free and open source. Install it, make it your default browser, and
 then just use the web as you normally would. There's nothing to set up and
 nothing to learn: the wisp starts noticing straight away, and your garden can
 grow its first plant tomorrow.
@@ -158,22 +158,27 @@ grow its first plant tomorrow.
 for the GNOME runtime):
 
 ```sh
-curl -LO https://github.com/peterwalker78/wisp/releases/latest/download/wisp-x86_64.flatpak
-flatpak install --user wisp-x86_64.flatpak
+curl -LO https://github.com/peterwalker78/glimmerwood/releases/latest/download/glimmerwood-x86_64.flatpak
+flatpak install --user glimmerwood-x86_64.flatpak
 ```
 
-Then open **Wisp** from your applications. To make it your default browser,
+Then open **Glimmerwood** from your applications. To make it your default browser,
 choose it under *Default Applications* in your desktop's settings.
 
-> Wisp is young. It's already a comfortable everyday browser for most of the
+> **Glimmerwood was called Wisp** in its first release, until we found another
+> browser already had the name. Version 0.2.0 has a new app ID, so it installs
+> beside Wisp rather than replacing it: remove the old one with
+> `flatpak uninstall --user io.github.peterwalker78.Wisp`.
+
+> Glimmerwood is young. It's already a comfortable everyday browser for most of the
 > web, and it's growing quickly. If something doesn't work, please
-> [open an issue](https://github.com/peterwalker78/wisp/issues).
+> [open an issue](https://github.com/peterwalker78/glimmerwood/issues).
 
 <br>
 
 ## Everything stays on your computer
 
-A browser that watches how you feel online has to be trustworthy, so Wisp is
+A browser that watches how you feel online has to be trustworthy, so Glimmerwood is
 private by design, not by promise:
 
 - **Nothing about you ever leaves your computer.** No accounts, no telemetry,
@@ -212,13 +217,13 @@ up to 0.5, clouded up to 0.75, and sleepy beyond.
 - **A new day** starts fresh at 5am, carrying over at most a little of a very
   heavy yesterday.
 
-Wisp only counts time you're actually there: if you haven't touched the
+Glimmerwood only counts time you're actually there: if you haven't touched the
 keyboard or mouse for four minutes, it treats you as away (unless you're
 watching a video).
 
 ### The lists
 
-How a site affects the dose depends on which list it's on. Wisp comes with
+How a site affects the dose depends on which list it's on. Glimmerwood comes with
 about 2,300 sites already sorted, based on published research into wellbeing
 online. The studies behind each group are cited in
 [`core/data/reputation.toml`](core/data/reputation.toml).
@@ -236,7 +241,7 @@ A site on no list simply holds the wisp steady. Where the research was mixed,
 a site went on the milder list. Everyone is different, so you can move any
 site to any list in your own `reputation.toml` (the same list names as the
 bundled file, such as `draining-mild` or `nourishing-strong`), which lives in
-`~/.config/wisp/` (or `~/.var/app/io.github.peterwalker78.Wisp/config/wisp/`
+`~/.config/glimmerwood/` (or `~/.var/app/io.github.peterwalker78.Glimmerwood/config/glimmerwood/`
 for the Flatpak) and takes effect immediately.
 
 ### A few more things it notices
@@ -260,14 +265,14 @@ for the Flatpak) and takes effect immediately.
 - Zoom, downloads, session restore and the rest of the everyday basics.
 
 Have a site you think is on the wrong list? That's exactly the kind of help
-Wisp needs: please [open an issue](https://github.com/peterwalker78/wisp/issues)
+Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
 and say why.
 
 <br>
 
 ## For developers
 
-Wisp is written in Rust on GTK 4 and WebKitGTK 6.0. The wisp itself is drawn
+Glimmerwood is written in Rust on GTK 4 and WebKitGTK 6.0. The wisp itself is drawn
 natively rather than in a web page, so the whole browser idles at around one
 percent of a CPU core with the wisp breathing. The
 toolbar and Home are small TypeScript pages compiled by the native TypeScript
@@ -283,17 +288,17 @@ scripts/flatpak  # build and install the Flatpak for your user
 scripts/bundle   # build a single-file Flatpak bundle for release
 ```
 
-If a distrobox named `wisp` exists, `scripts/dev` and `scripts/check` run
+If a distrobox named `glimmerwood` exists, `scripts/dev` and `scripts/check` run
 inside it. `scripts/flatpak` and `scripts/bundle` need Flathub's
 `org.flatpak.Builder`.
 
-`wisp --feel-lab` plays a scripted day at high speed, so you can watch the
+`glimmerwood --feel-lab` plays a scripted day at high speed, so you can watch the
 wisp's moods without living through a day of browsing (`--from=HH:MM`,
 `--speed=N`).
 
-AI coding tools are used in writing Wisp's code.
+AI coding tools are used in writing Glimmerwood's code.
 
 ## Licence
 
-Wisp is free software under the GNU General Public License, version 3 or
+Glimmerwood is free software under the GNU General Public License, version 3 or
 later. See [`COPYING`](COPYING).

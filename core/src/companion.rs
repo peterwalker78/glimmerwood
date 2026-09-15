@@ -91,7 +91,7 @@ impl Companion {
         if let Some(store) = &store
             && let Err(err) = store.prune(now)
         {
-            eprintln!("wisp: couldn't prune old history: {err}");
+            eprintln!("glimmerwood: couldn't prune old history: {err}");
         }
         let seed = Lists::bundled();
         let lists = load_user_lists(&seed).unwrap_or_else(|| seed.clone());
@@ -266,7 +266,7 @@ impl Companion {
     fn home_value(&self, key: &str) -> Option<i64> {
         match &self.store {
             Some(store) => store.home_value(key).unwrap_or_else(|err| {
-                eprintln!("wisp: couldn't read what Home remembers: {err}");
+                eprintln!("glimmerwood: couldn't read what Home remembers: {err}");
                 None
             }),
             None => self.home_memory.borrow().get(key).copied(),
@@ -277,7 +277,7 @@ impl Companion {
         match &self.store {
             Some(store) => {
                 if let Err(err) = store.set_home_value(key, value) {
-                    eprintln!("wisp: couldn't remember that for Home: {err}");
+                    eprintln!("glimmerwood: couldn't remember that for Home: {err}");
                 }
             }
             None => {
@@ -301,7 +301,7 @@ impl Companion {
                 Ok(id) => self
                     .bookmarks
                     .remove(id)
-                    .map_err(|err| eprintln!("wisp: couldn't remove the bookmark: {err}"))
+                    .map_err(|err| eprintln!("glimmerwood: couldn't remove the bookmark: {err}"))
                     .is_ok(),
                 Err(_) => false,
             },
@@ -318,7 +318,7 @@ impl Companion {
         self.bookmarks
             .toggle(url, title, attention::now())
             .unwrap_or_else(|err| {
-                eprintln!("wisp: couldn't change the bookmark: {err}");
+                eprintln!("glimmerwood: couldn't change the bookmark: {err}");
                 false
             })
     }
@@ -359,7 +359,7 @@ impl Companion {
                 fireflies: home::fireflies(summary),
             };
             if let Err(err) = store.record_garden_day(&grown) {
-                eprintln!("wisp: couldn't tend the garden: {err}");
+                eprintln!("glimmerwood: couldn't tend the garden: {err}");
                 return;
             }
         }
@@ -608,7 +608,7 @@ impl Companion {
         };
         match store.record(&sample) {
             Ok(()) => self.last_recorded_minute.set(minute),
-            Err(err) => eprintln!("wisp: couldn't record the dose: {err}"),
+            Err(err) => eprintln!("glimmerwood: couldn't record the dose: {err}"),
         }
     }
 
@@ -650,7 +650,7 @@ impl Companion {
             match file.monitor_file(gio::FileMonitorFlags::NONE, None::<&gio::Cancellable>) {
                 Ok(monitor) => monitor,
                 Err(err) => {
-                    eprintln!("wisp: can't watch your reputation list for changes: {err}");
+                    eprintln!("glimmerwood: can't watch your reputation list for changes: {err}");
                     return;
                 }
             };
@@ -701,33 +701,35 @@ fn host_of(uri: &str) -> String {
 }
 
 fn open_store() -> Option<Store> {
-    let dir = glib::user_data_dir().join("wisp");
+    let dir = glib::user_data_dir().join("glimmerwood");
     if let Err(err) = std::fs::create_dir_all(&dir) {
-        eprintln!("wisp: can't create {}: {err}", dir.display());
+        eprintln!("glimmerwood: can't create {}: {err}", dir.display());
         return None;
     }
-    match Store::open(&dir.join("wisp.sqlite")) {
+    match Store::open(&dir.join("glimmerwood.sqlite")) {
         Ok(store) => Some(store),
         Err(err) => {
-            eprintln!("wisp: history is off; can't open the database: {err}");
+            eprintln!("glimmerwood: history is off; can't open the database: {err}");
             None
         }
     }
 }
 
 fn open_bookmarks() -> Bookmarks {
-    let dir = glib::user_data_dir().join("wisp");
+    let dir = glib::user_data_dir().join("glimmerwood");
     let opened = std::fs::create_dir_all(&dir)
         .map_err(|err| err.to_string())
         .and_then(|()| Bookmarks::open(&dir.join("bookmarks.sqlite")).map_err(|e| e.to_string()));
     opened.unwrap_or_else(|err| {
-        eprintln!("wisp: bookmarks won't be kept; can't open them: {err}");
+        eprintln!("glimmerwood: bookmarks won't be kept; can't open them: {err}");
         Bookmarks::in_memory()
     })
 }
 
 fn user_lists_path() -> PathBuf {
-    glib::user_config_dir().join("wisp").join("reputation.toml")
+    glib::user_config_dir()
+        .join("glimmerwood")
+        .join("reputation.toml")
 }
 
 /// The seed with the user's changes applied, or `None` to use the seed
@@ -738,7 +740,10 @@ fn load_user_lists(seed: &Lists) -> Option<Lists> {
     match seed.with_user(&text) {
         Ok(lists) => Some(lists),
         Err(err) => {
-            eprintln!("wisp: ignoring {} until it's fixed: {err}", path.display());
+            eprintln!(
+                "glimmerwood: ignoring {} until it's fixed: {err}",
+                path.display()
+            );
             None
         }
     }

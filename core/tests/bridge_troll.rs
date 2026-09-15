@@ -1,6 +1,6 @@
 //! The bridge troll detector.
 //!
-//! Wisp's one rule is to be a spirit guide, not a bridge troll: nothing may
+//! Glimmerwood's one rule is to be a spirit guide, not a bridge troll: nothing may
 //! block navigation, raise modal dialogs, or use red/alarm styling. This test
 //! catches the mechanical versions of those mistakes in the chrome's source.
 //! It is a floor, not a review: tone and feel still need a person.

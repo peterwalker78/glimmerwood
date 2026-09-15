@@ -416,7 +416,7 @@ mod tests {
 
         let dir = std::env::temp_dir().join(format!("wisp-store-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("wisp.sqlite");
+        let path = dir.join("glimmerwood.sqlite");
         {
             let store = Store::open(&path).unwrap();
             let mut s = sample(0, 0.4);

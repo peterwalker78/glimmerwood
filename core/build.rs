@@ -6,13 +6,13 @@ use std::{env, path::PathBuf, process::Command};
 fn main() {
     let ui = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ui");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("cargo sets OUT_DIR"));
-    let out = out_dir.join("wisp.gresource");
+    let out = out_dir.join("glimmerwood.gresource");
 
     // Regenerating ui/protocol.gen.ts runs the tests, which needs the crate
     // to build before the UI can compile against the new types. This builds
     // with an empty bundle for exactly that; scripts/protocol sets it.
-    println!("cargo:rerun-if-env-changed=WISP_WITHOUT_UI");
-    if env::var_os("WISP_WITHOUT_UI").is_some() {
+    println!("cargo:rerun-if-env-changed=GLIMMERWOOD_WITHOUT_UI");
+    if env::var_os("GLIMMERWOOD_WITHOUT_UI").is_some() {
         let empty = out_dir.join("empty.gresource.xml");
         std::fs::write(&empty, "<gresources/>").expect("write empty manifest");
         let status = Command::new("glib-compile-resources")
@@ -24,7 +24,7 @@ fn main() {
         return;
     }
 
-    let manifest = ui.join("wisp.gresource.xml");
+    let manifest = ui.join("glimmerwood.gresource.xml");
     println!("cargo:rerun-if-changed={}", manifest.display());
     let deps = Command::new("glib-compile-resources")
         .arg(format!("--sourcedir={}", ui.display()))

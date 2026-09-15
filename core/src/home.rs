@@ -1,5 +1,5 @@
 //! Home: what the local home page says and offers, as pure
-//! functions of what Wisp already knows. The GTK side gathers the facts; the
+//! functions of what Glimmerwood already knows. The GTK side gathers the facts; the
 //! words come from `core/data/home.toml`.
 
 use std::collections::{BTreeMap, HashSet};
@@ -45,7 +45,7 @@ impl<T> ByPart<T> {
     }
 }
 
-/// The wisp introducing itself and what Wisp is for, until dismissed.
+/// The wisp introducing itself and what Glimmerwood is for, until dismissed.
 #[derive(Clone, Debug, Deserialize)]
 pub struct About {
     pub title: String,

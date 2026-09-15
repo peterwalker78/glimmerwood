@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and run Wisp from the source tree. Arguments are passed to wisp.
+# Build and run Glimmerwood from the source tree. Arguments are passed to glimmerwood.
 source "$(dirname "$0")/lib.sh"
 require_box "$@"
 cd "$ROOT"

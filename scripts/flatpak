@@ -15,4 +15,4 @@ systemd-run --user --scope --quiet --collect \
   flatpak run --user org.flatpak.Builder \
     --user --install --force-clean --ccache \
     --state-dir="$ROOT/.flatpak-builder" \
-    "$ROOT/build" flatpak/io.github.peterwalker78.Wisp.yml
+    "$ROOT/build" flatpak/io.github.peterwalker78.Glimmerwood.yml

@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(entry(&lists, "https://nottiktok.com/"), None);
         assert_eq!(entry(&lists, "https://tiktok.com.example.net/"), None);
         assert_eq!(entry(&lists, "about:blank"), None);
-        assert_eq!(entry(&lists, "wisp://chrome/index.html"), None);
+        assert_eq!(entry(&lists, "glimmerwood://chrome/index.html"), None);
         assert_eq!(entry(&lists, "file:///home/tiktok.com"), None);
         assert_eq!(
             entry(&lists, "https://user@TikTok.com:443/@someone"),

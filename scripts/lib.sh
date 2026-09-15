@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BOX=wisp
+BOX=glimmerwood
 
 # TypeScript 7 ships as a static native binary, so the UI build needs no Node.
-# Keep in step with the archive source in flatpak/io.github.peterwalker78.Wisp.yml.
+# Keep in step with the archive source in flatpak/io.github.peterwalker78.Glimmerwood.yml.
 TSC_VERSION=7.0.2
 TSC_SHA256=7ecad6f67377e831856367ab062ef394f21506a611405bf8ac0ff039348637d3
 TSC="$ROOT/.tools/typescript-$TSC_VERSION/lib/tsc"
@@ -13,7 +13,7 @@ TSC="$ROOT/.tools/typescript-$TSC_VERSION/lib/tsc"
 inside_box() { [[ -e /run/.containerenv ]]; }
 
 # On an immutable desktop the toolchain lives in a container. If a distrobox
-# named `wisp` exists, re-run the calling script inside it; otherwise build
+# named `glimmerwood` exists, re-run the calling script inside it; otherwise build
 # right here.
 require_box() {
   if ! inside_box && command -v distrobox >/dev/null \
@@ -34,9 +34,9 @@ require_host() {
 # until the calling script exits, waiting first for any build already running.
 lock_builder() {
   mkdir -p "$ROOT/.flatpak-builder"
-  exec 9>"$ROOT/.flatpak-builder/wisp-build.lock"
+  exec 9>"$ROOT/.flatpak-builder/glimmerwood-build.lock"
   if ! flock -n 9; then
-    echo "Waiting for another Flatpak build of Wisp to finish..." >&2
+    echo "Waiting for another Flatpak build of Glimmerwood to finish..." >&2
     flock 9
   fi
 }
