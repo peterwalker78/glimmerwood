@@ -47,6 +47,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.0" date="2026-09-15">
+      <description>
+        <p>Settings, and a wisp that asks how new places leave you.</p>
+        <ul>
+          <li>On a site that's on none of its lists, the wisp asks once how the place leaves you, with a slider from drains me to restores me</li>
+          <li>A Settings page (Ctrl+comma) to look up and rate any site, change your ratings, choose when the night starts and ends, and see every keyboard shortcut</li>
+          <li>Ratings are kept in your own reputation.toml, and comments you write there by hand are kept</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-09-15">
       <description>
         <p>Wisp is now called Glimmerwood, since another web browser already goes by Wisp. The companion is still the wisp.</p>
