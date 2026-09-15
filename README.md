@@ -241,7 +241,7 @@ online. The studies behind each group are cited in
 A site on no list simply holds the wisp steady. Where the research was mixed,
 a site went on the milder list.
 
-Everyone is different, so the lists are yours to change. Spend a few minutes
+Everyone is different, so the lists are yours to change. Spend a little while
 on a site the wisp hasn't met and it asks, once, how the place leaves you,
 with a slider from *drains me* to *restores me*. Only you see the answer; it's
 there so the wisp can look after you honestly. Every rating can be changed

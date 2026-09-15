@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use crate::dose::Moment;
 
 /// Time present on a site, over the day, before the wisp asks about it.
-pub const ASK_AFTER_MS: i64 = 3 * 60_000;
+pub const ASK_AFTER_MS: i64 = 15_000;
 /// Never within this long of a key press.
 pub const QUIET_AFTER_TYPING_MS: i64 = 10_000;
 /// Questions a day, at most.
@@ -136,12 +136,12 @@ mod tests {
     }
 
     #[test]
-    fn it_asks_after_three_minutes_on_a_site_and_only_once_that_day() {
+    fn it_asks_after_fifteen_seconds_on_a_site_and_only_once_that_day() {
         let mut asker = Asker::default();
         asker.observe(seen(at(0, 0), Some("moss.example")));
-        assert!(!asker.observe(seen(at(2, 0), Some("moss.example"))));
-        assert_eq!(asker.due(), Some(at(3, 0)));
-        assert!(asker.observe(seen(at(3, 0), Some("moss.example"))));
+        assert!(!asker.observe(seen(at(0, 10), Some("moss.example"))));
+        assert_eq!(asker.due(), Some(at(0, 15)));
+        assert!(asker.observe(seen(at(0, 15), Some("moss.example"))));
         assert_eq!(asker.question(), Some("moss.example"));
         assert!(asker.close("moss.example"));
         asker.observe(seen(at(30, 0), Some("moss.example")));
@@ -153,11 +153,11 @@ mod tests {
     fn time_on_a_site_adds_up_across_visits_but_not_time_elsewhere() {
         let mut asker = Asker::default();
         asker.observe(seen(at(0, 0), Some("moss.example")));
-        asker.observe(seen(at(2, 0), None));
+        asker.observe(seen(at(0, 10), None));
         asker.observe(seen(at(50, 0), Some("fern.example")));
-        asker.observe(seen(at(51, 0), Some("moss.example")));
-        assert_eq!(asker.due(), Some(at(52, 0)));
-        assert!(asker.observe(seen(at(52, 0), Some("moss.example"))));
+        asker.observe(seen(at(50, 10), Some("moss.example")));
+        assert_eq!(asker.due(), Some(at(50, 15)));
+        assert!(asker.observe(seen(at(50, 15), Some("moss.example"))));
     }
 
     #[test]
@@ -165,14 +165,14 @@ mod tests {
         let mut asker = Asker::default();
         asker.observe(seen(at(0, 0), Some("moss.example")));
         let typing = Seen {
-            last_typed: Some(at(2, 58)),
-            ..seen(at(3, 0), Some("moss.example"))
+            last_typed: Some(at(0, 13)),
+            ..seen(at(0, 15), Some("moss.example"))
         };
         assert!(!asker.observe(typing));
-        assert_eq!(asker.due(), Some(at(3, 8)));
+        assert_eq!(asker.due(), Some(at(0, 23)));
         let paused = Seen {
-            last_typed: Some(at(2, 58)),
-            ..seen(at(3, 8), Some("moss.example"))
+            last_typed: Some(at(0, 13)),
+            ..seen(at(0, 23), Some("moss.example"))
         };
         assert!(asker.observe(paused));
     }

@@ -282,12 +282,27 @@ pub fn set_user_entry(text: &str, site: &str, list: Option<List>) -> Result<Stri
     let mut doc: toml_edit::DocumentMut = text.parse().map_err(|e| format!("{e}"))?;
     let keys = List::ALL.map(List::key);
     for key in keys.iter().copied().chain(["removed"]) {
-        if let Some(sites) = doc
-            .get_mut(key)
-            .and_then(|table| table.get_mut("sites"))
-            .and_then(toml_edit::Item::as_array_mut)
-        {
+        let emptied = {
+            let Some(table) = doc
+                .get_mut(key)
+                .and_then(toml_edit::Item::as_table_like_mut)
+            else {
+                continue;
+            };
+            let Some(sites) = table
+                .get_mut("sites")
+                .and_then(toml_edit::Item::as_array_mut)
+            else {
+                continue;
+            };
+            let before = sites.len();
             sites.retain(|value| value.as_str() != Some(site));
+            let emptied = sites.is_empty() && before > 0;
+            emptied && table.len() == 1
+        };
+        // A table this emptied, with nothing else in it, goes too.
+        if emptied && list.is_none_or(|l| l.key() != key) {
+            doc.remove(key);
         }
     }
     if let Some(list) = list {
@@ -668,6 +683,14 @@ mod tests {
 
         // Back to Glimmerwood's rating: out of the file altogether.
         let back = set_user_entry(&unremoved, "a.com", None).expect("edits");
+        assert!(
+            !back.contains("nourishing-strong") && !back.contains("[removed]"),
+            "{back}"
+        );
+        assert!(
+            back.contains("[draining-mild]") && back.contains("[private]"),
+            "{back}"
+        );
         assert!(
             user_entries(&back)
                 .expect("parses")
