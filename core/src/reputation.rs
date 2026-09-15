@@ -4,6 +4,7 @@
 //! noticing when it changes belongs to the caller.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use serde::Deserialize;
 
@@ -109,20 +110,31 @@ impl File {
     }
 }
 
+/// The lists: the seed shared between copies, with the user's own changes
+/// over it (`None` for a site they took off every list).
 #[derive(Clone, Debug)]
 pub struct Lists {
     weights: [f64; List::WEIGHTED],
-    entries: HashMap<String, List>,
+    seed: Rc<HashMap<String, List>>,
+    user: HashMap<String, Option<List>>,
 }
 
 impl Lists {
     pub fn bundled() -> Lists {
-        Lists::seed(include_str!("../data/reputation.toml"))
-            .expect("core/data/reputation.toml is valid")
+        Lists::seed_with(include_str!("../data/reputation.toml"), &IMPORTED)
+            .expect("the bundled lists are valid")
     }
 
     /// The seed list: every table present with a weight, no entry twice.
+    #[cfg(test)]
     pub fn seed(text: &str) -> Result<Lists, String> {
+        Lists::seed_with(text, &[])
+    }
+
+    /// The seed list with imported lists added: plain text, one entry per
+    /// line, `#` for comments. An imported entry already on a list in `text`
+    /// is a mistake.
+    pub fn seed_with(text: &str, imported: &[(List, &str)]) -> Result<Lists, String> {
         let file = parse(text)?;
         if file.removed.is_some() {
             return Err("the seed list has no [removed] table".into());
@@ -147,8 +159,30 @@ impl Lists {
                 }
             }
         }
+        for &(list, text) in imported {
+            for (n, line) in text.lines().enumerate() {
+                let site = line.split('#').next().unwrap_or_default().trim();
+                if site.is_empty() {
+                    continue;
+                }
+                check_entry(site).map_err(|why| {
+                    format!("imported [{}] line {}: {site:?}: {why}", list.key(), n + 1)
+                })?;
+                if let Some(previous) = entries.insert(site.to_owned(), list) {
+                    return Err(format!(
+                        "{site} is imported onto [{}] but already on [{}]",
+                        list.key(),
+                        previous.key()
+                    ));
+                }
+            }
+        }
         check_weights(&weights)?;
-        Ok(Lists { weights, entries })
+        Ok(Lists {
+            weights,
+            seed: Rc::new(entries),
+            user: HashMap::new(),
+        })
     }
 
     /// Apply the user's own file on top: sites it lists move to (or join) that
@@ -156,7 +190,11 @@ impl Lists {
     /// replaces the seed's.
     pub fn with_user(&self, text: &str) -> Result<Lists, String> {
         let file = parse(text)?;
-        let mut lists = self.clone();
+        let mut lists = Lists {
+            weights: self.weights,
+            seed: Rc::clone(&self.seed),
+            user: HashMap::new(),
+        };
         let mut seen = HashMap::new();
         for (list, table) in file.tables() {
             let Some(table) = table else { continue };
@@ -174,14 +212,14 @@ impl Lists {
                         list.key()
                     ));
                 }
-                lists.entries.insert(site.clone(), list);
+                lists.user.insert(site.clone(), Some(list));
             }
         }
         for site in file.removed.iter().flat_map(|r| &r.sites) {
             if seen.contains_key(site) {
                 return Err(format!("{site} is both on a list and removed in your list"));
             }
-            lists.entries.remove(site);
+            lists.user.insert(site.clone(), None);
         }
         check_weights(&lists.weights)?;
         Ok(lists)
@@ -189,7 +227,24 @@ impl Lists {
 
     #[cfg(test)]
     pub fn count(&self, list: List) -> usize {
-        self.entries.values().filter(|&&l| l == list).count()
+        let seed = self
+            .seed
+            .iter()
+            .filter(|(site, l)| **l == list && !self.user.contains_key(*site))
+            .count();
+        seed + self.user.values().filter(|l| **l == Some(list)).count()
+    }
+
+    /// The entry `key` names and its list, with the user's changes applied.
+    fn entry(&self, key: &str) -> Option<(&str, List)> {
+        match self.user.get_key_value(key) {
+            Some((entry, Some(list))) => Some((entry.as_str(), *list)),
+            Some((_, None)) => None,
+            None => self
+                .seed
+                .get_key_value(key)
+                .map(|(entry, list)| (entry.as_str(), *list)),
+        }
     }
 
     /// The list's weight; private and unlisted sites carry none.
@@ -216,10 +271,10 @@ impl Lists {
                 } else {
                     format!("{domain}/{}", segments[..depth].join("/"))
                 };
-                if let Some((entry, &list)) = self.entries.get_key_value(key.as_str())
+                if let Some((entry, list)) = self.entry(&key)
                     && best.is_none_or(|(b, _)| entry.len() > b.len())
                 {
-                    best = Some((entry.as_str(), list));
+                    best = Some((entry, list));
                 }
             }
         }
@@ -228,7 +283,7 @@ impl Lists {
 
     /// The list an entry is on exactly, not through a parent.
     pub fn exact(&self, site: &str) -> Option<List> {
-        self.entries.get(site).copied()
+        self.entry(site).map(|(_, list)| list)
     }
 
     /// Which entry, on which list, a site written as an entry falls under.
@@ -358,6 +413,20 @@ pub fn site_of(input: &str, path: bool) -> Option<String> {
         .is_some_and(|h| h.chars().all(|c| c.is_ascii_digit() || c == '.'));
     (check_entry(&site).is_ok() && !numeric && !site.starts_with('[')).then_some(site)
 }
+
+/// Long lists of one kind of site, imported from public categorised lists and
+/// checked; kept apart from `reputation.toml` so that file stays readable.
+const IMPORTED: [(List, &str); 3] = [
+    (
+        List::DrainingStrong,
+        include_str!("../data/imported/gambling.txt"),
+    ),
+    (
+        List::DrainingMild,
+        include_str!("../data/imported/gambling-mild.txt"),
+    ),
+    (List::Private, include_str!("../data/imported/private.txt")),
+];
 
 fn parse(text: &str) -> Result<File, String> {
     let file: File = toml::from_str(text).map_err(|e| e.to_string())?;
@@ -708,6 +777,28 @@ mod tests {
         assert_eq!(lists.exact("moss.example"), Some(List::Unlisted));
         assert!(set_user_entry("[ordinary\n", "a.com", None).is_err());
         assert!(set_user_entry("", "https://a.com", None).is_err());
+    }
+
+    #[test]
+    fn imported_lists_add_plain_entries_and_never_overlap_the_curated_ones() {
+        let imported = "# Source and licence\ncasino.example\n\nslots.example # a note\n";
+        let lists = Lists::seed_with(SEED, &[(List::DrainingStrong, imported)]).expect("imports");
+        assert_eq!(lists.exact("slots.example"), Some(List::DrainingStrong));
+        assert_eq!(
+            lists.place("https://www.casino.example/play"),
+            Place::Listed {
+                entry: "casino.example".into(),
+                weight: -1.0,
+                news: false,
+            }
+        );
+        // The user's file still wins over an import.
+        let mine = lists
+            .with_user("[removed]\nsites = [\"casino.example\"]")
+            .expect("applies");
+        assert_eq!(mine.place("https://casino.example/"), Place::Unlisted);
+        assert!(Lists::seed_with(SEED, &[(List::Private, "tiktok.com\n")]).is_err());
+        assert!(Lists::seed_with(SEED, &[(List::Private, "https://x.example\n")]).is_err());
     }
 
     #[test]
