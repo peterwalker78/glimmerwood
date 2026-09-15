@@ -599,6 +599,37 @@ sites = [
   "yesplay.bet",
   "ylilauta.org",
   "zeturf.fr",
+  # AI companion and roleplay chat: an OpenAI and MIT randomised trial found heavier use went with more loneliness and emotional dependence (2025), companionship use goes with lower wellbeing (Character.AI study, 2026), and many apps use emotionally manipulative goodbyes (Harvard Business School, 2025)
+  "blush.ai",
+  "botify.ai",
+  "caveduck.io",
+  "chai-research.com",
+  "character.ai",
+  "chatfai.com",
+  "dopple.ai",
+  "emochi.com",
+  "evaapp.ai",
+  "fictionlab.ai",
+  "flowgpt.com",
+  "janitorai.com",
+  "joyland.ai",
+  "kajiwoto.com",
+  "kindroid.ai",
+  "myanima.ai",
+  "nomi.ai",
+  "paradot.ai",
+  "perchance.org/ai-character-chat",
+  "polybuzz.ai",
+  "replika.com",
+  "romanticai.com",
+  "sakura.fm",
+  "talkie-ai.com",
+  "zeta-ai.io",
+  # Graphic shock and gore video (repeated exposure to graphic images predicted later post-traumatic stress, Holman et al. 2020)
+  "documentingreality.com",
+  "kaotic.com",
+  "theync.com",
+  "watchpeopledie.tv",
 ]
 
 [draining-mild]
@@ -677,9 +708,6 @@ sites = [
   "pof.com",
   "tinder.com",
   "zoosk.com",
-  # AI companion apps (companionship-oriented use linked to lower wellbeing, Character.AI user study 2025)
-  "character.ai",
-  "replika.com",
   # Calorie counters (73% of MyFitnessPal users with eating disorders said it contributed, 2017)
   "loseit.com",
   "myfitnesspal.com",
@@ -733,13 +761,9 @@ sites = [
   # Dating sites (meta-analysis of 23 studies, 2026: worse depression and loneliness)
   "beboo.ru",
   "tabor.ru",
-  # AI companion apps (companionship-oriented use consistently linked to lower wellbeing)
-  "janitorai.com",
   # Video platforms mixing long and short video (by analogy with YouTube: mixed evidence)
   "bilibili.tv",
   "vkvideo.ru",
-  # AI companion chat (Character.AI study 2025: companionship use goes with lower wellbeing)
-  "polybuzz.ai",
   # Celebrity gossip and gossip forums (mechanism only: celebrity images worsen mood and body image)
   "bakusai.com",
   "girlschannel.net",
@@ -768,8 +792,6 @@ sites = [
   # Long-form video platforms (mixed evidence, placed with youtube.com)
   "ixigua.com",
   "nicovideo.jp",
-  # AI companion apps (Character.AI study: companionship use goes with lower wellbeing)
-  "talkie-ai.com",
   # Dating-oriented social networks (meta-analysis of 23 studies, 2026: worse depression and loneliness)
   "fotostrana.ru",
   # Crypto exchanges, NFT and price trackers (FCA 2022: trading-app problem-gambling rates match online gambling)
@@ -806,25 +828,6 @@ sites = [
   "parade.com",
   "screenrant.com",
   "vanityfair.com",
-  # AI companion and roleplay chat (Character.AI study, NHB 2026; OpenAI/MIT RCT: heavier use, more loneliness and dependence)
-  "blush.ai",
-  "botify.ai",
-  "caveduck.io",
-  "chai-research.com",
-  "chatfai.com",
-  "dopple.ai",
-  "evaapp.ai",
-  "fictionlab.ai",
-  "joyland.ai",
-  "kajiwoto.com",
-  "kindroid.ai",
-  "myanima.ai",
-  "nomi.ai",
-  "paradot.ai",
-  "perchance.org/ai-character-chat",
-  "romanticai.com",
-  "sakura.fm",
-  "zeta-ai.io",
   # Algorithmic social feeds without platform evidence
   "bitchute.com",
   "gettr.com",
@@ -1056,11 +1059,6 @@ sites = [
   "instiz.net",
   "itainews.com",
   "jin115.com",
-  # Graphic shock and gore video (graphic images predicted later post-traumatic stress, Holman et al. 2020)
-  "documentingreality.com",
-  "kaotic.com",
-  "theync.com",
-  "watchpeopledie.tv",
   # Live-shopping breaks and penny auctions (penny-auction revenue 204% of cash prizes, Augenblick 2016; Whatnot gambling claims pending)
   "dealdash.com",
   "whatnot.com",
@@ -1333,7 +1331,6 @@ sites = [
   "daraz.pk",
   "dhlottery.co.kr",
   "elmaz.com",
-  "emochi.com",
   "enloteria.com",
   "ew.com",
   "famousbirthdays.com",
@@ -1341,7 +1338,6 @@ sites = [
   "fdj.fr",
   "finviz.com",
   "flirtify.com",
-  "flowgpt.com",
   "forexfactory.com",
   "gamerant.com",
   "geny.com",
@@ -4576,6 +4572,9 @@ sites = [
   "zoom.earth",
   "zotero.org",
   "zus.pl",
+  # Recipe sites carrying heavy advertising: useful, but not restful
+  "budgetbytes.com",
+  "seriouseats.com",
 ]
 
 [nourishing-mild]
@@ -4850,14 +4849,12 @@ sites = [
   "bbc.co.uk/food",
   "bbcgoodfood.com",
   "bonappetit.com",
-  "budgetbytes.com",
   "cooking.nytimes.com",
   "deliciousmagazine.co.uk",
   "epicurious.com",
   "food52.com",
   "kingarthurbaking.com",
   "olivemagazine.com",
-  "seriouseats.com",
   "simplyrecipes.com",
   "theguardian.com/food",
   "thekitchn.com",
