@@ -1,0 +1,54 @@
+/* The welcome page: the same garden and the same paper as Home, with a wisp
+   that is asleep because there is nothing here for it to see. Loaded after
+   home.css, which it leans on for the scene, the cards and the colours.
+   Like Home, nothing moves once the page has settled. */
+
+.dozing {
+  position: absolute;
+  right: clamp(20px, 10vw, 140px);
+  bottom: 0;
+  width: 96px;
+  height: 100px;
+}
+
+.note {
+  margin: 12px 0 0;
+  color: var(--quiet);
+  font-size: 0.85rem;
+}
+
+/* The wisp's own voice, in the serif the greeting uses. */
+.prose p {
+  margin: 0 0 0.85em;
+  max-width: 36em;
+  font: 400 1.05rem/1.6 var(--serif);
+  text-wrap: pretty;
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose .how { margin-bottom: 0.4em; }
+.prose .how b { font-weight: 600; }
+
+.get {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 10px 18px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--accent);
+  font: 600 0.95rem/1 var(--sans);
+  text-decoration: none;
+  transition: background 120ms ease-out;
+}
+.get:hover { background: var(--card-hover); }
+
+.made-here { margin-top: 10px; }
+
+/* Room for the home-screen inset on a phone, once it opens on its own. */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .page { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 560px) {
+  .dozing { width: 78px; height: 82px; right: 16px; }
+}

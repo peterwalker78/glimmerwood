@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Build the welcome page into dist/site, and with --publish put it on the
+# gh-pages branch, which is what github.io serves.
+source "$(dirname "$0")/lib.sh"
+cd "$ROOT"
+
+OUT="$ROOT/dist/site"
+ICON="$ROOT/data/io.github.peterwalker78.Glimmerwood.svg"
+
+python3 scripts/site-places.py
+scripts/build-ui
+
+rm -rf "$OUT"
+mkdir -p "$OUT"
+cp ui/site/index.html ui/site/site.css ui/site/site.webmanifest "$OUT/"
+cp ui/home/home.css "$OUT/"
+cp ui/dist/site/site.js ui/dist/site/places.gen.js "$OUT/"
+# Shared with Home, and imported beside the page just as the app bundles it.
+cp ui/dist/common/garden.js ui/dist/common/place.js "$OUT/"
+
+cp "$ICON" "$OUT/icon.svg"
+for size in 180 192 512; do
+  rsvg-convert -w "$size" -h "$size" "$ICON" -o "$OUT/icon-$size.png"
+done
+
+echo "site: built $(du -sh "$OUT" | cut -f1) in dist/site"
+
+if [[ "${1:-}" == "--publish" ]]; then
+  [[ -z "$(git status --porcelain)" ]] || { echo "site: commit your changes first" >&2; exit 1; }
+  WORK="$(mktemp -d)"
+  trap 'rm -rf "$WORK"' EXIT
+  git worktree add --detach "$WORK" >/dev/null
+  git -C "$WORK" checkout --orphan gh-pages >/dev/null 2>&1
+  git -C "$WORK" rm -rq --cached . 2>/dev/null || true
+  find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+  cp -r "$OUT/." "$WORK/"
+  # Pages would otherwise hand the whole directory to Jekyll.
+  touch "$WORK/.nojekyll"
+  git -C "$WORK" add -A
+  git -C "$WORK" commit -qm "Publish the welcome page" || { echo "site: nothing to publish"; exit 0; }
+  git -C "$WORK" push -qf origin gh-pages
+  git worktree remove --force "$WORK"
+  trap - EXIT
+  echo "site: published to gh-pages"
+fi
