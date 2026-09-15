@@ -1,7 +1,8 @@
 /* The welcome page: the same garden and the same paper as Home, with a wisp
    that is asleep because there is nothing here for it to see. Loaded after
    home.css, which it leans on for the scene, the cards and the colours.
-   Like Home, nothing moves once the page has settled. */
+   The one thing that moves is the wisp: it breathes, and lets off the
+   occasional z. A sleeping thing that is perfectly still reads as dead. */
 
 .dozing {
   position: absolute;
@@ -51,4 +52,42 @@
 
 @media (max-width: 560px) {
   .dozing { width: 78px; height: 82px; right: 16px; }
+}
+
+/* --- Asleep --- */
+
+.zzz .z path {
+  fill: none;
+  stroke: var(--scene-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Still by default, so a page that never gets the chance to animate still
+   reads right, and so does one asked to hold still. */
+.zzz .z { opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .breath {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: breath 4.6s ease-in-out infinite;
+  }
+  .zzz .z { animation: drift 4.6s ease-in-out infinite; }
+  .z1 { animation-delay: 0s; }
+  .z2 { animation-delay: 1.53s; }
+  .z3 { animation-delay: 3.06s; }
+}
+
+@keyframes breath {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.04); }
+}
+
+@keyframes drift {
+  0% { opacity: 0; transform: translate(0, 0); }
+  18% { opacity: 0.75; }
+  70% { opacity: 0.4; }
+  100% { opacity: 0; transform: translate(10px, -26px); }
 }
