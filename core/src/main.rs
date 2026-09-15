@@ -20,6 +20,7 @@ mod reputation;
 mod scheme;
 mod settings;
 mod store;
+mod sun;
 mod tabs;
 mod window;
 mod wisp_view;

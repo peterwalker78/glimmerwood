@@ -4,8 +4,19 @@
 # went badly. Praise is only ever shown when it is true; when nothing stands
 # out Home just says hello.
 
+[sky]
+# The garden is lit by where the sun actually stands, worked out from the
+# time zone's own coordinates: no location service, nothing asked of the
+# network. Degrees above the horizon.
+# Below this it is night: civil twilight, when the last colour goes.
+night_below = -6.0
+# Above this the sun is properly up and it is the middle of the day; between
+# the two it is morning on the way up and evening on the way down.
+low_sun = 10.0
+
 [moments]
-# Local hours where each part of the day begins. Night ends at the start of
+# Where the time zone doesn't say where we are, the clock stands in: local
+# hours where each part of the day begins. Night ends at the start of
 # the morning.
 morning = 5
 day = 12

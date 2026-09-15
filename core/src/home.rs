@@ -7,16 +7,29 @@ use std::collections::{BTreeMap, HashSet};
 use serde::Deserialize;
 
 use crate::dose::{self, Mode, Moment, Rates};
+use crate::sun;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Words {
     moments: ByPart<u32>,
+    sky: Sky,
+    /// Where the sun is read from, found once at start-up rather than set by
+    /// the user: `None` where the time zone doesn't say.
+    #[serde(skip)]
+    place: Option<sun::Coords>,
     welcome: ByPart<String>,
     quiet: ByPart<Vec<String>>,
     explain: Explanations,
     pub about: About,
     praise: Praise,
     pub thresholds: Thresholds,
+}
+
+/// Where the sun has to stand for the garden to change its light.
+#[derive(Clone, Debug, Deserialize)]
+struct Sky {
+    night_below: f64,
+    low_sun: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -112,10 +125,34 @@ impl Topic {
 
 impl Words {
     pub fn bundled() -> Words {
-        toml::from_str(include_str!("../data/home.toml")).expect("core/data/home.toml is valid")
+        let mut words: Words = toml::from_str(include_str!("../data/home.toml"))
+            .expect("core/data/home.toml is valid");
+        words.place = sun::here();
+        words
     }
 
+    /// Where the light is: by the sun itself where the time zone says where
+    /// we are, and by the clock where it doesn't.
     pub fn part_of_day(&self, at: Moment) -> PartOfDay {
+        match self.place {
+            Some(coords) => {
+                let sun = sun::position(coords, at.ms);
+                let s = &self.sky;
+                if sun.altitude < s.night_below {
+                    PartOfDay::Night
+                } else if sun.altitude >= s.low_sun {
+                    PartOfDay::Day
+                } else if sun.climbing {
+                    PartOfDay::Morning
+                } else {
+                    PartOfDay::Evening
+                }
+            }
+            None => self.by_the_clock(at),
+        }
+    }
+
+    fn by_the_clock(&self, at: Moment) -> PartOfDay {
         let hour = (at.ms / 1000 + i64::from(at.utc_offset_s)).rem_euclid(86_400) / 3600;
         let hour = hour as u32;
         let m = &self.moments;
