@@ -120,8 +120,12 @@ fetched from anywhere.
   about what went badly.
 - **Good places.** Instead of a grid of the sites you visit most (the ones you
   least need reminding of), Home offers somewhere worth going: the good
-  places you already return to, and suggestions for the time of day. Learning
-  and making by day, reading and nature in the evening, stillness at night.
+  places you already return to, and fresh suggestions every couple of hours
+  from over 300 researched corners of the web that leave people better off:
+  live nature cams and the night sky, poetry and free books, museums, music,
+  making, gentle puzzles, kind news, and ways to give or get outside. They fit
+  the time of day and the season, never repeat what you saw earlier today,
+  and lean toward calm when the wisp is tired.
 - **Your bookmarks,** kept on your computer.
 
 The first time you open Home, the wisp introduces itself:
@@ -225,8 +229,9 @@ watching a video).
 ### The lists
 
 How a site affects the dose depends on which list it's on. Glimmerwood comes with
-about 2,300 sites already sorted, based on published research into wellbeing
-online. The studies behind each group are cited in
+about 8,000 sites already sorted, based on published research into wellbeing
+online: the 10,000 most-visited sites on the web, checked one by one, plus long
+lists of gambling and adult sites. The studies behind each group are cited in
 [`core/data/reputation.toml`](core/data/reputation.toml).
 
 | List | Weight | Examples |
@@ -310,3 +315,7 @@ AI coding tools are used in writing Glimmerwood's code.
 
 Glimmerwood is free software under the GNU General Public License, version 3 or
 later. See [`COPYING`](COPYING).
+
+The gambling and adult lists in [`core/data/imported/`](core/data/imported) are
+drawn from the [Université Toulouse Capitole blacklists](https://dsi.ut-capitole.fr/blacklists/)
+and are available under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).

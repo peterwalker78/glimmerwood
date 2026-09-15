@@ -22,6 +22,7 @@ use crate::dose::{
 };
 use crate::feel_lab::{Lab, Step};
 use crate::home::{self, Facts, PartOfDay, Topic, Words};
+use crate::places::{self, PlaceCard, Pool};
 use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
     HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
@@ -78,7 +79,15 @@ pub struct Companion {
     last_typed: Cell<Option<Moment>>,
     /// What was last looked up on the Settings page.
     lookup: RefCell<String>,
+    pool: Pool,
+    /// The good places picked for the current stretch of the day, and what
+    /// they were picked for (stretch, part of day, the user's own places).
+    picked: RefCell<Option<(PlacesKey, Vec<PlaceCard>)>>,
+    /// The country from the user's locale, for places offered only there.
+    country: Option<String>,
 }
+
+type PlacesKey = (i64, PartOfDay, Vec<String>);
 
 impl Companion {
     pub fn new(lab: Option<Lab>) -> Rc<Companion> {
@@ -139,6 +148,9 @@ impl Companion {
             asker: RefCell::new(Asker::default()),
             last_typed: Cell::new(None),
             lookup: RefCell::new(String::new()),
+            pool: Pool::bundled(),
+            picked: RefCell::new(None),
+            country: locale_country(),
         });
         this.watch_user_lists();
         this
@@ -341,6 +353,7 @@ impl Companion {
         match written {
             Ok(lists) => {
                 self.lists.replace(lists);
+                self.picked.take();
             }
             Err(err) => eprintln!("glimmerwood: couldn't rate {site}: {err}"),
         }
@@ -648,12 +661,12 @@ impl Companion {
         };
         let greeting = home::greet(&self.words, rates, &facts);
         let part = self.words.part_of_day(now);
-        let places = home::places(&self.words, &self.lists.borrow(), part, today, &own);
         let seed = self.home_value("seed").unwrap_or_else(|| {
             let seed = i64::from(glib::random_int());
             self.set_home_value("seed", seed);
             seed
         });
+        let places = self.good_places(now, part, engine.phase(), seed as u32, &own);
 
         let wisp = diary::build(rates, &samples, &garden, now, engine.dose());
 
@@ -712,6 +725,64 @@ impl Companion {
             seed: seed as u32,
             wisp,
         }
+    }
+
+    /// Home's good places, picked once for each stretch of the day. What was
+    /// offered is remembered, so the next stretch offers something else.
+    fn good_places(
+        &self,
+        now: Moment,
+        part: PartOfDay,
+        phase: Phase,
+        seed: u32,
+        own: &[(String, f64)],
+    ) -> Vec<PlaceCard> {
+        let local_s = now.ms.div_euclid(1000) + i64::from(now.utc_offset_s);
+        let stretch = self.pool.stretch(local_s);
+        let mut own_entries: Vec<String> = own.iter().map(|(entry, _)| entry.clone()).collect();
+        own_entries.sort();
+        let key = (stretch, part, own_entries);
+        if let Some((picked_for, cards)) = self.picked.borrow().as_ref()
+            && *picked_for == key
+        {
+            return cards.clone();
+        }
+        let offered: HashMap<String, i64> = match &self.store {
+            Some(store) => store
+                .home_values_with_prefix(OFFERED)
+                .unwrap_or_default()
+                .into_iter()
+                .collect(),
+            None => self
+                .home_memory
+                .borrow()
+                .iter()
+                .filter_map(|(k, v)| Some((k.strip_prefix(OFFERED)?.to_owned(), *v)))
+                .collect(),
+        };
+        let at = places::Moment {
+            part,
+            month: places::month_of(local_s),
+            stretch,
+            phase,
+            country: self.country.as_deref(),
+            seed,
+        };
+        let cards = places::pick(
+            &self.pool,
+            &self.lists.borrow(),
+            at,
+            own,
+            self.words.thresholds.own_place_minutes,
+            &offered,
+        );
+        for card in cards.iter().filter(|c| !c.yours) {
+            if offered.get(&card.entry) != Some(&stretch) {
+                self.set_home_value(&format!("{OFFERED}{}", card.entry), stretch);
+            }
+        }
+        self.picked.replace(Some((key, cards.clone())));
+        cards
     }
 
     /// Play the scripted day up to the lab clock instead of reading windows.
@@ -895,6 +966,7 @@ impl Companion {
             let Some(this) = weak.upgrade() else { return };
             let lists = load_user_lists(&this.seed).unwrap_or_else(|| this.seed.clone());
             this.lists.replace(lists);
+            this.picked.take();
             this.refresh();
             this.refresh_pages();
         });
@@ -953,6 +1025,21 @@ fn open_bookmarks() -> Bookmarks {
     opened.unwrap_or_else(|err| {
         eprintln!("glimmerwood: bookmarks won't be kept; can't open them: {err}");
         Bookmarks::in_memory()
+    })
+}
+
+/// What Home remembers about the good places it offered.
+const OFFERED: &str = "offered:";
+
+/// `en_GB.UTF-8` → `GB`: the country of the first language the user set.
+fn locale_country() -> Option<String> {
+    glib::language_names().iter().find_map(|name| {
+        let (_, rest) = name.split_once('_')?;
+        let country: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .collect();
+        (country.len() == 2).then(|| country.to_ascii_uppercase())
     })
 }
 

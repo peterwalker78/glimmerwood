@@ -1,4 +1,4 @@
-//! Home: what the local home page says and offers, as pure
+//! Home: what the local home page says, as pure
 //! functions of what Glimmerwood already knows. The GTK side gathers the facts; the
 //! words come from `core/data/home.toml`.
 
@@ -7,12 +7,6 @@ use std::collections::{BTreeMap, HashSet};
 use serde::Deserialize;
 
 use crate::dose::{self, Mode, Moment, Rates};
-use crate::reputation::Lists;
-
-/// How many good places Home offers, and how many of them can be the user's
-/// own.
-pub const PLACES: usize = 6;
-pub const OWN_PLACES: usize = 3;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Words {
@@ -23,7 +17,6 @@ pub struct Words {
     pub about: About,
     praise: Praise,
     pub thresholds: Thresholds,
-    places: Vec<Curated>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -80,14 +73,6 @@ pub struct Thresholds {
     pub gentle_load: f64,
     pub rested_away_minutes: f64,
     pub own_place_minutes: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct Curated {
-    entry: String,
-    name: String,
-    line: String,
-    moments: Vec<PartOfDay>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize)]
@@ -358,79 +343,6 @@ pub fn greet(words: &Words, rates: &Rates, facts: &Facts) -> Greeting {
     }
 }
 
-// --- Good places ---------------------------------------------------------------
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PlaceCard {
-    pub name: String,
-    pub line: String,
-    pub url: String,
-    /// One the user already returns to, rather than a suggestion.
-    pub yours: bool,
-}
-
-/// Up to `PLACES` good places: the user's own nourishing places first (list
-/// entries with minutes this month), then suggestions for the part of the
-/// day, rotated daily. Nothing that isn't on a nourishing list.
-pub fn places(
-    words: &Words,
-    lists: &Lists,
-    part: PartOfDay,
-    day: i64,
-    own: &[(String, f64)],
-) -> Vec<PlaceCard> {
-    let nourishing = |entry: &str| {
-        matches!(
-            lists.place(&format!("https://{entry}")),
-            dose::Place::Listed { weight, .. } if weight > 0.0
-        )
-    };
-    let mut cards: Vec<PlaceCard> = Vec::new();
-    let mut shown: HashSet<String> = HashSet::new();
-
-    let mut own: Vec<&(String, f64)> = own
-        .iter()
-        .filter(|(entry, minutes)| {
-            *minutes >= words.thresholds.own_place_minutes && nourishing(entry)
-        })
-        .collect();
-    own.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-    for (entry, _) in own.into_iter().take(OWN_PLACES) {
-        let curated = words.places.iter().find(|c| c.entry == *entry);
-        cards.push(PlaceCard {
-            name: curated.map_or_else(|| entry.clone(), |c| c.name.clone()),
-            line: curated.map_or_else(|| "One of your good places.".into(), |c| c.line.clone()),
-            url: format!("https://{entry}"),
-            yours: true,
-        });
-        shown.insert(entry.clone());
-    }
-
-    let fitting: Vec<&Curated> = words
-        .places
-        .iter()
-        .filter(|c| c.moments.contains(&part) && nourishing(&c.entry))
-        .collect();
-    if !fitting.is_empty() {
-        let start = day.rem_euclid(fitting.len() as i64) as usize;
-        for i in 0..fitting.len() {
-            if cards.len() >= PLACES {
-                break;
-            }
-            let c = fitting[(start + i) % fitting.len()];
-            if shown.insert(c.entry.clone()) {
-                cards.push(PlaceCard {
-                    name: c.name.clone(),
-                    line: c.line.clone(),
-                    url: format!("https://{}", c.entry),
-                    yours: false,
-                });
-            }
-        }
-    }
-    cards
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,35 +398,11 @@ mod tests {
         ] {
             assert!(!words.quiet.get(part).is_empty());
             assert!(!words.welcome.get(part).is_empty());
-            assert!(
-                words
-                    .places
-                    .iter()
-                    .filter(|p| p.moments.contains(&part))
-                    .count()
-                    >= PLACES,
-                "not enough places for {part:?}"
-            );
         }
         assert!(!words.about.title.is_empty() && words.about.paragraphs.len() >= 2);
         for topic in Topic::ALL {
             assert!(!words.explanation(topic).is_empty());
             assert_eq!(Topic::from_key(topic.key()), Some(topic));
-        }
-    }
-
-    #[test]
-    fn every_suggested_place_is_on_a_nourishing_list() {
-        let lists = Lists::bundled();
-        for place in &Words::bundled().places {
-            assert!(
-                matches!(
-                    lists.place(&format!("https://{}", place.entry)),
-                    dose::Place::Listed { weight, .. } if weight > 0.0
-                ),
-                "{} isn't on a nourishing list",
-                place.entry
-            );
         }
     }
 
@@ -648,31 +536,5 @@ mod tests {
         let mut late = day(90.0, 10.0, 0.0);
         late.night_load = 3.0;
         assert!(!fireflies(Some(&late)));
-    }
-
-    #[test]
-    fn places_put_the_users_own_first_and_offer_nothing_draining() {
-        let words = Words::bundled();
-        let lists = Lists::bundled();
-        let own = vec![
-            ("khanacademy.org".to_string(), 90.0),
-            ("tiktok.com".to_string(), 500.0),
-            ("rhs.org.uk".to_string(), 5.0),
-        ];
-        let cards = places(&words, &lists, PartOfDay::Evening, 3, &own);
-        assert_eq!(cards.len(), PLACES);
-        assert_eq!(cards[0].url, "https://khanacademy.org");
-        assert!(cards[0].yours);
-        assert!(cards[1..].iter().all(|c| !c.yours));
-        assert!(
-            !cards
-                .iter()
-                .any(|c| c.url.contains("tiktok") || c.url.contains("rhs"))
-        );
-        let urls: HashSet<&str> = cards.iter().map(|c| c.url.as_str()).collect();
-        assert_eq!(urls.len(), cards.len());
-        // The suggestions change from day to day.
-        let tomorrow = places(&words, &lists, PartOfDay::Evening, 4, &own);
-        assert_ne!(cards, tomorrow);
     }
 }

@@ -1,0 +1,3110 @@
+# Good places Home can offer. Every page must fall under an entry on a
+# nourishing list in reputation.toml (a test checks). Each was loaded and
+# checked on 15 September 2026: no infinite feed, autoplay-next, streaks or
+# leaderboards, no login or paywall, and few or no ads.
+#
+#   entry    the reputation-list entry the page falls under
+#   url      the page to open
+#   kinds    what kind of good it does, the main one first
+#   moments  when in the day it suits: morning, day, evening, night
+#            (night only for dim, quiet things)
+#   seasons  months it suits, if not all year
+#   fresh    its content renews daily or weekly
+#   region   "uk" for places only offered in the UK, else "intl"
+
+# Hours between new picks. Within a stretch Home offers the same places.
+rotate_hours = 2
+
+# --------------------------------------------------------------------------
+# Nature, live and recorded. Short spells of virtual nature restore about as
+# well as real nature for stress (meta-analysis of 10 studies, 2024), and
+# virtual nature eased anxiety, stress and low mood (24 studies, 2025).
+
+[[places]]
+entry = "wildlifetrusts.org"
+url = "https://www.wildlifetrusts.org/30dayswild"
+name = "30 Days Wild"
+line = "Something wild, every day in June."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+seasons = [5, 6]
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/africam"
+name = "Africam on Explore"
+line = "Safari waterholes across Africa, live."
+kinds = ["nature"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "woodlandtrust.org.uk"
+url = "https://ati.woodlandtrust.org.uk/"
+name = "Ancient Tree Inventory"
+line = "The oldest trees in Britain, mapped."
+kinds = ["nature", "learning"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "mbari.org/education"
+url = "https://www.mbari.org/education/animals-of-the-deep/"
+name = "Animals of the Deep"
+line = "Strange, lovely animals of the deep sea."
+kinds = ["nature", "awe", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "antarctica.gov.au/antarctic-operations/webcams"
+url = "https://www.antarctica.gov.au/antarctic-operations/webcams/"
+name = "Antarctic webcams"
+line = "Ice and sky at Antarctic research stations."
+kinds = ["nature", "stillness", "awe"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "aquariumofpacific.org/exhibits/webcams"
+url = "https://www.aquariumofpacific.org/exhibits/webcams"
+name = "Aquarium of the Pacific"
+line = "Sharks, reefs and penguins, live."
+kinds = ["nature"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "butterfly-conservation.org"
+url = "https://bigbutterflycount.butterfly-conservation.org/"
+name = "Big Butterfly Count"
+line = "Butterflies counted across the UK in summer."
+kinds = ["nature", "giving"]
+moments = ["morning", "day"]
+seasons = [7, 8]
+region = "uk"
+
+[[places]]
+entry = "rspb.org.uk"
+url = "https://www.rspb.org.uk/whats-happening/big-garden-birdwatch"
+name = "Big Garden Birdwatch"
+line = "An hour watching the birds in your garden."
+kinds = ["nature", "giving", "stillness"]
+moments = ["morning", "day"]
+seasons = [12, 1]
+region = "intl"
+
+[[places]]
+entry = "birdpoty.com"
+url = "https://www.birdpoty.com/2025-winners"
+name = "Bird Photographer of the Year"
+line = "Prize-winning photographs of birds."
+kinds = ["nature", "art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "birdcast.org"
+url = "https://birdcast.org/"
+name = "BirdCast"
+line = "Tonight's bird migration, forecast by radar."
+kinds = ["nature", "learning"]
+moments = ["evening"]
+seasons = [3, 4, 5, 9, 10, 11]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "birdnote.org"
+url = "https://www.birdnote.org/"
+name = "BirdNote"
+line = "A short daily story about birds."
+kinds = ["nature", "learning"]
+moments = ["morning"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "bwpawards.org"
+url = "https://www.bwpawards.org/2026-winners"
+name = "British Wildlife Photography Awards"
+line = "The year's best British wildlife photographs."
+kinds = ["nature", "art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/brown-bears/brown-bear-salmon-cam-brooks-falls"
+name = "Brooks Falls bears"
+line = "Bears fishing for salmon in Alaska, live."
+kinds = ["nature"]
+moments = ["day", "evening"]
+seasons = [6, 7, 8, 9, 10]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "bto.org"
+url = "https://www.bto.org/get-involved/volunteer/projects/cuckoo-tracking/updates"
+name = "BTO cuckoo tracking"
+line = "Following tagged cuckoos to Africa and back."
+kinds = ["nature", "learning"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "canalrivertrust.org.uk"
+url = "https://canalrivertrust.org.uk/things-to-do"
+name = "Canal & River Trust"
+line = "Towpath walks and wildlife by water."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "allaboutbirds.org"
+url = "https://www.allaboutbirds.org/cams/"
+name = "Cornell Lab bird cams"
+line = "Feeders, nests and albatrosses, live."
+kinds = ["nature"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/bald-eagles/decorah-eagles"
+name = "Decorah eagles"
+line = "A bald eagle nest in Iowa, live."
+kinds = ["nature"]
+moments = ["day", "evening"]
+seasons = [2, 3, 4, 5, 6]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "doc.govt.nz"
+url = "https://www.doc.govt.nz/parks-and-recreation/things-to-do/walking-and-tramping/"
+name = "DOC walks"
+line = "Walks and tramps across New Zealand."
+kinds = ["nature", "movement", "awe"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "dyfiospreyproject.com/live"
+url = "https://www.dyfiospreyproject.com/live"
+name = "Dyfi ospreys"
+line = "Ospreys nesting on a Welsh nature reserve."
+kinds = ["nature"]
+moments = ["morning", "day", "evening"]
+seasons = [4, 5, 6, 7, 8]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "esa.int/esa_multimedia"
+url = "https://www.esa.int/ESA_Multimedia/Sets/Earth_from_Space_image_collection/(result_type)/images"
+name = "Earth from Space"
+line = "A satellite image of Earth each week."
+kinds = ["nature", "awe"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "science.nasa.gov/earth/earth-observatory"
+url = "https://science.nasa.gov/earth/earth-observatory/"
+name = "Earth Observatory"
+line = "Earth seen from orbit, a new image daily."
+kinds = ["nature", "awe", "learning"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "earth.nullschool.net"
+url = "https://earth.nullschool.net/"
+name = "earth wind map"
+line = "The world's winds, drawn as they move."
+kinds = ["nature", "stillness"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "essexwt.org.uk/wildlife/webcams"
+url = "https://www.essexwt.org.uk/wildlife/webcams"
+name = "Essex Wildlife Trust cams"
+line = "Badgers, barn owls and bats in Essex."
+kinds = ["nature"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "woodlandtrust.org.uk"
+url = "https://www.woodlandtrust.org.uk/visiting-woods/find-woods/"
+name = "Find a wood"
+line = "A free wood to wander, near you."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ukpoms.org.uk"
+url = "https://ukpoms.org.uk/fit-counts"
+name = "FIT Counts"
+line = "Ten quiet minutes watching one flower."
+kinds = ["nature", "stillness", "giving"]
+moments = ["day"]
+seasons = [4, 5, 6, 7, 8, 9]
+region = "intl"
+
+[[places]]
+entry = "forestryengland.uk"
+url = "https://www.forestryengland.uk/visit"
+name = "Forestry England"
+line = "Forests to walk in, season by season."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+fresh = true
+region = "uk"
+
+[[places]]
+entry = "himawari8.nict.go.jp"
+url = "https://himawari8.nict.go.jp/"
+name = "Himawari real-time"
+line = "Clouds turning over Asia and the Pacific."
+kinds = ["nature", "stillness", "awe"]
+moments = ["morning"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "inaturalist.org"
+url = "https://inaturalist.org"
+name = "iNaturalist"
+line = "Find out what's growing outside."
+kinds = ["nature", "learning"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "montereybayaquarium.org/cams-videos"
+url = "https://www.montereybayaquarium.org/cams-videos/live-cams/jelly-cam"
+name = "Jelly cam"
+line = "Sea nettles drifting in blue water."
+kinds = ["nature", "stillness"]
+moments = ["day", "evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "journeynorth.org"
+url = "https://journeynorth.org/"
+name = "Journey North"
+line = "Monarchs and hummingbirds, season by season."
+kinds = ["nature", "learning", "giving"]
+moments = ["day", "evening"]
+seasons = [3, 4, 5, 9, 10]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "montereybayaquarium.org/cams-videos"
+url = "https://www.montereybayaquarium.org/cams-videos/live-cams/kelp-forest-cam"
+name = "Kelp forest cam"
+line = "A kelp forest swaying in California."
+kinds = ["nature", "stillness"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "kew.org"
+url = "https://www.kew.org/read-and-watch"
+name = "Kew: read and watch"
+line = "Stories of plants, fungi and botanical art."
+kinds = ["nature", "reading", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "woodlandtrust.org.uk/trees-woods-and-wildlife/osprey-cam"
+url = "https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/osprey-cam/"
+name = "Loch Arkaig ospreys"
+line = "An osprey nest in a Highland pine forest."
+kinds = ["nature"]
+moments = ["morning", "day", "evening"]
+seasons = [4, 5, 6, 7, 8]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "nps.gov/subjects/sound"
+url = "https://www.nps.gov/subjects/sound/gallery.htm"
+name = "National park sounds"
+line = "Sounds of America's national parks."
+kinds = ["nature", "learning"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "nationaltrail.co.uk"
+url = "https://www.nationaltrail.co.uk/en_GB/trails/"
+name = "National Trails"
+line = "Long walks through the best of the land."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+seasons = [4, 5, 6, 7, 8, 9]
+region = "intl"
+
+[[places]]
+entry = "nationaltrust.org.uk"
+url = "https://www.nationaltrust.org.uk/visit"
+name = "National Trust places"
+line = "Gardens, coast and old houses to wander."
+kinds = ["nature", "movement", "art"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "naturallandscapeawards.com"
+url = "https://naturallandscapeawards.com/2025-competition-results-gallery/"
+name = "Natural Landscape Awards"
+line = "Landscape photographs, true to the land."
+kinds = ["nature", "art", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "naturalresources.wales"
+url = "https://naturalresources.wales/days-out/?lang=en"
+name = "Natural Resources Wales"
+line = "Woods, trails and coast in Wales."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "woodlandtrust.org.uk"
+url = "https://naturescalendar.woodlandtrust.org.uk/"
+name = "Nature's Calendar"
+line = "The first blossom and birdsong, recorded."
+kinds = ["nature", "giving"]
+moments = ["morning", "day"]
+seasons = [2, 3, 4, 5, 9, 10]
+region = "intl"
+
+[[places]]
+entry = "nautiluslive.org"
+url = "https://nautiluslive.org/"
+name = "Nautilus Live"
+line = "Live dives to the deep-sea floor."
+kinds = ["nature", "awe", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "plantlife.org.uk"
+url = "https://www.plantlife.org.uk/campaigns/nomowmay/"
+name = "No Mow May"
+line = "A lawn left to flower for the bees."
+kinds = ["nature", "giving"]
+moments = ["day"]
+seasons = [4, 5]
+region = "intl"
+
+[[places]]
+entry = "oceanexplorer.noaa.gov/livestreams"
+url = "https://oceanexplorer.noaa.gov/livestreams/"
+name = "NOAA ocean dives"
+line = "Deep-ocean dives streamed as they happen."
+kinds = ["nature", "awe", "learning"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/oceans"
+name = "Ocean cams"
+line = "Reefs, kelp and open water, live."
+kinds = ["nature", "stillness"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "osmaps.com"
+url = "https://osmaps.com/discover/guides/"
+name = "OS Maps guides"
+line = "Walks, routes and map skills."
+kinds = ["nature", "movement", "learning"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "parksaustralia.gov.au"
+url = "https://parksaustralia.gov.au/"
+name = "Parks Australia"
+line = "Kakadu, Uluṟu and quiet marine parks."
+kinds = ["nature", "awe"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "parks.canada.ca"
+url = "https://parks.canada.ca/voyage-travel"
+name = "Parks Canada"
+line = "Hikes and wild places across Canada."
+kinds = ["nature", "movement", "awe"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "sanctuaries.noaa.gov/vr"
+url = "https://sanctuaries.noaa.gov/vr/"
+name = "Sanctuaries 360"
+line = "Dives through America's marine sanctuaries."
+kinds = ["nature", "stillness"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "forestryandland.gov.scot"
+url = "https://forestryandland.gov.scot/visit"
+name = "Scotland's forests"
+line = "Forest walks across Scotland."
+kinds = ["nature", "movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "seabird.org/webcams"
+url = "https://www.seabird.org/webcams"
+name = "Scottish Seabird Centre"
+line = "Gannets on the Bass Rock, live."
+kinds = ["nature"]
+moments = ["morning", "day"]
+seasons = [3, 4, 5, 6, 7, 8, 9, 10]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ocean.si.edu"
+url = "https://ocean.si.edu/"
+name = "Smithsonian Ocean"
+line = "Ocean life, from corals to whales."
+kinds = ["nature", "learning", "reading"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "nationalzoo.si.edu/webcams"
+url = "https://nationalzoo.si.edu/webcams"
+name = "Smithsonian zoo cams"
+line = "Pandas, elephants and lions, live."
+kinds = ["nature"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "timberfestival.org.uk/soundsoftheforest-soundmap"
+url = "https://timberfestival.org.uk/soundsoftheforest-soundmap/"
+name = "Sounds of the Forest"
+line = "Woodland sounds from many countries, mapped."
+kinds = ["nature", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "stalbanscathedral.org/peregrine-live-cam"
+url = "https://www.stalbanscathedral.org/peregrine-live-cam"
+name = "St Albans peregrines"
+line = "Peregrine falcons nesting on a cathedral."
+kinds = ["nature"]
+moments = ["day"]
+seasons = [3, 4, 5, 6]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/african-wildlife/tau-waterhole"
+name = "Tau waterhole"
+line = "An African waterhole, day and night."
+kinds = ["nature"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "tree.fm"
+url = "https://tree.fm/"
+name = "tree.fm"
+line = "Forest sounds recorded around the world."
+kinds = ["nature", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "nationalparks.uk"
+url = "https://www.nationalparks.uk/"
+name = "UK National Parks"
+line = "The UK's wildest, loveliest places."
+kinds = ["nature", "movement", "awe"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "nps.gov"
+url = "https://www.nps.gov/findapark/"
+name = "US National Parks"
+line = "Parks and trails to walk in."
+kinds = ["nature", "movement", "awe"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "cumbriawildlifetrust.org.uk/seal-cam"
+url = "https://www.cumbriawildlifetrust.org.uk/seal-cam"
+name = "Walney seal cam"
+line = "Grey seals hauled out on South Walney."
+kinds = ["nature", "stillness"]
+moments = ["day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "wildlifetrusts.org"
+url = "https://www.wildlifetrusts.org/webcams"
+name = "Wildlife Trusts webcams"
+line = "Ospreys, puffins and badgers across the UK."
+kinds = ["nature"]
+moments = ["morning", "day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "xeno-canto.org"
+url = "https://xeno-canto.org"
+name = "xeno-canto"
+line = "Birdsong from all over the world."
+kinds = ["nature", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "nps.gov/yell/learn/photosmultimedia"
+url = "https://www.nps.gov/yell/learn/photosmultimedia/webcams.htm"
+name = "Yellowstone webcams"
+line = "Old Faithful and Yellowstone's wide views."
+kinds = ["nature", "awe"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+# --------------------------------------------------------------------------
+# The sky and space. Awe makes time feel more plentiful and lifts life
+# satisfaction (Rudd, Vohs and Aaker 2012).
+
+[[places]]
+entry = "rmg.co.uk/whats-on/astronomy-photographer-year"
+url = "https://www.rmg.co.uk/whats-on/astronomy-photographer-year/galleries/past-winners"
+name = "Astronomy Photographer of the Year"
+line = "Prize-winning photographs of the night sky."
+kinds = ["sky", "art", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "apod.nasa.gov"
+url = "https://apod.nasa.gov/apod/astropix.html"
+name = "Astronomy Picture of the Day"
+line = "A new picture of the universe each day."
+kinds = ["sky", "awe"]
+moments = ["morning", "day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "chandra.harvard.edu/photo"
+url = "https://chandra.harvard.edu/photo/"
+name = "Chandra photo album"
+line = "The universe as seen in X-rays."
+kinds = ["sky", "awe", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "cloudappreciationsociety.org"
+url = "https://cloudappreciationsociety.org/gallery/"
+name = "Cloud Appreciation Society"
+line = "Clouds photographed by members, daily."
+kinds = ["sky", "nature"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "darksky.org"
+url = "https://darksky.org/what-we-do/international-dark-sky-places/all-places/"
+name = "Dark Sky Places"
+line = "Protected dark-sky places around the world."
+kinds = ["sky", "nature"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "svs.gsfc.nasa.gov"
+url = "https://svs.gsfc.nasa.gov/gallery/moonphase/"
+name = "Dial-A-Moon"
+line = "Tonight's Moon, its phase and tilt."
+kinds = ["sky"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "eso.org/public/images"
+url = "https://www.eso.org/public/images/potw/"
+name = "ESO Picture of the Week"
+line = "A weekly picture from ESO's observatories."
+kinds = ["sky", "awe"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "globeatnight.org"
+url = "https://globeatnight.org/"
+name = "Globe at Night"
+line = "Counting the stars you can see from home."
+kinds = ["sky", "learning", "giving"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "observer.globe.gov"
+url = "https://observer.globe.gov/"
+name = "GLOBE Observer"
+line = "Cloud photos for NASA scientists."
+kinds = ["sky", "nature", "giving"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "science.nasa.gov/mission/hubble/science/explore-the-night-sky"
+url = "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/"
+name = "Hubble's Messier catalogue"
+line = "Hubble's views of the Messier objects."
+kinds = ["sky", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "missionjuno.swri.edu/junocam"
+url = "https://www.missionjuno.swri.edu/junocam/processing"
+name = "JunoCam"
+line = "Jupiter's clouds, processed by the public."
+kinds = ["sky", "awe", "making"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nasa.gov/image-of-the-day"
+url = "https://www.nasa.gov/image-of-the-day/"
+name = "NASA Image of the Day"
+line = "One striking NASA photograph a day."
+kinds = ["sky", "awe"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "noirlab.edu/public/images"
+url = "https://noirlab.edu/public/images/iotw/"
+name = "NOIRLab Image of the Week"
+line = "Weekly images of skies and observatories."
+kinds = ["sky", "awe"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/aurora-borealis/northern-lights-cam"
+name = "Northern lights cam"
+line = "The northern lights over Canada, live."
+kinds = ["sky", "awe"]
+moments = ["evening", "night"]
+seasons = [10, 11, 12, 1, 2, 3]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "rmg.co.uk/stories"
+url = "https://www.rmg.co.uk/stories/astronomy-guides"
+name = "Royal Observatory sky guides"
+line = "Royal Observatory guides to the night sky."
+kinds = ["sky", "learning"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "stellarium-web.org"
+url = "https://stellarium-web.org/"
+name = "Stellarium Web"
+line = "Tonight's sky, from wherever you are."
+kinds = ["sky", "learning"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "popastro.com/get-stargazing"
+url = "https://www.popastro.com/get-stargazing/the-sky-this-month/"
+name = "The sky this month"
+line = "A monthly map of the sky over Britain."
+kinds = ["sky", "learning"]
+moments = ["evening"]
+region = "uk"
+
+[[places]]
+entry = "science.nasa.gov/mission/webb/multimedia"
+url = "https://science.nasa.gov/mission/webb/multimedia/images/"
+name = "Webb telescope images"
+line = "Deep-space images from the Webb telescope."
+kinds = ["sky", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "science.nasa.gov/skywatching"
+url = "https://science.nasa.gov/skywatching/whats-up/"
+name = "What's Up"
+line = "What to look for in this month's night sky."
+kinds = ["sky", "learning"]
+moments = ["evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Awe and wonder (Sturm et al. 2022: weekly awe walks raised prosocial joy and
+# eased daily distress).
+
+[[places]]
+entry = "eol.jsc.nasa.gov"
+url = "https://eol.jsc.nasa.gov/"
+name = "Astronaut photography"
+line = "Photographs of Earth taken by astronauts."
+kinds = ["awe", "nature"]
+moments = ["day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "atlasobscura.com"
+url = "https://atlasobscura.com"
+name = "Atlas Obscura"
+line = "The world's wonderful odd corners."
+kinds = ["awe", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "epic.gsfc.nasa.gov"
+url = "https://epic.gsfc.nasa.gov/"
+name = "EPIC Earth images"
+line = "The whole sunlit Earth, photographed daily."
+kinds = ["awe", "nature"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "joshworth.com/dev/pixelspace"
+url = "https://www.joshworth.com/dev/pixelspace/pixelspace_solarsystem.html"
+name = "If the Moon were one pixel"
+line = "A slow scroll across the solar system."
+kinds = ["awe", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "usgs.gov/volcanoes/kilauea"
+url = "https://www.usgs.gov/volcanoes/kilauea/webcams"
+name = "Kilauea webcams"
+line = "Kilauea's summit crater, live from Hawaii."
+kinds = ["awe", "nature"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "nikonsmallworld.com"
+url = "https://www.nikonsmallworld.com/galleries/photomicrography-competition"
+name = "Nikon Small World"
+line = "Life under the microscope, as art."
+kinds = ["awe", "art", "learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "wikipedia.org"
+url = "https://en.wikipedia.org/wiki/Wikipedia:Picture_of_the_day"
+name = "Picture of the day"
+line = "A single photograph, picked for today."
+kinds = ["awe", "art"]
+moments = ["morning", "day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "neal.fun/deep-sea"
+url = "https://neal.fun/deep-sea/"
+name = "The Deep Sea"
+line = "Scroll down to the bottom of the ocean."
+kinds = ["awe", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "neal.fun/size-of-space"
+url = "https://neal.fun/size-of-space/"
+name = "The Size of Space"
+line = "From an astronaut out to the whole universe."
+kinds = ["awe", "sky"]
+moments = ["day", "evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Stillness: guided meditation and breathing. App-based practice has small,
+# real effects (g about 0.25); free, finite sessions without streaks.
+
+[[places]]
+entry = "asoftmurmur.com"
+url = "https://asoftmurmur.com/"
+name = "A Soft Murmur"
+line = "Rain, waves and wind, mixed to your liking."
+kinds = ["stillness", "nature"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "audiodharma.org"
+url = "https://www.audiodharma.org/"
+name = "AudioDharma"
+line = "Short morning sits and gentle talks."
+kinds = ["stillness"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "breathworks-mindfulness.org.uk"
+url = "https://www.breathworks-mindfulness.org.uk/free-meditations"
+name = "Breathworks"
+line = "Short practices for stress, pain and sleep."
+kinds = ["stillness", "kindness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "calmlywriter.com/online"
+url = "https://www.calmlywriter.com/online/"
+name = "Calmly Writer"
+line = "A calm place to write, no account."
+kinds = ["stillness", "making"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "dharmaseed.org"
+url = "https://dharmaseed.org/"
+name = "Dharma Seed"
+line = "Meditation talks from retreat halls."
+kinds = ["stillness", "learning"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ggia.berkeley.edu"
+url = "https://ggia.berkeley.edu/practice/expressive_writing"
+name = "Expressive Writing"
+line = "Writing through something that hurt."
+kinds = ["stillness"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "franticworld.com"
+url = "https://franticworld.com/free-meditations-from-mindfulness/"
+name = "Finding Peace in a Frantic World"
+line = "The Oxford mindfulness practices, free."
+kinds = ["stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "freemindfulness.org"
+url = "https://freemindfulness.org"
+name = "Free Mindfulness"
+line = "Guided meditations, free to use."
+kinds = ["stillness"]
+moments = ["morning", "night"]
+region = "intl"
+
+[[places]]
+entry = "insighttimer.com"
+url = "https://insighttimer.com"
+name = "Insight Timer"
+line = "A quiet timer and guided sits."
+kinds = ["stillness"]
+moments = ["morning", "night"]
+region = "intl"
+
+[[places]]
+entry = "emergencemagazine.org"
+url = "https://emergencemagazine.org/practice/listening-for-silence/"
+name = "Listening for Silence"
+line = "A short practice in hearing the quiet."
+kinds = ["stillness", "nature"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "mynoise.net"
+url = "https://mynoise.net/"
+name = "myNoise"
+line = "Rain, sea and forest sounds you can tune."
+kinds = ["stillness", "nature"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "nhs.uk/mental-health/self-help/guides-tools-and-activities/mental-wellbeing-audio-guides"
+url = "https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/mental-wellbeing-audio-guides/"
+name = "NHS audio guides"
+line = "Calm audio from NHS doctors."
+kinds = ["stillness"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress"
+url = "https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/"
+name = "NHS breathing exercise"
+line = "Five minutes of slow, easy breathing."
+kinds = ["stillness"]
+moments = ["day", "night"]
+region = "intl"
+
+[[places]]
+entry = "nhs.uk/mental-health/self-help/tips-and-support/mindfulness"
+url = "https://www.nhs.uk/mental-health/self-help/tips-and-support/mindfulness/"
+name = "NHS on mindfulness"
+line = "What mindfulness is, plainly put."
+kinds = ["stillness", "learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "onbeing.org"
+url = "https://onbeing.org/series/podcast/"
+name = "On Being"
+line = "Long, unhurried talks about living."
+kinds = ["stillness", "learning"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "palousemindfulness.com"
+url = "https://palousemindfulness.com/meditations/index.html"
+name = "Palouse guided practices"
+line = "Body scans and sitting practice, free."
+kinds = ["stillness", "movement"]
+moments = ["morning", "night"]
+region = "intl"
+
+[[places]]
+entry = "palousemindfulness.com"
+url = "https://palousemindfulness.com/"
+name = "Palouse Mindfulness"
+line = "A free eight-week mindfulness course."
+kinds = ["stillness", "learning"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "plumvillage.org"
+url = "https://plumvillage.org"
+name = "Plum Village"
+line = "Mindfulness practice and gentle talks."
+kinds = ["stillness"]
+moments = ["night"]
+region = "intl"
+
+[[places]]
+entry = "aporee.org"
+url = "https://aporee.org/maps/"
+name = "radio aporee"
+line = "Field recordings from all over the map."
+kinds = ["stillness", "nature"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "nhs.uk/every-mind-matters"
+url = "https://www.nhs.uk/every-mind-matters/mental-wellbeing-tips/how-to-fall-asleep-faster-and-sleep-better/"
+name = "Sleep better"
+line = "Gentle NHS advice for a better night."
+kinds = ["stillness"]
+moments = ["night"]
+region = "intl"
+
+[[places]]
+entry = "bbc.co.uk/sounds/brand/b09cy8yl"
+url = "https://www.bbc.co.uk/sounds/brand/b09cy8yl"
+name = "Slow Radio"
+line = "Unhurried sound from Radio 3."
+kinds = ["stillness", "music", "nature"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "tarabrach.com"
+url = "https://www.tarabrach.com/guided-meditations/"
+name = "Tara Brach"
+line = "Warm guided meditations, new each week."
+kinds = ["stillness", "kindness"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ggia.berkeley.edu"
+url = "https://ggia.berkeley.edu/practice/three-good-things"
+name = "Three Good Things"
+line = "Three things that went well today."
+kinds = ["stillness", "kindness"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "uclahealth.org/uclamindful"
+url = "https://www.uclahealth.org/uclamindful/guided-meditations"
+name = "UCLA Mindful"
+line = "Short guided meditations in many languages."
+kinds = ["stillness"]
+moments = ["morning", "night"]
+region = "intl"
+
+[[places]]
+entry = "wildmind.org"
+url = "https://www.wildmind.org/mindfulness/introduction"
+name = "Wildmind"
+line = "Learning to meditate on the breath."
+kinds = ["stillness", "learning"]
+moments = ["morning"]
+region = "intl"
+
+[[places]]
+entry = "window-swap.com"
+url = "https://www.window-swap.com/"
+name = "WindowSwap"
+line = "A stranger's window, somewhere in the world."
+kinds = ["stillness", "connection"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "grateful.org/practice/word-for-the-day"
+url = "https://grateful.org/practice/word-for-the-day/"
+name = "Word for the Day"
+line = "A line to carry through the day."
+kinds = ["stillness", "reading"]
+moments = ["morning"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "explore.org"
+url = "https://explore.org/livecams/zen-den"
+name = "Zen cams"
+line = "Slow, quiet live views from around the world."
+kinds = ["stillness", "nature"]
+moments = ["day", "evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "zenpen.io"
+url = "https://zenpen.io/"
+name = "ZenPen"
+line = "A blank, quiet page to write on."
+kinds = ["stillness", "making"]
+moments = ["evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Books and slow reading. Reading for pleasure is linked with lower stress and
+# better wellbeing; public-domain and library sites without feeds.
+
+[[places]]
+entry = "100wordstory.org"
+url = "https://100wordstory.org/"
+name = "100 Word Story"
+line = "Whole stories in a hundred words."
+kinds = ["reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "accesstoinsight.org"
+url = "https://accesstoinsight.org/"
+name = "Access to Insight"
+line = "Old Buddhist texts, quietly kept."
+kinds = ["reading", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "aeon.co"
+url = "https://aeon.co/essays"
+name = "Aeon essays"
+line = "One long essay, taken slowly."
+kinds = ["reading", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "caughtbytheriver.net"
+url = "https://www.caughtbytheriver.net/"
+name = "Caught by the River"
+line = "Writing on rivers, walks and the outdoors."
+kinds = ["reading", "nature"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "dailygood.org"
+url = "https://www.dailygood.org/"
+name = "DailyGood"
+line = "A quiet daily dose of human goodness."
+kinds = ["reading", "kindness"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "emergencemagazine.org"
+url = "https://emergencemagazine.org/"
+name = "Emergence Magazine"
+line = "Essays on ecology, myth and belonging."
+kinds = ["reading", "nature", "stillness"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "fadedpage.com"
+url = "https://www.fadedpage.com/"
+name = "Faded Page"
+line = "Old books, carefully proofread."
+kinds = ["reading"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "flashfictiononline.com"
+url = "https://flashfictiononline.com/"
+name = "Flash Fiction Online"
+line = "A few very short stories a month."
+kinds = ["reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "globalgreyebooks.com"
+url = "https://www.globalgreyebooks.com/"
+name = "Global Grey"
+line = "Classic books, lovingly formatted."
+kinds = ["reading"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "goodnewsnetwork.org"
+url = "https://www.goodnewsnetwork.org/category/news/heroes/"
+name = "Good News Network"
+line = "Ordinary people doing kind things."
+kinds = ["reading", "kindness"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "goodnet.org"
+url = "https://www.goodnet.org/articles/"
+name = "Goodnet"
+line = "Stories of people doing good."
+kinds = ["reading", "kindness"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "laphamsquarterly.org"
+url = "https://www.laphamsquarterly.org/"
+name = "Lapham's Quarterly"
+line = "History's voices on a single theme."
+kinds = ["reading", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "librivox.org"
+url = "https://librivox.org"
+name = "LibriVox"
+line = "Free audiobooks, read by volunteers."
+kinds = ["reading", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "etc.usf.edu/lit2go"
+url = "https://etc.usf.edu/lit2go/"
+name = "Lit2Go"
+line = "Stories and poems read aloud, with text."
+kinds = ["reading", "poetry"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "lowtechmagazine.com"
+url = "https://solar.lowtechmagazine.com/"
+name = "Low-tech Magazine"
+line = "Old, simple technology worth remembering."
+kinds = ["reading", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "standardebooks.org"
+url = "https://standardebooks.org/ebooks/marcus-aurelius/meditations/george-long"
+name = "Meditations"
+line = "Marcus Aurelius, notes to himself."
+kinds = ["reading", "stillness"]
+moments = ["morning", "night"]
+region = "intl"
+
+[[places]]
+entry = "notallnewsisbad.com"
+url = "https://notallnewsisbad.com/"
+name = "Not All News is Bad"
+line = "A small daily digest of good news."
+kinds = ["reading", "kindness"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "orionmagazine.org"
+url = "https://orionmagazine.org/"
+name = "Orion"
+line = "Nature, culture and place, beautifully told."
+kinds = ["reading", "nature"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "gutenberg.org"
+url = "https://gutenberg.org"
+name = "Project Gutenberg"
+line = "Seventy thousand free books."
+kinds = ["reading"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "readingagency.org.uk"
+url = "https://readingagency.org.uk/get-reading/our-programmes-and-campaigns/reading-well/"
+name = "Reading Well"
+line = "Books chosen to help you feel better."
+kinds = ["reading"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "bbc.co.uk/sounds/brand/b08lw2hh"
+url = "https://www.bbc.co.uk/sounds/brand/b08lw2hh"
+name = "Short Works"
+line = "A short story, read on Radio 4."
+kinds = ["reading"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "squirrel-news.net"
+url = "https://squirrel-news.net/news/"
+name = "Squirrel News"
+line = "Constructive news, a few stories a week."
+kinds = ["reading"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "terrain.org"
+url = "https://www.terrain.org/"
+name = "Terrain.org"
+line = "Literature and art about place."
+kinds = ["reading", "poetry", "nature"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "littletoller.co.uk/the-clearing"
+url = "https://www.littletoller.co.uk/the-clearing/"
+name = "The Clearing"
+line = "Essays on nature, landscape and place."
+kinds = ["reading", "nature"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "bbc.co.uk/sounds/brand/b006x3hl"
+url = "https://www.bbc.co.uk/sounds/brand/b006x3hl"
+name = "The Essay"
+line = "A fifteen-minute essay on Radio 3."
+kinds = ["reading", "learning"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "themarginalian.org"
+url = "https://themarginalian.org"
+name = "The Marginalian"
+line = "Slow essays on art, science and meaning."
+kinds = ["reading"]
+moments = ["morning", "evening"]
+region = "intl"
+
+[[places]]
+entry = "onlinebooks.library.upenn.edu"
+url = "https://onlinebooks.library.upenn.edu/"
+name = "The Online Books Page"
+line = "A librarian's index of free books."
+kinds = ["reading", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "optimistdaily.com"
+url = "https://www.optimistdaily.com/"
+name = "The Optimist Daily"
+line = "A daily solution, gently told."
+kinds = ["reading"]
+moments = ["morning"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "wellcomecollection.org"
+url = "https://wellcomecollection.org/stories"
+name = "Wellcome Collection"
+line = "Essays on health, bodies and being human."
+kinds = ["reading", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "wigleaf.com"
+url = "https://wigleaf.com/"
+name = "Wigleaf"
+line = "Very short fiction, plainly presented."
+kinds = ["reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "wordswithoutborders.org"
+url = "https://wordswithoutborders.org/"
+name = "Words Without Borders"
+line = "Stories and poems in translation."
+kinds = ["reading", "poetry"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "zenhabits.net"
+url = "https://zenhabits.net/"
+name = "Zen Habits"
+line = "Short, gentle essays on simpler living."
+kinds = ["reading", "stillness"]
+moments = ["morning"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Poetry. Short, finite and absorbing; daily poems are offered by day, since
+# they aren't chosen for tone.
+
+[[places]]
+entry = "nzpoetryshelf.com"
+url = "https://nzpoetryshelf.com/"
+name = "NZ Poetry Shelf"
+line = "A Monday poem from Aotearoa."
+kinds = ["poetry", "reading"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "poetryfoundation.org"
+url = "https://www.poetryfoundation.org/poems/poem-of-the-day"
+name = "Poem of the Day"
+line = "A new poem each morning."
+kinds = ["poetry", "reading"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "poets.org"
+url = "https://poets.org/poem-a-day"
+name = "Poem-a-Day"
+line = "A poem by a living poet, daily."
+kinds = ["poetry", "reading"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "poemsontheunderground.org"
+url = "https://poemsontheunderground.org/"
+name = "Poems on the Underground"
+line = "The poems from the Tube, gathered."
+kinds = ["poetry", "reading"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "poems.com"
+url = "https://poems.com/"
+name = "Poetry Daily"
+line = "One poem, chosen fresh each day."
+kinds = ["poetry", "reading"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "poetryinternational.com"
+url = "https://www.poetryinternational.com/en/poets-poems/poems"
+name = "Poetry International"
+line = "Poems from ninety languages."
+kinds = ["poetry", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "onbeing.org/series/poetry-unbound"
+url = "https://onbeing.org/series/poetry-unbound/"
+name = "Poetry Unbound"
+line = "One poem, read slowly and opened up."
+kinds = ["poetry", "stillness"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "rattle.com"
+url = "https://rattle.com/"
+name = "Rattle"
+line = "A new poem most days."
+kinds = ["poetry", "reading"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "scottishpoetrylibrary.org.uk"
+url = "https://www.scottishpoetrylibrary.org.uk/poems/"
+name = "Scottish Poetry Library"
+line = "Scotland's poems, free to browse."
+kinds = ["poetry", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "theheronsnest.com"
+url = "https://www.theheronsnest.com/"
+name = "The Heron's Nest"
+line = "Small, clear haiku, a season at a time."
+kinds = ["poetry", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "poetryarchive.org"
+url = "https://poetryarchive.org/"
+name = "The Poetry Archive"
+line = "Poets reading their own poems aloud."
+kinds = ["poetry", "reading", "stillness"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "slowdownshow.org"
+url = "https://www.slowdownshow.org/"
+name = "The Slowdown"
+line = "Five quiet minutes with a poem."
+kinds = ["poetry", "stillness"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "bbc.co.uk/sounds/brand/b006tnsf"
+url = "https://www.bbc.co.uk/sounds/brand/b006tnsf"
+name = "The Verb"
+line = "Poetry and new writing on Radio 4."
+kinds = ["poetry", "reading"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "tinywords.com"
+url = "https://tinywords.com/"
+name = "tinywords"
+line = "A haiku or small poem each day."
+kinds = ["poetry", "stillness"]
+moments = ["evening", "night"]
+fresh = true
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Curiosity. Mentally active time goes with less depression than passive
+# viewing (Hallgren et al. 2018); single stories and lessons rather than
+# endless catalogues.
+
+[[places]]
+entry = "1000wordphilosophy.com"
+url = "https://1000wordphilosophy.com/"
+name = "1000-Word Philosophy"
+line = "A big question in a thousand words."
+kinds = ["learning", "reading"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "3blue1brown.com"
+url = "https://www.3blue1brown.com/lessons/essence-of-calculus"
+name = "3Blue1Brown"
+line = "Calculus, drawn until it makes sense."
+kinds = ["learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "ciechanow.ski"
+url = "https://ciechanow.ski/mechanical-watch/"
+name = "Bartosz Ciechanowski"
+line = "How a mechanical watch keeps time."
+kinds = ["learning", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nhs.uk/every-mind-matters"
+url = "https://www.nhs.uk/every-mind-matters/mental-wellbeing-tips/"
+name = "Every Mind Matters"
+line = "Small ways to look after your mind."
+kinds = ["learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "setosa.io"
+url = "https://setosa.io/ev/"
+name = "Explained Visually"
+line = "Maths ideas explained with moving pictures."
+kinds = ["learning", "play"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "explorabl.es"
+url = "https://explorabl.es/all/"
+name = "Explorable Explanations"
+line = "Ideas you understand by playing with them."
+kinds = ["learning", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "gresham.ac.uk"
+url = "https://www.gresham.ac.uk/watch-now"
+name = "Gresham College"
+line = "Free public lectures, a London tradition."
+kinds = ["learning"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "horniman.ac.uk"
+url = "https://www.horniman.ac.uk/explore-the-collections/"
+name = "Horniman Museum"
+line = "Musical instruments, masks and a walrus."
+kinds = ["learning", "music"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "bbc.co.uk/programmes/b006qykl"
+url = "https://www.bbc.co.uk/programmes/b006qykl"
+name = "In Our Time"
+line = "Unhurried talk about one big idea."
+kinds = ["learning"]
+moments = ["morning", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "iep.utm.edu"
+url = "https://iep.utm.edu/"
+name = "Internet Encyclopedia of Philosophy"
+line = "Philosophy explained, one article at a time."
+kinds = ["learning", "reading"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "khanacademy.org"
+url = "https://khanacademy.org"
+name = "Khan Academy"
+line = "Learn something properly."
+kinds = ["learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "modernstoicism.com"
+url = "https://modernstoicism.com/"
+name = "Modern Stoicism"
+line = "Free Stoic practices, from Stoic Week."
+kinds = ["learning", "stillness"]
+moments = ["morning"]
+region = "intl"
+
+[[places]]
+entry = "merl.reading.ac.uk"
+url = "https://merl.reading.ac.uk/news-and-views/"
+name = "Museum of English Rural Life"
+line = "Rural life, old tools and country crafts."
+kinds = ["learning", "making"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nls.uk"
+url = "https://maps.nls.uk/"
+name = "NLS historic maps"
+line = "Old maps of the street where you live."
+kinds = ["learning", "connection"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "open.edu"
+url = "https://www.open.edu/openlearn/free-courses"
+name = "OpenLearn"
+line = "Short free courses from the Open University."
+kinds = ["learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "ourworldindata.org"
+url = "https://ourworldindata.org"
+name = "Our World in Data"
+line = "How the world is really changing."
+kinds = ["learning"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "plus.maths.org"
+url = "https://plus.maths.org/"
+name = "Plus Magazine"
+line = "Maths stories from Cambridge, for anyone."
+kinds = ["learning", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "psyche.co"
+url = "https://psyche.co/guides"
+name = "Psyche guides"
+line = "Thoughtful guides to living well."
+kinds = ["learning", "reading"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "rigb.org"
+url = "https://www.rigb.org/explore-science"
+name = "Royal Institution"
+line = "Science talks and stories from the Ri."
+kinds = ["learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "sciencemuseumgroup.org.uk"
+url = "https://collection.sciencemuseumgroup.org.uk/"
+name = "Science Museum Group Collection"
+line = "Engines, instruments and inventions up close."
+kinds = ["learning", "awe"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "seeing-theory.brown.edu"
+url = "https://seeing-theory.brown.edu/"
+name = "Seeing Theory"
+line = "Probability you can see and play with."
+kinds = ["learning", "play"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "wikipedia.org"
+url = "https://simple.wikipedia.org/wiki/Main_Page"
+name = "Simple English Wikipedia"
+line = "The encyclopaedia in plain words."
+kinds = ["learning", "reading"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "plato.stanford.edu"
+url = "https://plato.stanford.edu/"
+name = "Stanford Encyclopedia of Philosophy"
+line = "Careful thinking on the big questions."
+kinds = ["learning", "reading"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "ncase.me"
+url = "https://ncase.me/trust/"
+name = "The Evolution of Trust"
+line = "A playable half hour about why we trust."
+kinds = ["learning", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "pudding.cool"
+url = "https://pudding.cool/"
+name = "The Pudding"
+line = "Visual essays about culture and music."
+kinds = ["learning", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "wikipedia.org"
+url = "https://en.wikipedia.org/wiki/Wikipedia:Today%27s_featured_article"
+name = "Today's featured article"
+line = "One carefully made article, chosen for today."
+kinds = ["learning", "reading"]
+moments = ["morning", "day"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "wikivoyage.org"
+url = "https://en.wikivoyage.org/wiki/Main_Page"
+name = "Wikivoyage"
+line = "Travel guides to places near and far."
+kinds = ["learning", "reading"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Art. A minute or two with a painting online eased anxiety and loneliness
+# (2023); stories and single works help more than big collection searches.
+
+[[places]]
+entry = "artic.edu"
+url = "https://www.artic.edu/articles?type=highlights"
+name = "Art Institute of Chicago"
+line = "Short pieces on paintings in Chicago."
+kinds = ["art", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "artuk.org"
+url = "https://artuk.org/discover/stories"
+name = "Art UK"
+line = "Paintings from public collections nearby."
+kinds = ["art"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "artsandculture.google.com"
+url = "https://artsandculture.google.com/project/art-zoom"
+name = "Art Zoom"
+line = "Musicians guide you into a painting."
+kinds = ["art", "music"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "nga.gov"
+url = "https://www.nga.gov/artle"
+name = "Artle"
+line = "Four artworks, guess the artist."
+kinds = ["art", "play"]
+moments = ["morning", "day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ashmolean.org"
+url = "https://www.ashmolean.org/collections-online"
+name = "Ashmolean Museum"
+line = "Oxford's museum of art and archaeology."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "britishmuseum.org"
+url = "https://www.britishmuseum.org/blog"
+name = "British Museum"
+line = "Objects and the people who made them."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "clevelandart.org"
+url = "https://www.clevelandart.org/art/collection/search"
+name = "Cleveland Museum of Art"
+line = "Open-access art, free to look at closely."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "davidrumsey.com"
+url = "https://www.davidrumsey.com/"
+name = "David Rumsey Map Collection"
+line = "Old maps of everywhere, finely scanned."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "digital.bodleian.ox.ac.uk"
+url = "https://digital.bodleian.ox.ac.uk/"
+name = "Digital Bodleian"
+line = "Medieval manuscripts, page by page."
+kinds = ["art", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "europeana.eu"
+url = "https://www.europeana.eu/en/stories"
+name = "Europeana"
+line = "Stories from Europe's museums and archives."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "fitzmuseum.cam.ac.uk"
+url = "https://www.fitzmuseum.cam.ac.uk/explore-our-collection"
+name = "Fitzwilliam Museum"
+line = "Treasures from Cambridge's oldest museum."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "getty.edu"
+url = "https://www.getty.edu/art/collection/"
+name = "Getty Museum"
+line = "Manuscripts, paintings and photographs."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "loc.gov"
+url = "https://www.loc.gov/free-to-use/"
+name = "Library of Congress Free to Use"
+line = "Small themed sets of old pictures."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "louvre.fr"
+url = "https://collections.louvre.fr/en/"
+name = "Louvre collections"
+line = "The Louvre's collection, without the crowds."
+kinds = ["art", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "museum.wales"
+url = "https://museum.wales/collections/online/"
+name = "Museum Wales"
+line = "Objects from Wales's national museums."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "npg.org.uk"
+url = "https://www.npg.org.uk/collections/"
+name = "National Portrait Gallery"
+line = "Portraits of people who shaped Britain."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nationaltrustcollections.org.uk"
+url = "https://www.nationaltrustcollections.org.uk/"
+name = "National Trust Collections"
+line = "Art and objects from historic houses."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nypl.org"
+url = "https://digitalcollections.nypl.org/"
+name = "NYPL Digital Collections"
+line = "Prints, photographs and maps from New York."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "oldbookillustrations.com"
+url = "https://www.oldbookillustrations.com/"
+name = "Old Book Illustrations"
+line = "Engravings rescued from old books."
+kinds = ["art"]
+moments = ["day", "evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "nationalgallery.org.uk"
+url = "https://www.nationalgallery.org.uk/paintings/picture-of-the-month"
+name = "Picture of the month"
+line = "One painting a month, looked at slowly."
+kinds = ["art", "stillness"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "artsandculture.google.com"
+url = "https://artsandculture.google.com/experiment/puzzle-party/EwGBPZlIzv0KRw"
+name = "Puzzle Party"
+line = "Piece a painting together, slowly."
+kinds = ["art", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "rijksmuseum.nl"
+url = "https://www.rijksmuseum.nl/en/stories"
+name = "Rijksmuseum"
+line = "The stories behind Rembrandt and Vermeer."
+kinds = ["art", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "soane.org"
+url = "https://www.soane.org/collections"
+name = "Sir John Soane's Museum"
+line = "An architect's house crammed with wonders."
+kinds = ["art", "awe"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "smk.dk"
+url = "https://open.smk.dk/en"
+name = "SMK Open"
+line = "Danish art, free to zoom into and keep."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "tate.org.uk"
+url = "https://www.tate.org.uk/art"
+name = "Tate"
+line = "Artworks and artists from Tate's collection."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "tepapa.govt.nz"
+url = "https://collections.tepapa.govt.nz/"
+name = "Te Papa collections"
+line = "Treasures of Aotearoa New Zealand."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "publicdomainreview.org"
+url = "https://publicdomainreview.org"
+name = "The Public Domain Review"
+line = "Curious finds from old books and art."
+kinds = ["art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "vam.ac.uk"
+url = "https://www.vam.ac.uk/collections"
+name = "V&A"
+line = "Design, dress and craft from the V&A."
+kinds = ["art", "making"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "vangoghmuseum.nl"
+url = "https://www.vangoghmuseum.nl/en/collection"
+name = "Van Gogh Museum"
+line = "Van Gogh's paintings, drawings and letters."
+kinds = ["art"]
+moments = ["day", "evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Making: cooking, crafts and gardening. Creative activity predicts feeling
+# better the next day (Conner et al. 2018).
+
+[[places]]
+entry = "bbc.co.uk/food"
+url = "https://www.bbc.co.uk/food/seasons"
+name = "BBC Food in season"
+line = "What's in season now, and what to cook."
+kinds = ["making", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "bbc.co.uk/food"
+url = "https://www.bbc.co.uk/food/how_to_cook"
+name = "BBC Food: how to cook"
+line = "Kitchen techniques, one at a time."
+kinds = ["making", "learning"]
+moments = ["day", "evening"]
+region = "uk"
+
+[[places]]
+entry = "bbcgoodfood.com"
+url = "https://bbcgoodfood.com"
+name = "BBC Good Food"
+line = "Something good to cook."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "uk"
+
+[[places]]
+entry = "make.bitsy.org"
+url = "https://make.bitsy.org/"
+name = "Bitsy"
+line = "Make a tiny game or story."
+kinds = ["making", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "ctrlpaint.com"
+url = "https://www.ctrlpaint.com/library"
+name = "Ctrl+Paint"
+line = "Short free lessons in digital painting."
+kinds = ["making", "art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "drawabox.com"
+url = "https://drawabox.com/"
+name = "Drawabox"
+line = "Learn to draw, one box at a time."
+kinds = ["making", "art", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "exploratorium.edu"
+url = "https://www.exploratorium.edu/snacks"
+name = "Exploratorium Science Snacks"
+line = "Small science experiments to make at home."
+kinds = ["making", "learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "gardenorganic.org.uk"
+url = "https://www.gardenorganic.org.uk/expert-advice"
+name = "Garden Organic"
+line = "Organic growing advice from a UK charity."
+kinds = ["making", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "instructables.com"
+url = "https://instructables.com"
+name = "Instructables"
+line = "Make something with your hands."
+kinds = ["making"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "kleki.com"
+url = "https://kleki.com/"
+name = "Kleki"
+line = "A simple painting app in your browser."
+kinds = ["making", "art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "knitty.com"
+url = "https://knitty.com/"
+name = "Knitty"
+line = "Free knitting patterns, a new issue a season."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nigella.com"
+url = "https://www.nigella.com/recipes"
+name = "Nigella"
+line = "Nigella's recipes, in her own words."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "uk"
+
+[[places]]
+entry = "paulsellers.com"
+url = "https://paulsellers.com/"
+name = "Paul Sellers"
+line = "Hand-tool woodworking, patiently explained."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "uk"
+
+[[places]]
+entry = "quickposes.com"
+url = "https://quickposes.com/en"
+name = "Quickposes"
+line = "Timed poses for a short drawing session."
+kinds = ["making", "art"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "repaircafe.org"
+url = "https://www.repaircafe.org/en/visit/"
+name = "Repair Café"
+line = "Neighbours fixing things together."
+kinds = ["making", "giving", "connection"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "rhs.org.uk"
+url = "https://rhs.org.uk"
+name = "RHS"
+line = "Gardening, season by season."
+kinds = ["making", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "rsnstitchbank.org"
+url = "https://rsnstitchbank.org/"
+name = "RSN Stitch Bank"
+line = "Embroidery stitches, shown step by step."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "uk"
+
+[[places]]
+entry = "thisissand.com"
+url = "https://thisissand.com/"
+name = "Thisissand"
+line = "Pour coloured sand into small landscapes."
+kinds = ["making", "stillness", "play"]
+moments = ["evening", "night"]
+region = "intl"
+
+[[places]]
+entry = "woodgears.ca"
+url = "https://woodgears.ca/"
+name = "Woodgears"
+line = "Woodworking projects, built from scratch."
+kinds = ["making"]
+moments = ["day", "evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Music to listen to and to make.
+
+[[places]]
+entry = "bandcamp.com"
+url = "https://daily.bandcamp.com/"
+name = "Bandcamp Daily"
+line = "Music writing, and an album a day."
+kinds = ["music", "reading"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "beepbox.co"
+url = "https://www.beepbox.co/"
+name = "BeepBox"
+line = "Write little chiptune melodies."
+kinds = ["music", "making"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "artsandculture.google.com"
+url = "https://artsandculture.google.com/experiment/blob-opera/AAHWrq360NcGbw"
+name = "Blob Opera"
+line = "Sing with four very round opera singers."
+kinds = ["music", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "somafm.com"
+url = "https://somafm.com/dronezone/"
+name = "Drone Zone"
+line = "Slow ambient drones for the late hours."
+kinds = ["music", "stillness"]
+moments = ["night"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "naturalvoice.net"
+url = "https://www.naturalvoice.net/find-a-choir/"
+name = "Find a choir"
+line = "Welcoming choirs where anyone can sing."
+kinds = ["music", "connection"]
+moments = ["day", "evening"]
+seasons = [9, 1]
+region = "intl"
+
+[[places]]
+entry = "justinguitar.com"
+url = "https://www.justinguitar.com/"
+name = "JustinGuitar"
+line = "Free guitar lessons from the very start."
+kinds = ["music", "making", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "learningmusic.ableton.com"
+url = "https://learningmusic.ableton.com/"
+name = "Learning Music"
+line = "Learn how music works by making beats."
+kinds = ["music", "making", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "learningsynths.ableton.com"
+url = "https://learningsynths.ableton.com/"
+name = "Learning Synths"
+line = "Find out what a synthesiser's knobs do."
+kinds = ["music", "making", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "musicmap.info"
+url = "https://musicmap.info/"
+name = "Musicmap"
+line = "How every kind of pop music is related."
+kinds = ["music", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "musictheory.net"
+url = "https://www.musictheory.net/lessons"
+name = "musictheory.net"
+line = "Music theory, one clear lesson at a time."
+kinds = ["music", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nts.live"
+url = "https://www.nts.live/"
+name = "NTS Radio"
+line = "Independent radio from London and beyond."
+kinds = ["music"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "radio.garden"
+url = "https://radio.garden/"
+name = "Radio Garden"
+line = "Turn the globe and listen in."
+kinds = ["music", "connection", "awe"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "somafm.com"
+url = "https://somafm.com/"
+name = "SomaFM"
+line = "Listener-supported radio, without adverts."
+kinds = ["music"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "musiclab.chromeexperiments.com"
+url = "https://musiclab.chromeexperiments.com/Song-Maker/"
+name = "Song Maker"
+line = "Make a short tune on a grid."
+kinds = ["music", "making", "play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "thesession.org"
+url = "https://thesession.org/tunes"
+name = "The Session"
+line = "Irish tunes to learn and play."
+kinds = ["music", "making", "connection"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "hooktheory.com"
+url = "https://www.hooktheory.com/theorytab"
+name = "TheoryTab"
+line = "See the chords behind songs you know."
+kinds = ["music", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "wfmu.org"
+url = "https://wfmu.org/"
+name = "WFMU"
+line = "Freeform radio, run by its listeners."
+kinds = ["music"]
+moments = ["evening"]
+fresh = true
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Gentle play with a natural end: puzzles without streaks or leaderboards.
+
+[[places]]
+entry = "lichess.org/training"
+url = "https://lichess.org/training"
+name = "Chess puzzles"
+line = "A few puzzles, then done."
+kinds = ["play"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "theguardian.com/crosswords"
+url = "https://theguardian.com/crosswords"
+name = "Crosswords"
+line = "A crossword with your tea."
+kinds = ["play"]
+moments = ["morning", "evening"]
+region = "intl"
+
+[[places]]
+entry = "lichess.org/learn"
+url = "https://lichess.org/learn"
+name = "Learn chess"
+line = "Chess from the very first move."
+kinds = ["play", "learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "online-go.com/learn-to-play-go"
+url = "https://online-go.com/learn-to-play-go"
+name = "Learn to play Go"
+line = "Go, taught in short interactive steps."
+kinds = ["play", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "lichess.org/practice"
+url = "https://lichess.org/practice"
+name = "Lichess practice"
+line = "Practise endgames until they click."
+kinds = ["play", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "lichess.org/study"
+url = "https://lichess.org/study"
+name = "Lichess studies"
+line = "Chess lessons written by other players."
+kinds = ["play", "learning", "connection"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "nonograms.org"
+url = "https://www.nonograms.org/"
+name = "Nonograms"
+line = "Picture puzzles solved square by square."
+kinds = ["play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "orb.farm"
+url = "https://orb.farm/"
+name = "Orb.Farm"
+line = "A tiny aquarium ecosystem to tend."
+kinds = ["play", "nature"]
+moments = ["evening"]
+region = "intl"
+
+[[places]]
+entry = "puzzlescript.net"
+url = "https://www.puzzlescript.net/Gallery/"
+name = "PuzzleScript Gallery"
+line = "Small, clever puzzle games made by hand."
+kinds = ["play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "chiark.greenend.org.uk/~sgtatham/puzzles"
+url = "https://www.chiark.greenend.org.uk/~sgtatham/puzzles/"
+name = "Simon Tatham's Puzzles"
+line = "Quiet logic puzzles that simply end."
+kinds = ["play"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "sudokuwiki.org"
+url = "https://www.sudokuwiki.org/Daily_Sudoku"
+name = "SudokuWiki"
+line = "Today's sudoku, and how to solve it."
+kinds = ["play"]
+moments = ["morning", "day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "oskarstalberg.com"
+url = "https://oskarstalberg.com/Townscaper/"
+name = "Townscaper"
+line = "Build a little island town, block by block."
+kinds = ["play", "making"]
+moments = ["evening"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Connection with people, not audiences (the NHS five steps: connect).
+
+[[places]]
+entry = "ageuk.org.uk"
+url = "https://www.ageuk.org.uk/get-involved/volunteer/telephone-friend/"
+name = "Age UK telephone friends"
+line = "A weekly chat with an older person."
+kinds = ["connection", "giving"]
+moments = ["day"]
+seasons = [10, 11, 12, 1, 2]
+region = "uk"
+
+[[places]]
+entry = "thechattycafescheme.co.uk"
+url = "https://thechattycafescheme.co.uk/"
+name = "Chatty Cafe Scheme"
+line = "Tables where anyone can sit and chat."
+kinds = ["connection"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "nhs.uk/mental-health/self-help/guides-tools-and-activities/five-steps-to-mental-wellbeing"
+url = "https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/five-steps-to-mental-wellbeing/"
+name = "Five steps to wellbeing"
+line = "Small steps towards feeling well."
+kinds = ["connection", "giving", "movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "lettersagainstisolation.com"
+url = "https://www.lettersagainstisolation.com/"
+name = "Letters Against Isolation"
+line = "Friendly letters for people in care homes."
+kinds = ["connection", "giving", "kindness"]
+moments = ["day", "evening"]
+seasons = [10, 11, 12, 1]
+region = "intl"
+
+[[places]]
+entry = "menssheds.org.uk"
+url = "https://menssheds.org.uk/find-a-shed/"
+name = "Men's Sheds"
+line = "Tea, tools and company nearby."
+kinds = ["connection", "making"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "moreloveletters.com"
+url = "https://www.moreloveletters.com/"
+name = "More Love Letters"
+line = "Handwritten notes for someone struggling."
+kinds = ["connection", "kindness", "giving"]
+moments = ["day", "evening"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "postpals.co.uk"
+url = "https://www.postpals.co.uk/"
+name = "Post Pals"
+line = "Cards and letters for poorly children."
+kinds = ["connection", "kindness", "giving"]
+moments = ["day"]
+seasons = [11, 12]
+region = "uk"
+
+[[places]]
+entry = "postcrossing.com"
+url = "https://www.postcrossing.com/about"
+name = "Postcrossing"
+line = "A postcard sent, and one back from afar."
+kinds = ["connection", "kindness"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "reengage.org.uk"
+url = "https://reengage.org.uk/volunteer/"
+name = "Re-engage"
+line = "Tea, cake and company for older neighbours."
+kinds = ["connection", "giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "storycorps.org"
+url = "https://storycorps.org/participate/"
+name = "StoryCorps"
+line = "A recorded talk with someone you love."
+kinds = ["connection"]
+moments = ["evening"]
+seasons = [11, 12]
+region = "intl"
+
+[[places]]
+entry = "edenprojectcommunities.com"
+url = "https://www.edenprojectcommunities.com/the-big-lunch"
+name = "The Big Lunch"
+line = "A shared lunch with the neighbours."
+kinds = ["connection", "kindness"]
+moments = ["day"]
+seasons = [5, 6]
+region = "uk"
+
+[[places]]
+entry = "u3a.org.uk"
+url = "https://www.u3a.org.uk/join"
+name = "u3a"
+line = "Learning together and making friends."
+kinds = ["connection", "learning"]
+moments = ["day"]
+seasons = [9, 1]
+region = "uk"
+
+# --------------------------------------------------------------------------
+# Giving and volunteering, including citizen science. Kind acts raise the
+# giver's wellbeing (Curry et al. 2018).
+
+[[places]]
+entry = "bemyeyes.com"
+url = "https://www.bemyeyes.com/be-my-eyes-volunteer-hub/"
+name = "Be My Eyes"
+line = "A minute of your eyesight, lent to someone."
+kinds = ["giving", "kindness"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "bto.org"
+url = "https://www.bto.org/get-involved/volunteer"
+name = "BTO surveys"
+line = "Counting birds for science, near home."
+kinds = ["giving", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "canalrivertrust.org.uk"
+url = "https://canalrivertrust.org.uk/volunteer"
+name = "Canal & River Trust volunteering"
+line = "Looking after the canals together."
+kinds = ["giving", "nature"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "crisis.org.uk"
+url = "https://www.crisis.org.uk/get-involved/volunteer/volunteer-at-christmas/"
+name = "Crisis at Christmas"
+line = "Christmas with people who have no home."
+kinds = ["giving", "connection"]
+moments = ["day"]
+seasons = [10, 11, 12]
+region = "uk"
+
+[[places]]
+entry = "pgdp.net"
+url = "https://www.pgdp.net/c/"
+name = "Distributed Proofreaders"
+line = "Old books, proofread a page at a time."
+kinds = ["giving", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "fromthepage.com"
+url = "https://fromthepage.com/findaproject"
+name = "FromThePage"
+line = "Old letters and diaries, read and typed up."
+kinds = ["giving", "learning", "reading"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "blood.co.uk"
+url = "https://www.blood.co.uk/why-give-blood/"
+name = "Give blood"
+line = "Why an hour of your time matters."
+kinds = ["giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "givewell.org"
+url = "https://www.givewell.org/charities/top-charities"
+name = "GiveWell"
+line = "Charities where a gift does the most good."
+kinds = ["giving", "learning"]
+moments = ["day", "evening"]
+seasons = [11, 12]
+region = "intl"
+
+[[places]]
+entry = "govo.org"
+url = "https://govo.org/search"
+name = "GoVo"
+line = "Volunteering roles that fit around life."
+kinds = ["giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "mcsuk.org"
+url = "https://www.mcsuk.org/what-you-can-do/beach-clean/gbbc/"
+name = "Great British Beach Clean"
+line = "A beach clean with others by the sea."
+kinds = ["giving", "nature", "movement"]
+moments = ["day"]
+seasons = [8, 9]
+region = "uk"
+
+[[places]]
+entry = "idealist.org"
+url = "https://www.idealist.org/en/volunteer"
+name = "Idealist"
+line = "Volunteering near you or from home."
+kinds = ["giving"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "missingmaps.org"
+url = "https://www.missingmaps.org/"
+name = "Missing Maps"
+line = "Mapping places before disaster strikes."
+kinds = ["giving", "learning"]
+moments = ["day"]
+region = "intl"
+
+[[places]]
+entry = "nationaltrust.org.uk"
+url = "https://www.nationaltrust.org.uk/support-us/volunteer"
+name = "National Trust volunteering"
+line = "Caring for gardens, coast and countryside."
+kinds = ["giving", "nature"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "reachvolunteering.org.uk"
+url = "https://reachvolunteering.org.uk/"
+name = "Reach Volunteering"
+line = "Your skills, lent to a small charity."
+kinds = ["giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "samaritans.org"
+url = "https://www.samaritans.org/support-us/volunteer/become-samaritans-listening-volunteer/"
+name = "Samaritans volunteering"
+line = "Being there for someone who needs to talk."
+kinds = ["giving", "connection"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "si.edu"
+url = "https://transcription.si.edu/"
+name = "Smithsonian Transcription"
+line = "Old notebooks, typed up by volunteers."
+kinds = ["giving", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "timebanking.org"
+url = "https://timebanking.org/find-your-nearest-time-bank/"
+name = "Timebanking UK"
+line = "Hours of help, swapped with neighbours."
+kinds = ["giving", "connection"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "volunteernow.co.uk"
+url = "https://www.volunteernow.co.uk/volunteering/"
+name = "Volunteer Now"
+line = "Volunteering across Northern Ireland."
+kinds = ["giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "volunteer.scot"
+url = "https://volunteer.scot/"
+name = "Volunteer Scotland"
+line = "Ways to help across Scotland."
+kinds = ["giving"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "woodlandtrust.org.uk"
+url = "https://www.woodlandtrust.org.uk/support-us/act/volunteer-with-us/"
+name = "Woodland Trust volunteering"
+line = "Caring for woods, or recording what grows."
+kinds = ["giving", "nature"]
+moments = ["day"]
+region = "uk"
+
+[[places]]
+entry = "zooniverse.org"
+url = "https://zooniverse.org"
+name = "Zooniverse"
+line = "Help real research in a few minutes."
+kinds = ["giving", "learning"]
+moments = ["day"]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Moving and getting outside. Two hours a week in nature goes with better
+# health and wellbeing (White et al. 2019); walking groups eased depression
+# (Hanson and Jones 2015).
+
+[[places]]
+entry = "ageuk.org.uk"
+url = "https://www.ageuk.org.uk/information-advice/health-wellbeing/exercise/"
+name = "Being active with Age UK"
+line = "Staying active, whatever your age."
+kinds = ["movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "nhs.uk/live-well/exercise"
+url = "https://www.nhs.uk/live-well/exercise/running-and-aerobic-exercises/get-running-with-couch-to-5k/"
+name = "Couch to 5K"
+line = "From the sofa to a gentle run."
+kinds = ["movement"]
+moments = ["morning", "day"]
+seasons = [1, 3, 4, 9]
+region = "uk"
+
+[[places]]
+entry = "goodgym.org"
+url = "https://www.goodgym.org/"
+name = "GoodGym"
+line = "Running or walking to help someone nearby."
+kinds = ["movement", "giving", "connection"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "tcv.org.uk"
+url = "https://www.tcv.org.uk/greengym/"
+name = "Green Gym"
+line = "Conservation work that doubles as exercise."
+kinds = ["movement", "nature", "giving"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "walkwheelcycletrust.org.uk"
+url = "https://www.walkwheelcycletrust.org.uk/national-cycle-network/"
+name = "National Cycle Network"
+line = "Traffic-free paths for walking and cycling."
+kinds = ["movement", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "nhs.uk/live-well/exercise"
+url = "https://www.nhs.uk/live-well/exercise/"
+name = "NHS Fitness Studio"
+line = "Gentle exercise videos to follow at home."
+kinds = ["movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "outdoorswimmingsociety.com"
+url = "https://www.outdoorswimmingsociety.com/"
+name = "Outdoor Swimming Society"
+line = "Rivers, lakes and sea, and swimming safely."
+kinds = ["movement", "nature"]
+moments = ["morning", "day"]
+seasons = [5, 6, 7, 8, 9]
+fresh = true
+region = "uk"
+
+[[places]]
+entry = "nhs.uk/live-well/exercise"
+url = "https://www.nhs.uk/live-well/exercise/strength-and-flexibility-exercises/sitting-exercises/"
+name = "Sitting exercises"
+line = "Gentle chair exercises for stiff days."
+kinds = ["movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "theoutdoorguide.co.uk"
+url = "https://www.theoutdoorguide.co.uk/walking-routes/"
+name = "The Outdoor Guide"
+line = "Walks across the UK, by region."
+kinds = ["movement", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "thisgirlcan.co.uk"
+url = "https://www.thisgirlcan.co.uk/"
+name = "This Girl Can"
+line = "Getting active, however you look doing it."
+kinds = ["movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "walkhighlands.co.uk"
+url = "https://www.walkhighlands.co.uk/"
+name = "Walkhighlands"
+line = "Walks and hills all over Scotland."
+kinds = ["movement", "nature", "awe"]
+moments = ["morning", "day"]
+fresh = true
+region = "uk"
+
+[[places]]
+entry = "nhs.uk/live-well/exercise"
+url = "https://www.nhs.uk/live-well/exercise/running-and-aerobic-exercises/walking-for-health/"
+name = "Walking for health"
+line = "The simple good of a brisk walk."
+kinds = ["movement", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "walkingscotland.org.uk"
+url = "https://walkingscotland.org.uk/"
+name = "Walking Scotland"
+line = "Walking and wheeling, close to home."
+kinds = ["movement", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "weareundefeatable.co.uk"
+url = "https://weareundefeatable.co.uk/ways-to-move"
+name = "We Are Undefeatable"
+line = "Moving more with a health condition."
+kinds = ["movement"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "ramblers.org.uk"
+url = "https://www.ramblers.org.uk/go-walking/wellbeing-walks"
+name = "Wellbeing Walks"
+line = "Short, free group walks with a friendly lead."
+kinds = ["movement", "connection", "nature"]
+moments = ["morning", "day"]
+region = "uk"
+
+[[places]]
+entry = "yogawithadriene.com"
+url = "https://yogawithadriene.com/free-yoga-videos/"
+name = "Yoga with Adriene"
+line = "Kind, unhurried yoga for any body."
+kinds = ["movement", "stillness"]
+moments = ["morning", "evening"]
+seasons = [1]
+region = "intl"
+
+# --------------------------------------------------------------------------
+# Kind and constructive stories. Heart-warming news lifted wellbeing more than
+# solutions stories in a 2025 experiment.
+
+[[places]]
+entry = "actionforhappiness.org"
+url = "https://actionforhappiness.org/calendar"
+name = "Action for Happiness calendar"
+line = "One small kind act for each day."
+kinds = ["kindness", "connection"]
+moments = ["morning"]
+fresh = true
+region = "intl"
+
+[[places]]
+entry = "ggia.berkeley.edu"
+url = "https://ggia.berkeley.edu/practice/gratitude_letter"
+name = "Gratitude Letter"
+line = "A letter of thanks to someone who helped."
+kinds = ["kindness", "connection"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "mentalhealth.org.uk"
+url = "https://www.mentalhealth.org.uk/explore-mental-health/kindness"
+name = "Kindness and mental health"
+line = "Why kindness does us good."
+kinds = ["kindness", "learning"]
+moments = ["day", "evening"]
+region = "intl"
+
+[[places]]
+entry = "randomactsofkindness.org"
+url = "https://www.randomactsofkindness.org/kindness-ideas"
+name = "Kindness ideas"
+line = "Small kindnesses, ready to borrow."
+kinds = ["kindness", "giving"]
+moments = ["morning", "day"]
+region = "intl"
+
+[[places]]
+entry = "positive.news"
+url = "https://positive.news"
+name = "Positive News"
+line = "Journalism about what's going right."
+kinds = ["kindness"]
+moments = ["morning"]
+region = "uk"
+
+[[places]]
+entry = "reasonstobecheerful.world"
+url = "https://reasonstobecheerful.world"
+name = "Reasons to be Cheerful"
+line = "Solutions that are working."
+kinds = ["kindness"]
+moments = ["morning", "day"]
+region = "intl"

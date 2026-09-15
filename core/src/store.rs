@@ -187,6 +187,18 @@ impl Store {
         Ok(())
     }
 
+    /// Everything Home remembers under keys starting with `prefix`, with the
+    /// prefix taken off.
+    pub fn home_values_with_prefix(&self, prefix: &str) -> rusqlite::Result<Vec<(String, i64)>> {
+        self.conn
+            .prepare("SELECT key, value FROM home WHERE substr(key, 1, length(?1)) = ?1")?
+            .query_map([prefix], |row| {
+                let key: String = row.get(0)?;
+                Ok((key[prefix.len()..].to_owned(), row.get(1)?))
+            })?
+            .collect()
+    }
+
     /// Every garden day recorded, oldest first.
     pub fn garden(&self) -> rusqlite::Result<Vec<GardenDay>> {
         self.conn
@@ -360,6 +372,12 @@ mod tests {
         assert_eq!(store.home_value("visits").unwrap(), None);
         store.set_home_value("visits", 2).unwrap();
         assert_eq!(store.home_value("visits").unwrap(), Some(2));
+        store.set_home_value("offered:rhs.org.uk", 40).unwrap();
+        store.set_home_value("offered_not:x", 1).unwrap();
+        assert_eq!(
+            store.home_values_with_prefix("offered:").unwrap(),
+            vec![("rhs.org.uk".to_string(), 40)]
+        );
 
         let day = GardenDay {
             day: 7,

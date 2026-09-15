@@ -12,6 +12,7 @@ mod home;
 mod look;
 mod nav;
 mod oklab;
+mod places;
 mod prefs;
 mod protocol;
 mod ratings;
