@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The core has no platform in it. This is what says so: it builds and runs
+  # its tests on all three, with no GTK or WebKit anywhere in sight.
+  core:
+    name: core on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - run: cargo test --locked -p glimmerwood-core
+      - run: cargo clippy --locked -p glimmerwood-core --all-targets -- -D warnings
+
+  # The GTK build, on the toolchain it is developed against.
+  linux:
+    name: the GTK app
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Dependencies
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            cargo rust clippy rustfmt gcc pkgconf-pkg-config \
+            gtk4-devel webkitgtk6.0-devel sqlite-devel glib2-devel \
+            git tar findutils curl
+      - uses: actions/checkout@v4
+      # There is no distrobox here, so this runs where it stands.
+      - name: Check
+        run: scripts/check
