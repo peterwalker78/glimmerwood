@@ -50,7 +50,7 @@ const WARY_DIM: f64 = 0.1;
 /// Eyebrows: how far above the eyes they sit, and how much a mood lifts or
 /// lowers them. They carry most of what the face says, so a mood reads from
 /// across the room rather than only close up.
-const BROW_ABOVE: f64 = 0.46;
+const BROW_ABOVE: f64 = 0.36;
 const BROW_TRAVEL: f64 = 0.16;
 /// Brows stay level and only move up or down: tilting either end turns the
 /// face sad (inner end up) or stern (inner end down), and it is never either.
@@ -939,8 +939,8 @@ fn draw_face(cr: &cairo::Context, f: Face) {
             let brow_y = eye_y - r * BROW_ABOVE - r * BROW_TRAVEL * f.brow;
             // Arched while the mood is bright, flat while it is heavy.
             let arch = r * BROW_ARCH * f.brow.max(0.0);
-            source(cr, FACE_INK, alpha * 0.85);
-            cr.set_line_width(r * 0.085);
+            source(cr, FACE_INK, alpha * 0.8);
+            cr.set_line_width(r * 0.062);
             cr.move_to(eye_x - eye_w * 0.85, brow_y);
             cr.curve_to(
                 eye_x - eye_w * 0.3,
