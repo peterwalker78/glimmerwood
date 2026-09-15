@@ -29,6 +29,18 @@ require_host() {
   fi
 }
 
+# flatpak-builder's state in .flatpak-builder can't be shared by two builds at
+# once: the second fails with "rofiles-... not initialized". Holds a lock on it
+# until the calling script exits, waiting first for any build already running.
+lock_builder() {
+  mkdir -p "$ROOT/.flatpak-builder"
+  exec 9>"$ROOT/.flatpak-builder/wisp-build.lock"
+  if ! flock -n 9; then
+    echo "Waiting for another Flatpak build of Wisp to finish..." >&2
+    flock 9
+  fi
+}
+
 # Turns Cargo.lock into the offline sources the Flatpak build needs.
 CARGO_GENERATOR_COMMIT=de2225a6dee4818c1339b3cdbf29f90c471fcb7e
 CARGO_GENERATOR_SHA256=b373c8ab1a05378ec5d8ed0645c7b127bcec7d2f7a1798694fbc627d570d856c
