@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Build and install the Flatpak for this user. Runs on the host; the build
+# itself happens in flatpak-builder's sandbox inside a memory-capped scope.
+source "$(dirname "$0")/lib.sh"
+require_host
+cd "$ROOT"
+
+if [[ Cargo.lock -nt flatpak/cargo-sources.json ]]; then
+  scripts/cargo-sources
+fi
+
+systemd-run --user --scope --quiet --collect \
+  -p MemoryMax=6G -p MemorySwapMax=2G \
+  flatpak run --user org.flatpak.Builder \
+    --user --install --force-clean --ccache \
+    --state-dir="$ROOT/.flatpak-builder" \
+    "$ROOT/build" flatpak/io.github.peterwalker78.Wisp.yml

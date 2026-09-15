@@ -1,0 +1,84 @@
+# How the dose moves. These are the defaults; the engine reads
+# them at start-up, so tuning needs no code change. Durations are minutes
+# unless the key says otherwise. The rules follow research on time online and
+# wellbeing: sleep, breaks, session length and the pull of endless feeds.
+
+[levels]
+# Where the wisp's reference states begin.
+engaged = 0.2
+clouded = 0.5
+drained = 0.75
+
+[draining]
+# Dose added per minute on a fully draining site (weight -1) is
+# levels.drained / minutes_to_drained, before the factors below. With the
+# session factors a continuous session still reaches Drained in about 50.
+minutes_to_drained = 50.0
+
+[session]
+# Short, intentional visits cost less than long unbroken sessions.
+short_minutes = 10.0
+short_factor = 0.5
+long_minutes = 30.0
+long_factor = 1.4
+# This long away or on non-draining sites starts a new session.
+break_minutes = 5.0
+
+[news]
+# The first allowance_minutes of news each day count at allowance_factor.
+allowance_minutes = 15.0
+allowance_factor = 0.5
+
+[rest]
+# Time away halves the dose this often: the best rest there is.
+away_half_life = 25.0
+# Present on a site of weight w >= 0, the half-life is away_half_life x (2 - w):
+# 25 on a strongly nourishing site, 37.5 on a mildly nourishing one, 50 on an
+# ordinary one. Never faster than being away.
+
+[night]
+# Guarding sleep.
+starts_at = "23:00"
+ends_at = "05:00"
+# Draining time counts this much more at night.
+draining_factor = 1.5
+# At night ordinary sites hold instead of resting, and nourishing sites rest
+# at the ordinary daytime rate. Night-time draining load counts this much more
+# in the next day's carry-over.
+carry_factor = 2.0
+
+[clutter]
+# A design choice, not a research finding.
+# A tab not looked at for this long is clutter.
+untouched_hours = 24.0
+# This many untouched tabs gives the full effect...
+tabs_for_full_effect = 8
+# ...which leaves recovery running at this fraction of its usual speed.
+slowest_recovery = 0.5
+
+[day]
+# Local time a new day begins.
+starts_at = "05:00"
+# A new day starts at carry_max x min(1, yesterday's draining load / carry_full_load),
+# where load is minutes present on draining sites, each weighted by |weight|,
+# night-time minutes counting night.carry_factor times.
+carry_max = 0.1
+carry_full_load = 180.0
+
+[presence]
+# Input within this many seconds counts as being present.
+input_seconds = 240
+
+[heard]
+# A tab playing sound that isn't on screen: half attention counts
+# half. A heard draining site climbs at this factor of its usual rate; a heard
+# nourishing site under an ordinary or unlisted page rests as if the page's
+# weight were this factor of the heard site's.
+factor = 0.5
+# With the window behind or no input, a heard draining site keeps counting
+# for at most this long after the last input in Wisp.
+listening_minutes = 30.0
+
+[caption]
+# The hover caption explains movement over this many trailing minutes.
+window = 15.0

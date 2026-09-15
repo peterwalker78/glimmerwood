@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Rewrite ui/protocol.gen.ts from core/src/protocol.rs, then rebuild the UI.
+source "$(dirname "$0")/lib.sh"
+require_box "$@"
+cd "$ROOT"
+
+WISP_WITHOUT_UI=1 WISP_BLESS=1 cargo test --quiet --bin wisp protocol::tests::typescript_file_is_current
+scripts/build-ui

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.peterwalker78.Wisp</id>
+  <name>Wisp</name>
+  <summary>A quiet browser with a living companion</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      Wisp is a minimalist web browser. A small light in its corner reflects
+      the quality of your time online, gently and without nagging. Everything
+      it knows stays on your computer.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.peterwalker78.Wisp.desktop</launchable>
+  <categories>
+    <category>Network</category>
+    <category>WebBrowser</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-09-15">
+      <description><p>The first shell: one window, one tab, an address field.</p></description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Everything that must pass before a commit.
+source "$(dirname "$0")/lib.sh"
+require_box "$@"
+cd "$ROOT"
+
+scripts/build-ui
+cargo fmt --all --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+echo "check: all passed"

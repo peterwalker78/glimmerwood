@@ -1,0 +1,7 @@
+/target
+/.tools
+/ui/dist
+/build
+/.flatpak-builder
+/dist
+/.flatpak-repo

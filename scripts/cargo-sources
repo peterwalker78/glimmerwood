@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Regenerate flatpak/cargo-sources.json from Cargo.lock.
+source "$(dirname "$0")/lib.sh"
+require_box "$@"
+cd "$ROOT"
+
+if [[ ! -f "$CARGO_GENERATOR" ]]; then
+  mkdir -p .tools
+  curl -fsSL -o "$CARGO_GENERATOR.part" \
+    "https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/$CARGO_GENERATOR_COMMIT/cargo/flatpak-cargo-generator.py"
+  echo "$CARGO_GENERATOR_SHA256  $CARGO_GENERATOR.part" | sha256sum --check --quiet
+  mv "$CARGO_GENERATOR.part" "$CARGO_GENERATOR"
+fi
+python3 "$CARGO_GENERATOR" Cargo.lock -o flatpak/cargo-sources.json

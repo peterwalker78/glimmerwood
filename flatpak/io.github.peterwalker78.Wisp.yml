@@ -1,0 +1,49 @@
+id: io.github.peterwalker78.Wisp
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: wisp
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+
+modules:
+  - name: wisp
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/wisp/cargo
+        CARGO_NET_OFFLINE: 'true'
+    build-commands:
+      - tsc/lib/tsc -p ui
+      - cargo build --release --locked --offline
+      - install -Dm755 target/release/wisp /app/bin/wisp
+      - install -Dm644 data/io.github.peterwalker78.Wisp.desktop -t /app/share/applications
+      - install -Dm644 data/io.github.peterwalker78.Wisp.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 data/io.github.peterwalker78.Wisp.svg -t /app/share/icons/hicolor/scalable/apps
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - .git
+          - .tools
+          - .flatpak-builder
+          - build
+          - target
+          - ui/dist
+      - cargo-sources.json
+      # Keep in step with TSC_VERSION in scripts/lib.sh.
+      - type: archive
+        url: https://registry.npmjs.org/@typescript/typescript-linux-x64/-/typescript-linux-x64-7.0.2.tgz
+        sha256: 7ecad6f67377e831856367ab062ef394f21506a611405bf8ac0ff039348637d3
+        dest: tsc

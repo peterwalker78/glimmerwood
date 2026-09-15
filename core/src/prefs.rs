@@ -1,0 +1,45 @@
+//! Small things about the window the user set by hand and expects kept: for
+//! now, how wide they dragged the tab column.
+//!
+//! Stored as a key file beside the reputation overrides. Nothing here says
+//! anything about browsing.
+
+use std::path::PathBuf;
+
+use gtk::glib;
+
+const GROUP: &str = "window";
+const TAB_COLUMN_WIDTH: &str = "tab-column-width";
+
+/// Just wide enough for a site icon in its tile.
+pub const DEFAULT_TAB_COLUMN_WIDTH: i32 = 48;
+pub const MIN_TAB_COLUMN_WIDTH: i32 = 48;
+pub const MAX_TAB_COLUMN_WIDTH: i32 = 360;
+
+fn path() -> PathBuf {
+    glib::user_config_dir().join("wisp").join("window.ini")
+}
+
+pub fn tab_column_width() -> i32 {
+    let file = glib::KeyFile::new();
+    file.load_from_file(path(), glib::KeyFileFlags::NONE)
+        .and_then(|()| file.integer(GROUP, TAB_COLUMN_WIDTH))
+        .unwrap_or(DEFAULT_TAB_COLUMN_WIDTH)
+        .clamp(MIN_TAB_COLUMN_WIDTH, MAX_TAB_COLUMN_WIDTH)
+}
+
+pub fn set_tab_column_width(width: i32) {
+    let path = path();
+    let file = glib::KeyFile::new();
+    // Keep anything else a later version put there.
+    let _ = file.load_from_file(&path, glib::KeyFileFlags::KEEP_COMMENTS);
+    file.set_integer(GROUP, TAB_COLUMN_WIDTH, width);
+    let saved = path
+        .parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .map_err(|err| err.to_string())
+        .and_then(|()| file.save_to_file(&path).map_err(|err| err.to_string()));
+    if let Err(err) = saved {
+        eprintln!("wisp: couldn't remember the tab column width: {err}");
+    }
+}

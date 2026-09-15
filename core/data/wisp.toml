@@ -1,0 +1,41 @@
+# How the wisp looks at points along the dose. The chrome blends
+# neighbouring stops in OKLab, so the way from gold to ember passes through
+# clean slate rather than muddy grey.
+#
+#   at          dose where this look is exact
+#   core, glow  the bright centre and the halo around it
+#   brightness  0-1, the glow's strength
+#   radius      the core's radius in CSS pixels; the halo reaches about
+#               twice as far, so 7 gives a wisp about 28 px across at rest
+
+[[stop]]
+# Rested: warm white-gold, clear, a soft steady glow
+at = 0.0
+core = "#fff6dc"
+glow = "#f2c063"
+brightness = 1.0
+radius = 7.0
+
+[[stop]]
+# Engaged: slightly cooler, still bright
+at = 0.35
+core = "#fffaf0"
+glow = "#e6d39c"
+brightness = 0.95
+radius = 6.5
+
+[[stop]]
+# Clouded: cool blue-grey, the glow shrinking
+at = 0.62
+core = "#e4eaf0"
+glow = "#8e9fb2"
+brightness = 0.72
+radius = 5.0
+
+[[stop]]
+# Drained: a dim ember (amber, never red)
+at = 1.0
+core = "#f3c08a"
+glow = "#b8743a"
+brightness = 0.45
+radius = 3.8

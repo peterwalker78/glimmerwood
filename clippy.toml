@@ -1,0 +1,7 @@
+# The dose engine, whispers and garden must be deterministic given (events,
+# clock). Only the attention adapter may read the clock; it allows this lint
+# locally with a reason.
+disallowed-methods = [
+  { path = "std::time::SystemTime::now", reason = "inject the clock: the engine is a pure state machine" },
+  { path = "std::time::Instant::now", reason = "inject the clock: the engine is a pure state machine" },
+]

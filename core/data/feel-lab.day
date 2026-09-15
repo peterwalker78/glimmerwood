@@ -1,0 +1,26 @@
+# The day `wisp --feel-lab` plays, to judge whether the wisp reads as alive
+# without living through a day of browsing. Each line: local time, then what
+# the user is doing from then on.
+#   draining W ENTRY | news ENTRY | nourishing W ENTRY | ordinary ENTRY
+#   unlisted | private | away
+#   clutter N        untouched tabs from then on
+#   end              the day stops here
+
+07:50 nourishing 0.8 squirrel-news.net
+08:10 ordinary gmail.com
+09:00 away
+11:40 news bbc.co.uk/news
+12:10 draining 1 tiktok.com
+13:10 away
+13:30 nourishing 1 khanacademy.org
+14:00 clutter 9
+14:00 ordinary docs.google.com
+16:40 private
+16:45 ordinary docs.google.com
+17:00 away
+20:30 clutter 0
+20:30 draining 1 youtube.com/shorts
+21:20 nourishing 0.5 wikipedia.org
+21:50 ordinary bbc.co.uk/weather
+23:10 away
+23:40 end

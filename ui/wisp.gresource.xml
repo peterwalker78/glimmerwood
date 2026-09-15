@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/peterwalker78/Wisp">
+    <file>chrome/sidebar.html</file>
+    <file>chrome/toolbar.html</file>
+    <file>chrome/chrome.css</file>
+    <file alias="chrome/sidebar.js">dist/chrome/sidebar.js</file>
+    <file alias="chrome/toolbar.js">dist/chrome/toolbar.js</file>
+    <file alias="chrome/shared.js">dist/chrome/shared.js</file>
+    <file alias="chrome/caption.js">dist/chrome/caption.js</file>
+    <file alias="chrome/tabs.js">dist/chrome/tabs.js</file>
+    <file>pages/failed.html</file>
+    <file>home/index.html</file>
+    <file>home/home.css</file>
+    <file alias="home/home.js">dist/home/home.js</file>
+    <file alias="home/diary.js">dist/home/diary.js</file>
+    <file alias="home/wisp.svg">../data/io.github.peterwalker78.Wisp.svg</file>
+  </gresource>
+</gresources>

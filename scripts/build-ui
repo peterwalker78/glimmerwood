@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Compile the chrome's TypeScript into ui/dist.
+source "$(dirname "$0")/lib.sh"
+
+"$ROOT/scripts/fetch-tsc"
+"$TSC" -p "$ROOT/ui"

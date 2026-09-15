@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Build a single-file Flatpak bundle for release: dist/wisp-x86_64.flatpak and
+# its .sha256. Installing it fetches the GNOME runtime from Flathub if it isn't
+# there. Runs on the host, like scripts/flatpak, in the same memory-capped scope.
+# The names don't carry the version, so a release's
+# releases/latest/download/wisp-x86_64.flatpak URL stays the same.
+source "$(dirname "$0")/lib.sh"
+require_host
+cd "$ROOT"
+
+APP_ID=io.github.peterwalker78.Wisp
+REPO="$ROOT/.flatpak-repo"
+DIST="$ROOT/dist"
+
+if [[ Cargo.lock -nt flatpak/cargo-sources.json ]]; then
+  scripts/cargo-sources
+fi
+
+systemd-run --user --scope --quiet --collect \
+  -p MemoryMax=6G -p MemorySwapMax=2G \
+  flatpak run --user org.flatpak.Builder \
+    --user --force-clean --ccache \
+    --state-dir="$ROOT/.flatpak-builder" \
+    --repo="$REPO" \
+    "$ROOT/build" flatpak/"$APP_ID".yml
+
+mkdir -p "$DIST"
+flatpak build-bundle \
+  --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+  "$REPO" "$DIST/wisp-x86_64.flatpak.part" "$APP_ID"
+mv -f "$DIST/wisp-x86_64.flatpak.part" "$DIST/wisp-x86_64.flatpak"
+(cd "$DIST" && sha256sum wisp-x86_64.flatpak > wisp-x86_64.flatpak.sha256)
+echo "Built $DIST/wisp-x86_64.flatpak ($(cut -d ' ' -f 1 "$DIST/wisp-x86_64.flatpak.sha256"))"

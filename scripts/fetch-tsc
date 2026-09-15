@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Download the pinned native TypeScript compiler into .tools/, checking its hash.
+source "$(dirname "$0")/lib.sh"
+
+[[ -x "$TSC" ]] && exit 0
+
+dir="$ROOT/.tools/typescript-$TSC_VERSION"
+archive="$ROOT/.tools/typescript-linux-x64-$TSC_VERSION.tgz"
+mkdir -p "$ROOT/.tools"
+curl -fsSL -o "$archive" \
+  "https://registry.npmjs.org/@typescript/typescript-linux-x64/-/typescript-linux-x64-$TSC_VERSION.tgz"
+echo "$TSC_SHA256  $archive" | sha256sum --check --quiet
+rm -rf "$dir" && mkdir -p "$dir"
+tar -xzf "$archive" -C "$dir" --strip-components=1
+rm "$archive"

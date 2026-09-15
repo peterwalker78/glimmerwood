@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home</title>
+  <link rel="stylesheet" href="home.css">
+  <script type="module" src="home.js"></script>
+</head>
+<body>
+  <header class="scene" id="scene">
+    <svg id="garden" class="garden" viewBox="0 0 1200 360" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+    <div class="greeting">
+      <h1 id="title"></h1>
+      <p id="line"></p>
+    </div>
+  </header>
+
+  <main class="page">
+    <aside id="explain" class="explain" hidden>
+      <p id="explain-text"></p>
+      <a id="explain-done" class="got-it" href="#">Got it</a>
+    </aside>
+
+    <section aria-labelledby="places-heading">
+      <h2 id="places-heading">Good places</h2>
+      <ul id="places" class="places"></ul>
+    </section>
+
+    <section aria-labelledby="bookmarks-heading">
+      <h2 id="bookmarks-heading">Your bookmarks</h2>
+      <ul id="bookmarks" class="bookmarks"></ul>
+      <p id="no-bookmarks" class="empty" hidden>Star a page in the toolbar, or press Ctrl+D, and it will wait for you here.</p>
+    </section>
+
+    <section id="wisp" class="diary" aria-labelledby="wisp-heading">
+      <h2 id="wisp-heading">The wisp's days</h2>
+
+      <div class="diary-part">
+        <h3>Today</h3>
+        <svg id="today" class="today" role="img" aria-label="Today's line"></svg>
+      </div>
+
+      <div class="diary-part">
+        <h3>The last seven days</h3>
+        <ol id="week" class="week"></ol>
+        <p class="legend" aria-hidden="true">
+          <span class="key restoring">restoring</span>
+          <span class="key everyday">everyday</span>
+          <span class="key wearing">wearing</span>
+          <span class="key-note">Time away isn't counted.</span>
+        </p>
+      </div>
+
+      <div id="moved" class="diary-part">
+        <h3>What moved it this week</h3>
+        <div class="moved">
+          <div><h4>Restoring</h4><ul id="moved-restoring" class="sites"></ul></div>
+          <div><h4>Wearing</h4><ul id="moved-wearing" class="sites"></ul></div>
+        </div>
+      </div>
+
+      <div id="earlier-wrap" class="diary-part">
+        <h3>Earlier</h3>
+        <ol id="earlier" class="earlier"></ol>
+      </div>
+    </section>
+
+    <footer class="made-here">Made on this computer. Nothing here goes online until you follow a link.</footer>
+  </main>
+</body>
+</html>

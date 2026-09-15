@@ -1,0 +1,225 @@
+# Home: the words it can say and the good places it can offer.
+#
+# Tone: warm, plain, never a statistic, never an instruction, never about what
+# went badly. Praise is only ever shown when it is true; when nothing stands
+# out Home just says hello.
+
+[moments]
+# Local hours where each part of the day begins. Night ends at the start of
+# the morning.
+morning = 5
+day = 12
+evening = 18
+night = 23
+
+[welcome]
+morning = "Good morning"
+day = "Good afternoon"
+evening = "Good evening"
+night = "It's late"
+
+# One of these follows the welcome when nothing more useful comes first.
+[quiet]
+morning = ["Where would you like to begin?", "A fresh start. Take your time."]
+day = ["Where to next?", "Somewhere good, perhaps."]
+evening = ["Somewhere calm for the evening?", "The day's winding down."]
+night = ["Go gently. Sleep does the most good.", "Somewhere quiet, if anywhere."]
+
+# Explanations, each shown until the user says "Got it". `intro` shows on the
+# first visits; the others once the user has met the thing they explain.
+[explain]
+intro = "Wisp is a browser that keeps you company. The little light at the top notices which parts of the web restore you and which wear you down, and lets you see it without ever scolding. Hover it any time to see why it looks the way it does, or click it to see its days."
+draining = "Earlier the wisp grew heavy. Some sites are built to keep you scrolling, and the wisp feels that weight. It lifts again when you step away or spend time somewhere kinder."
+night = "After eleven the wisp winds down with you. Late scrolling weighs a little more and restful pages rest a little less, because sleep does the most good of all."
+privacy = "On some private sites the wisp turns away and gives you privacy. Nothing about those visits is counted or kept."
+heard = "The wisp listens too. Sound from another tab counts for half, and a tab you mute from its speaker mark weighs nothing."
+
+# Praise, only when it's true. The first that applies is said.
+[praise]
+garden = ["The garden grew a little yesterday.", "Something new came up in the garden."]
+break = ["You took a proper break earlier. That's the good stuff.", "You stepped away for a while today. The wisp noticed."]
+restoring = ["You've given real time to things that restore you this week.", "This week has had plenty of the good kind of time."]
+gentle = ["Today's been gentle so far.", "A kind sort of day so far."]
+calm_night = ["Last night stayed calm after dark.", "You kept last night peaceful."]
+rested = ["Welcome back. The wisp is well rested.", "Good to see you. Everything's had time to settle."]
+
+[thresholds]
+# A proper break: minutes away in one go, after being here earlier that day.
+break_minutes = 30
+# A week with this many minutes on nourishing sites earns the restoring line.
+restoring_minutes = 60
+# A gentle day: at least this much time present, with a draining load (weighted
+# minutes, as in the dose model) below `gentle_load`.
+gentle_present_minutes = 30
+gentle_load = 30.0
+# Away this long, and the dose below Engaged, earns the rested welcome.
+rested_away_minutes = 120
+# The first visits that explain what Wisp is for, unless dismissed sooner.
+intro_visits = 3
+# A place counts as one of the user's own after this many minutes on it in
+# the last 30 days.
+own_place_minutes = 20
+
+# Good places: every entry must be on a nourishing list (a test checks).
+# `moments` is when it's offered.
+[[places]]
+entry = "explore.org"
+name = "Live nature cams"
+line = "Bears, birds and oceans, live."
+moments = ["day", "evening"]
+
+[[places]]
+entry = "gutenberg.org"
+name = "Project Gutenberg"
+line = "Seventy thousand free books."
+moments = ["evening", "night"]
+
+[[places]]
+entry = "standardebooks.org"
+name = "Standard Ebooks"
+line = "Free classics, beautifully made."
+moments = ["evening", "night"]
+
+[[places]]
+entry = "poetryfoundation.org"
+name = "Poetry Foundation"
+line = "A poem to sit with."
+moments = ["evening", "night"]
+
+[[places]]
+entry = "themarginalian.org"
+name = "The Marginalian"
+line = "Slow essays on art, science and meaning."
+moments = ["morning", "evening"]
+
+[[places]]
+entry = "publicdomainreview.org"
+name = "The Public Domain Review"
+line = "Curious finds from old books and art."
+moments = ["day", "evening"]
+
+[[places]]
+entry = "freemindfulness.org"
+name = "Free Mindfulness"
+line = "Guided meditations, free to use."
+moments = ["morning", "night"]
+
+[[places]]
+entry = "plumvillage.org"
+name = "Plum Village"
+line = "Mindfulness practice and gentle talks."
+moments = ["night"]
+
+[[places]]
+entry = "insighttimer.com"
+name = "Insight Timer"
+line = "A quiet timer and guided sits."
+moments = ["morning", "night"]
+
+[[places]]
+entry = "wikipedia.org"
+name = "Wikipedia"
+line = "Follow a curiosity somewhere."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "ourworldindata.org"
+name = "Our World in Data"
+line = "How the world is really changing."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "positive.news"
+name = "Positive News"
+line = "Journalism about what's going right."
+moments = ["morning"]
+
+[[places]]
+entry = "reasonstobecheerful.world"
+name = "Reasons to be Cheerful"
+line = "Solutions that are working."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "khanacademy.org"
+name = "Khan Academy"
+line = "Learn something properly."
+moments = ["day"]
+
+[[places]]
+entry = "inaturalist.org"
+name = "iNaturalist"
+line = "Find out what's growing outside."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "allaboutbirds.org"
+name = "All About Birds"
+line = "Birds, their songs, and how to spot them."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "xeno-canto.org"
+name = "xeno-canto"
+line = "Birdsong from all over the world."
+moments = ["evening", "night"]
+
+[[places]]
+entry = "artsandculture.google.com"
+name = "Arts & Culture"
+line = "Wander a museum for a minute."
+moments = ["day", "evening"]
+
+[[places]]
+entry = "nationalgallery.org.uk"
+name = "The National Gallery"
+line = "Paintings to linger over."
+moments = ["evening"]
+
+[[places]]
+entry = "rhs.org.uk"
+name = "RHS"
+line = "Gardening, season by season."
+moments = ["morning", "day"]
+
+[[places]]
+entry = "bbcgoodfood.com"
+name = "BBC Good Food"
+line = "Something good to cook."
+moments = ["day", "evening"]
+
+[[places]]
+entry = "lichess.org/training"
+name = "Chess puzzles"
+line = "A few puzzles, then done."
+moments = ["day"]
+
+[[places]]
+entry = "theguardian.com/crosswords"
+name = "Crosswords"
+line = "A crossword with your tea."
+moments = ["morning", "evening"]
+
+[[places]]
+entry = "librivox.org"
+name = "LibriVox"
+line = "Free audiobooks, read by volunteers."
+moments = ["evening", "night"]
+
+[[places]]
+entry = "zooniverse.org"
+name = "Zooniverse"
+line = "Help real research in a few minutes."
+moments = ["day"]
+
+[[places]]
+entry = "instructables.com"
+name = "Instructables"
+line = "Make something with your hands."
+moments = ["day"]
+
+[[places]]
+entry = "atlasobscura.com"
+name = "Atlas Obscura"
+line = "The world's wonderful odd corners."
+moments = ["day", "evening"]
