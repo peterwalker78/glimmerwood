@@ -13,8 +13,8 @@
     "rootDir": ".",
     // What both the toolbar and Settings use lives in common/ and is bundled
     // beside each, so both import it as "./rating.js".
-    "rootDirs": ["chrome", "settings", "common"],
+    "rootDirs": ["chrome", "settings", "home", "site", "common"],
     "outDir": "dist"
   },
-  "include": ["chrome/**/*.ts", "home/**/*.ts", "settings/**/*.ts", "common/**/*.ts", "protocol.gen.ts"]
+  "include": ["chrome/**/*.ts", "home/**/*.ts", "settings/**/*.ts", "site/**/*.ts", "common/**/*.ts", "protocol.gen.ts"]
 }
