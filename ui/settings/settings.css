@@ -1,0 +1,201 @@
+/* Settings. The same quiet paper as Home, without the garden. */
+
+:root {
+  --paper: #efeee9;
+  --card: #f7f6f2;
+  --ink: #2a2b28;
+  --quiet: #6f716b;
+  --hairline: rgb(42 43 40 / 0.1);
+  --press: rgb(42 43 40 / 0.07);
+  --accent: #5f7d4b;
+  --field: #fbfaf7;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", "P052", "Noto Serif", "DejaVu Serif", Georgia, serif;
+  --sans: system-ui, "Cantarell", "Noto Sans", sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1c1d1b;
+    --card: #242522;
+    --ink: #dcddd7;
+    --quiet: #979991;
+    --hairline: rgb(220 221 215 / 0.09);
+    --press: rgb(220 221 215 / 0.08);
+    --accent: #a9c294;
+    --field: #2a2b28;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+}
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 44px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.head h1 {
+  margin: 0;
+  font: 400 2.4rem/1.1 var(--serif);
+}
+.head p { margin: 0.4em 0 0; color: var(--quiet); font: italic 400 1.1rem/1.45 var(--serif); }
+
+h2 {
+  margin: 0 0 12px;
+  color: var(--quiet);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+h3 { margin: 26px 0 10px; font: 400 1.12rem/1.3 var(--serif); }
+
+.intro { margin: 0 0 16px; max-width: 62ch; font: 400 1.02rem/1.55 var(--serif); }
+.note { margin: 10px 0 0; color: var(--quiet); font-size: 0.88rem; }
+.note[hidden], .problem[hidden] { display: none; }
+.problem { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--card); }
+code { font-size: 0.85em; overflow-wrap: anywhere; }
+
+a { color: inherit; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Looking up a site --- */
+
+.lookup { display: flex; gap: 8px; }
+.lookup input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+}
+button, select {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+}
+button:hover, select:hover { background: var(--field); }
+
+/* --- A site and its rating --- */
+
+.ratings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ratings:not(:empty) { margin-top: 12px; }
+#yours:not(:empty) { margin-top: 0; }
+
+.rating {
+  padding: 14px 16px 12px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+}
+.rating-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+.rating .site { font-weight: 600; overflow-wrap: anywhere; }
+.rating .whose { color: var(--quiet); font-size: 0.85rem; }
+
+.others { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.88rem; }
+.others a {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--quiet);
+  text-decoration: none;
+}
+.others a:hover { background: var(--press); color: var(--ink); }
+.others a[aria-pressed="true"] { background: var(--press); color: var(--ink); font-weight: 600; }
+.others .back { margin-left: auto; color: var(--accent); }
+
+/* The slider from draining to restoring: neutral all the way along, so
+   neither end reads as a warning. */
+.scale input {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+}
+.scale input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+}
+.scale input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+.scale.off input::-webkit-slider-thumb { background: var(--quiet); opacity: 0.45; }
+.scale-ends { display: flex; justify-content: space-between; gap: 8px; color: var(--quiet); font-size: 0.82rem; }
+.scale-choice { color: var(--ink); font-weight: 600; text-align: center; }
+
+/* --- The wisp and the night --- */
+
+.switch { display: flex; align-items: center; gap: 10px; }
+.switch input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+
+.night { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.night label { display: flex; align-items: center; gap: 10px; }
+
+/* --- Keyboard --- */
+
+.keys {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 20px;
+  margin: 0;
+}
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; color: var(--quiet); }
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 6px;
+  border: 1px solid var(--hairline);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--ink);
+  font: 600 0.8rem/1.4 var(--sans);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .page { padding: 28px 18px 48px; }
+  .keys { grid-template-columns: 1fr; gap: 2px; }
+  .keys dd { margin-bottom: 8px; }
+}

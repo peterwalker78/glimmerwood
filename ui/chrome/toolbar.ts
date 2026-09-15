@@ -2,8 +2,9 @@
 // address field, the wisp's nook, and window buttons while the window floats.
 // The wisp's caption opens below the nook, floating over the page.
 
-import type { ToChrome } from "../protocol.gen.js";
+import type { Rating, ToChrome } from "../protocol.gen.js";
 import { renderCaption } from "./caption.js";
+import { atPosition, setSlider, slider } from "./rating.js";
 import { dragFrom, element, receive, send } from "./shared.js";
 
 type State = Extract<ToChrome, { type: "state" }>;
@@ -24,6 +25,8 @@ const windowButtons = element("window-buttons", HTMLDivElement);
 const nook = element("wisp", HTMLButtonElement);
 const caption = element("caption", HTMLElement);
 const captionLines = element("caption-lines", HTMLUListElement);
+const ask = element("ask", HTMLElement);
+const askSite = element("ask-site", HTMLElement);
 
 let current: State | null = null;
 // Once the user has typed in the address field, the page loading underneath
@@ -41,10 +44,15 @@ function reportLayout(): void {
   if (!caption.hidden) {
     caption.style.right = `${Math.max(8, Math.round(innerWidth - home.right))}px`;
   }
+  if (asking()) {
+    ask.style.right = `${Math.max(8, Math.round(innerWidth - home.right))}px`;
+  }
+  // Whatever floats over the page: the caption, or the question.
+  const floating = !caption.hidden ? caption : asking() ? ask : null;
   const layout = {
     type: "toolbar_layout" as const,
     height,
-    overlay_height: caption.hidden ? height : Math.ceil(caption.getBoundingClientRect().bottom) + 12,
+    overlay_height: floating ? Math.ceil(floating.getBoundingClientRect().bottom) + 12 : height,
     nook_right: Math.max(0, Math.round(innerWidth - home.right)),
     nook_top: Math.round(home.top),
     nook_width: Math.round(home.width),
@@ -58,6 +66,7 @@ function reportLayout(): void {
 new ResizeObserver(reportLayout).observe(bar);
 new ResizeObserver(reportLayout).observe(nook);
 new ResizeObserver(reportLayout).observe(caption);
+new ResizeObserver(reportLayout).observe(ask);
 // The window buttons come and go beside the nook, moving it.
 new MutationObserver(reportLayout).observe(windowButtons, { attributes: true });
 
@@ -82,6 +91,7 @@ function showCaption(): void {
   if (caption.hidden !== !open) {
     if (open) updateCaption();
     caption.hidden = !open;
+    ask.classList.toggle("covered", open);
     reportLayout();
   }
 }
@@ -97,6 +107,62 @@ nook.addEventListener("blur", () => {
   focused = false;
   showCaption();
 });
+
+// The wisp's question about a site it hasn't met. It waits for an answer
+// while the pointer is over it or something in it has focus; left alone, it
+// fades after a while, which counts as "not now".
+const ASK_FADES_AFTER_MS = 45_000;
+let question: string | null = null;
+let fade: number | undefined;
+const askScale = slider("How it leaves you", "neither", () => {});
+element("ask-scale", HTMLDivElement).replaceWith(askScale);
+const askRating = askScale.querySelector("input") as HTMLInputElement;
+
+function asking(): boolean {
+  return !ask.hidden && !ask.classList.contains("covered");
+}
+
+function showQuestion(site: string | null): void {
+  if (site !== question) {
+    question = site;
+    if (site) {
+      askSite.textContent = site;
+      setSlider(askScale, "neither");
+    }
+  }
+  ask.hidden = !site;
+  restartFade();
+  reportLayout();
+}
+
+function restartFade(): void {
+  clearTimeout(fade);
+  fade = undefined;
+  if (!question || ask.matches(":hover") || ask.contains(document.activeElement)) return;
+  fade = setTimeout(() => answer(null, false), ASK_FADES_AFTER_MS);
+}
+
+// Close the question: rated, or not now. `toPage`: the user clicked here, so
+// the caret goes back to the page.
+function answer(rating: Rating | null, toPage: boolean): void {
+  const site = question;
+  if (!site) return;
+  showQuestion(null);
+  send(rating ? { type: "rate_site", site, rating } : { type: "not_now", site });
+  if (toPage) send({ type: "focus_page" });
+}
+
+ask.addEventListener("mouseenter", restartFade);
+ask.addEventListener("mouseleave", restartFade);
+ask.addEventListener("focusin", restartFade);
+ask.addEventListener("focusout", () => setTimeout(restartFade));
+ask.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") answer(null, true);
+});
+element("ask-close", HTMLButtonElement).addEventListener("click", () => answer(null, true));
+element("ask-unrated", HTMLButtonElement).addEventListener("click", () => answer("unrated", true));
+element("ask-keep", HTMLButtonElement).addEventListener("click", () => answer(atPosition(askRating.value), true));
+element("ask-settings", HTMLButtonElement).addEventListener("click", () => send({ type: "open_settings" }));
 
 function render(state: State): void {
   back.disabled = !state.can_go_back;
@@ -212,6 +278,9 @@ receive((message) => {
     case "caption":
       hovering = message.open;
       showCaption();
+      break;
+    case "ask":
+      showQuestion(message.site);
       break;
     case "wisp":
       latest = message;

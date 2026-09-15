@@ -1,3 +1,4 @@
+mod asking;
 mod attention;
 mod bookmarks;
 mod chrome;
@@ -13,8 +14,10 @@ mod nav;
 mod oklab;
 mod prefs;
 mod protocol;
+mod ratings;
 mod reputation;
 mod scheme;
+mod settings;
 mod store;
 mod tabs;
 mod window;

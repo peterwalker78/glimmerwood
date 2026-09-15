@@ -1,7 +1,8 @@
 //! The `glimmerwood://` scheme, which serves the chrome from bundled resources.
 //!
 //! The chrome is only served to webviews marked with [`trust`]. Tabs get Home
-//! (`glimmerwood://home/`) and nothing else. WebKit is told the scheme is
+//! (`glimmerwood://home/`) and Settings (`glimmerwood://settings/`) and nothing
+//! else. WebKit is told the scheme is
 //! display-isolated, so a web page can't navigate to or embed any of it.
 
 use std::cell::RefCell;
@@ -42,7 +43,7 @@ fn is_trusted(view: &webkit::WebView) -> bool {
 
 fn serve(request: &webkit::URISchemeRequest) {
     let uri = request.uri().map(|u| u.to_string()).unwrap_or_default();
-    if !is_home(&uri) && !request.web_view().is_some_and(|view| is_trusted(&view)) {
+    if !is_local_page(&uri) && !request.web_view().is_some_and(|view| is_trusted(&view)) {
         refuse(
             request,
             "glimmerwood:// is only served to Glimmerwood's own interface",
@@ -68,20 +69,34 @@ fn refuse(request: &webkit::URISchemeRequest, why: &str) {
     request.finish_error(&mut error);
 }
 
-/// `glimmerwood://chrome/index.html` → `/io/github/peterwalker78/Glimmerwood/chrome/index.html`
 /// Home's own files, which any tab may load.
 pub fn is_home(uri: &str) -> bool {
-    uri.strip_prefix("glimmerwood://home")
+    is_page(uri, "home")
+}
+
+/// The Settings page's own files, which any tab may load.
+pub fn is_settings(uri: &str) -> bool {
+    is_page(uri, "settings")
+}
+
+pub fn is_local_page(uri: &str) -> bool {
+    is_home(uri) || is_settings(uri)
+}
+
+fn is_page(uri: &str, page: &str) -> bool {
+    uri.strip_prefix("glimmerwood://")
+        .and_then(|rest| rest.strip_prefix(page))
         .is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '?', '#']))
 }
 
+/// `glimmerwood://chrome/index.html` → `/io/github/peterwalker78/Glimmerwood/chrome/index.html`
 fn resource_path(uri: &str) -> Option<String> {
     let rest = uri.strip_prefix("glimmerwood://")?;
     let rest = rest.split(['?', '#']).next().unwrap_or_default();
-    let rest = if rest == "home" || rest == "home/" {
-        "home/index.html"
-    } else {
-        rest
+    let rest = match rest {
+        "home" | "home/" => "home/index.html",
+        "settings" | "settings/" => "settings/index.html",
+        _ => rest,
     };
     let clean = rest
         .split('/')
@@ -123,6 +138,17 @@ mod tests {
         assert!(is_home("glimmerwood://home/") && is_home("glimmerwood://home/home.js"));
         assert!(
             !is_home("glimmerwood://homeless/x") && !is_home("glimmerwood://chrome/toolbar.html")
+        );
+        assert_eq!(
+            resource_path("glimmerwood://settings/#ratings").as_deref(),
+            Some("/io/github/peterwalker78/Glimmerwood/settings/index.html")
+        );
+        assert!(
+            is_settings("glimmerwood://settings/settings.js")
+                && is_local_page("glimmerwood://settings")
+        );
+        assert!(
+            !is_local_page("glimmerwood://settingsx/") && !is_local_page("glimmerwood://chrome/")
         );
     }
 }

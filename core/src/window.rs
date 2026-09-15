@@ -33,6 +33,7 @@ pub fn install_accels(app: &gtk::Application) {
     app.set_accels_for_action("win.bookmark", &["<Control>d"]);
     app.set_accels_for_action("win.home", &["<Alt>Home"]);
     app.set_accels_for_action("win.find", &["<Control>f"]);
+    app.set_accels_for_action("win.settings", &["<Control>comma"]);
     app.set_accels_for_action("win.find-next", &["<Control>g", "F3"]);
     app.set_accels_for_action("win.find-previous", &["<Control><Shift>g", "<Shift>F3"]);
     app.set_accels_for_action("win.next-tab", &["<Control>Tab", "<Control>Page_Down"]);
@@ -97,6 +98,8 @@ pub struct Window {
     /// update that changes nothing it shows isn't sent at all.
     sent_tabs: RefCell<String>,
     sent_wisp: RefCell<String>,
+    /// The site the wisp's question was last sent about, if any.
+    sent_ask: RefCell<Option<Option<String>>>,
     /// The find bar is open, and what it last searched for.
     finding: Cell<bool>,
     find_query: RefCell<String>,
@@ -150,6 +153,7 @@ impl Window {
             toolbar_cover: Cell::new(INITIAL_TOOLBAR_HEIGHT),
             sent_tabs: RefCell::new(String::new()),
             sent_wisp: RefCell::new(String::new()),
+            sent_ask: RefCell::new(None),
             finding: Cell::new(false),
             find_query: RefCell::new(String::new()),
             find_pending: Cell::new(0),
@@ -318,6 +322,15 @@ impl Window {
         self.window.set_title(Some(title));
     }
 
+    /// Show the wisp's question about `site`, or none.
+    pub fn ask(&self, site: Option<String>) {
+        if self.sent_ask.borrow().as_ref() == Some(&site) {
+            return;
+        }
+        self.sent_ask.replace(Some(site.clone()));
+        self.send_to_chrome(&ToChrome::Ask { site });
+    }
+
     pub fn send_to_chrome(&self, message: &ToChrome) {
         if let ToChrome::Wisp {
             dose,
@@ -365,6 +378,7 @@ impl Window {
             | ToChrome::Found { .. }
             | ToChrome::Window { .. }
             | ToChrome::Caption { .. }
+            | ToChrome::Ask { .. }
             | ToChrome::Wisp { .. } => &self.toolbar,
         };
         if let Some(view) = view.borrow().as_ref() {
@@ -430,7 +444,7 @@ impl Window {
             tab.view.grab_focus();
         }
         // Home's greeting depends on the moment it's seen.
-        self.push_home(&tab);
+        self.push_page(&tab);
         self.companion.refresh();
     }
 
@@ -474,6 +488,29 @@ impl Window {
         tab.view.grab_focus();
     }
 
+    /// Settings: the window's Settings tab if it has one, else a new one.
+    fn open_settings(self: &Rc<Self>) {
+        let existing = self
+            .tabs
+            .borrow()
+            .iter()
+            .find(|tab| tab.view.uri().is_some_and(|uri| scheme::is_settings(&uri)))
+            .cloned();
+        let tab = match existing {
+            Some(tab) => {
+                self.select_tab(tab.id);
+                tab
+            }
+            None => {
+                self.companion.forget_lookup();
+                let tab = self.add_tab(None, true);
+                tab.view.load_uri(SETTINGS);
+                tab
+            }
+        };
+        tab.view.grab_focus();
+    }
+
     /// A new tab showing Home.
     fn add_home_tab(self: &Rc<Self>) -> Rc<Tab> {
         let tab = self.add_tab(None, true);
@@ -481,35 +518,44 @@ impl Window {
         tab
     }
 
-    /// Hand Home its data, if this tab is showing Home. The script checks the
-    /// page's own address first, so a page that has just replaced Home never
-    /// receives it. The data is also left on the page, because Home's script
-    /// can still be loading its modules when WebKit says the load finished.
-    fn push_home(&self, tab: &Tab) {
-        if !tab.view.uri().is_some_and(|uri| scheme::is_home(&uri)) {
+    /// Hand Home or Settings its data, if this tab is showing one. The script
+    /// checks the page's own address first, so a page that has just replaced
+    /// it never receives it. The data is also left on the page, because the
+    /// page's script can still be loading its modules when WebKit says the
+    /// load finished.
+    fn push_page(&self, tab: &Tab) {
+        let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
+        let (json, page, global) = if scheme::is_home(&uri) {
+            let data = self.companion.home_data(attention::now());
+            let json = serde_json::to_string(&data).expect("home data serialises");
+            (json, "home", "wispHome")
+        } else if scheme::is_settings(&uri) {
+            let data = self.companion.settings_data();
+            let json = serde_json::to_string(&data).expect("settings data serialises");
+            (json, "settings", "wispSettings")
+        } else {
             return;
-        }
-        let data = self.companion.home_data(attention::now());
-        let json = serde_json::to_string(&data).expect("home data serialises");
+        };
         tab.view.evaluate_javascript(
             &format!(
-                "if (location.href.startsWith('glimmerwood://home/')) {{ window.wispHomeData = {json}; window.wispHome?.show(window.wispHomeData); }}"
+                "if (location.href.startsWith('glimmerwood://{page}/')) {{ window.{global}Data = {json}; window.{global}?.show(window.{global}Data); }}"
             ),
             None,
             None,
             None::<&gio::Cancellable>,
-            |result| {
+            move |result| {
                 if let Err(err) = result {
-                    eprintln!("glimmerwood: Home didn't take its data: {err}");
+                    eprintln!("glimmerwood: the {page} page didn't take its data: {err}");
                 }
             },
         );
     }
 
-    /// Refresh every tab showing Home, after something it shows changed.
-    pub fn refresh_homes(&self) {
+    /// Refresh every tab showing Home or Settings, after something they show
+    /// changed.
+    pub fn refresh_pages(&self) {
         for tab in self.tabs.borrow().iter() {
-            self.push_home(tab);
+            self.push_page(tab);
         }
     }
 
@@ -528,7 +574,7 @@ impl Window {
             .map_or_else(|| uri.clone(), |t| t.to_string());
         self.companion.toggle_bookmark(&uri, &title);
         self.push_state();
-        self.companion.refresh_homes();
+        self.companion.refresh_pages();
     }
 
     fn close_tab(self: &Rc<Self>, id: u32) {
@@ -587,6 +633,7 @@ impl Window {
                 self.push_state();
                 self.push_window();
                 self.sent_wisp.borrow_mut().clear();
+                self.sent_ask.replace(None);
                 self.companion.chrome_ready();
                 if self.companion.lab_shows_caption() {
                     self.send_to_chrome(&ToChrome::Caption { open: true });
@@ -623,6 +670,9 @@ impl Window {
             }
             ToCore::SelectTab { id } => self.select_tab(id),
             ToCore::ShowWisp => self.show_wisp(),
+            ToCore::RateSite { site, rating } => self.companion.rate_site(&site, Some(rating)),
+            ToCore::NotNow { site } => self.companion.not_now(&site),
+            ToCore::OpenSettings => self.open_settings(),
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
             ToCore::CloseFind => self.close_find(true),
@@ -827,8 +877,8 @@ impl Window {
         let weak_tab = Rc::downgrade(tab);
         let icon_changed = move |view: &webkit::WebView| {
             if let (Some(this), Some(tab)) = (weak.upgrade(), weak_tab.upgrade()) {
-                // Home has no favicon; it wears the wisp.
-                let icon = if view.uri().is_some_and(|uri| scheme::is_home(&uri)) {
+                // Home and Settings have no favicon; they wear the wisp.
+                let icon = if view.uri().is_some_and(|uri| scheme::is_local_page(&uri)) {
                     Some(home_icon())
                 } else {
                     view.favicon().map(|icon| data_url(&icon))
@@ -902,10 +952,13 @@ impl Window {
                     tab.fallback.take();
                 }
                 webkit::LoadEvent::Finished
-                    if tab.view.uri().is_some_and(|uri| scheme::is_home(&uri)) =>
+                    if tab
+                        .view
+                        .uri()
+                        .is_some_and(|uri| scheme::is_local_page(&uri)) =>
                 {
                     if let Some(this) = weak_self.upgrade() {
-                        this.push_home(&tab);
+                        this.push_page(&tab);
                     }
                 }
                 // The failure page's own load starts once; any other load is
@@ -995,29 +1048,39 @@ impl Window {
         // for a middle- or Ctrl-click, in front otherwise (through `create`).
         let weak = Rc::downgrade(self);
         view.connect_decide_policy(move |view, decision, kind| {
-            // Home's buttons are links to glimmerwood://home/do/..., caught here and
-            // only honoured while the tab is showing Home.
+            // The buttons on Home and Settings are links to
+            // glimmerwood://home/do/... and glimmerwood://settings/do/...,
+            // caught here and only honoured while the tab is showing that page.
             if kind == webkit::PolicyDecisionType::NavigationAction {
                 let target = decision
                     .downcast_ref::<webkit::NavigationPolicyDecision>()
                     .and_then(|d| d.navigation_action())
                     .and_then(|a| a.request())
                     .and_then(|r| r.uri());
-                let Some(action) = target
-                    .as_deref()
-                    .and_then(|uri| uri.strip_prefix(HOME_ACTIONS))
-                    .map(str::to_owned)
-                else {
+                let Some(target) = target.as_deref() else {
                     return false;
                 };
-                decision.ignore();
-                if let Some(this) = weak.upgrade()
-                    && view.uri().is_some_and(|uri| scheme::is_home(&uri))
-                    && this.companion.home_action(&action)
-                {
-                    this.companion.refresh_homes();
+                let showing = view.uri().map(|u| u.to_string()).unwrap_or_default();
+                if let Some(action) = target.strip_prefix(HOME_ACTIONS) {
+                    decision.ignore();
+                    if let Some(this) = weak.upgrade()
+                        && scheme::is_home(&showing)
+                        && this.companion.home_action(action)
+                    {
+                        this.companion.refresh_pages();
+                    }
+                    return true;
                 }
-                return true;
+                if let Some(action) = target.strip_prefix(SETTINGS_ACTIONS) {
+                    decision.ignore();
+                    if let Some(this) = weak.upgrade()
+                        && scheme::is_settings(&showing)
+                    {
+                        this.companion.settings_action(action);
+                    }
+                    return true;
+                }
+                return false;
             }
             if kind != webkit::PolicyDecisionType::NewWindowAction {
                 return false;
@@ -1074,11 +1137,15 @@ impl Window {
         // claimed or stopped. Only the fact of input is used, never its content.
         let key = gtk::EventControllerKey::new();
         key.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let typed = Rc::downgrade(&self.companion);
         key.connect_key_pressed(glib::clone!(
             #[strong]
             input,
             move |_, _, _, _| {
                 input();
+                if let Some(companion) = typed.upgrade() {
+                    companion.typed();
+                }
                 glib::Propagation::Proceed
             }
         ));
@@ -1190,6 +1257,7 @@ impl Window {
         add("bookmark", Box::new(|w| w.toggle_bookmark()));
         add("home", Box::new(|w| w.go_home()));
         add("find", Box::new(|w| w.open_find()));
+        add("settings", Box::new(|w| w.open_settings()));
         add("find-next", Box::new(|w| w.find_next(false)));
         add("find-previous", Box::new(|w| w.find_next(true)));
         add("next-tab", Box::new(|w| w.step_tab(1)));
@@ -1313,7 +1381,7 @@ impl Window {
             can_bookmark,
             bookmarked: can_bookmark && self.companion.is_bookmarked(&uri),
             // Home and a blank tab leave the field empty, ready to type in.
-            uri: if uri == "about:blank" || scheme::is_home(&uri) {
+            uri: if uri == "about:blank" || scheme::is_local_page(&uri) {
                 String::new()
             } else {
                 uri
@@ -1332,6 +1400,8 @@ impl Window {
 const HOME: &str = "glimmerwood://home/";
 const HOME_ACTIONS: &str = "glimmerwood://home/do/";
 const HOME_WISP: &str = "glimmerwood://home/#wisp";
+const SETTINGS: &str = "glimmerwood://settings/";
+const SETTINGS_ACTIONS: &str = "glimmerwood://settings/do/";
 
 /// Only web pages can be bookmarked.
 fn can_bookmark(uri: &str) -> bool {

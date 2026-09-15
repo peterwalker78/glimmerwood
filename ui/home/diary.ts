@@ -89,7 +89,13 @@ function drawToday(svg: SVGSVGElement, wisp: HomeWisp): void {
   });
 
   // The night window, and the part of the day still to come.
-  layer.push(node("rect", { class: "night", x: x(wisp.night_from), y: TOP, width: x(wisp.night_until) - x(wisp.night_from), height: PLOT }));
+  // A night that ends after the day begins shades the start of the day too.
+  const nights: [number, number][] = wisp.night_until > 1440
+    ? [[wisp.night_from, 1440], [0, wisp.night_until - 1440]]
+    : [[wisp.night_from, wisp.night_until]];
+  for (const [from, until] of nights) {
+    layer.push(node("rect", { class: "night", x: x(from), y: TOP, width: x(until) - x(from), height: PLOT }));
+  }
   const night = node("text", { class: "night-label", x: x(wisp.night_from) + 6, y: TOP - 5 });
   night.textContent = "night";
   layer.push(night);

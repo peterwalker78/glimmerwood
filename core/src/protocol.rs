@@ -419,6 +419,71 @@ record! {
     }
 }
 
+string_union! {
+    /// How a site is counted, as the user rates it: five steps from draining
+    /// to restoring, news, private, or unrated (holding steady).
+    #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Rating {
+        DrainsALot,
+        DrainsALittle,
+        Neither,
+        RestoresALittle,
+        RestoresALot,
+        News,
+        Private,
+        Unrated,
+    }
+}
+
+record! {
+    /// A site as Settings shows it.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct SiteRating {
+        pub site: String,
+        /// How it counts now, with the user's own ratings applied.
+        pub rating: Rating,
+        /// The entry that decides that: the site itself, a site it's part of
+        /// (`bbc.co.uk` for `news.bbc.co.uk`), or empty when no entry does.
+        pub matched: String,
+        /// The user's own rating of exactly this site, if they gave one.
+        pub yours: Option<Rating>,
+        /// Glimmerwood's own rating of exactly this site, if it has one.
+        pub seed: Option<Rating>,
+    }
+}
+
+record! {
+    /// A choice in a list of times.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct TimeChoice {
+        pub value: String,
+        pub label: String,
+    }
+}
+
+record! {
+    /// Everything Settings shows, handed to the page by the core. Like Home,
+    /// the page never asks for anything: its controls follow links to
+    /// `glimmerwood://settings/do/...`, which the core catches.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct SettingsData {
+        /// The site last looked up, then the entry it counts as part of if
+        /// that's another; and what was typed that couldn't be read as a site.
+        pub lookup: Vec<SiteRating>,
+        pub lookup_failed: String,
+        /// Every site in the user's own file, in order.
+        pub ratings: Vec<SiteRating>,
+        /// Where the user's file is, and what's wrong with it, if anything.
+        pub ratings_file: String,
+        pub ratings_problem: String,
+        pub ask: bool,
+        pub night_starts: String,
+        pub night_ends: String,
+        pub night_start_choices: Vec<TimeChoice>,
+        pub night_end_choices: Vec<TimeChoice>,
+    }
+}
+
 messages! {
     /// Sent by the chrome.
     #[derive(Deserialize, Debug, PartialEq)]
@@ -451,6 +516,11 @@ messages! {
         /// The wisp was clicked, or pressed from the keyboard: show its
         /// history on Home.
         ShowWisp,
+        /// The user answered the wisp's question about a site.
+        RateSite { site: String, rating: Rating },
+        /// The question closed without an answer: "not now", or it faded.
+        NotNow { site: String },
+        OpenSettings,
         /// The toolbar's size: `height` is the bar pages sit below;
         /// `overlay_height` is the full height it needs, including the hover
         /// caption when open, which floats over the page. The nook is where
@@ -506,6 +576,9 @@ messages! {
         /// Open or close the hover caption: the pointer entered or left the
         /// wisp, which is drawn natively above the chrome.
         Caption { open: bool },
+        /// The wisp asks how a site it hasn't met leaves the user, or the
+        /// question closes (`site` is null).
+        Ask { site: Option<String> },
         /// The companion's state, sent when it changes and while the dose
         /// moves. The native wisp takes the dose, mode, night (it winds down),
         /// private (it gives the user privacy) and welcome (it brightens after a
@@ -569,6 +642,10 @@ fn typescript() -> String {
         DiarySite::declaration(),
         HomeWisp::declaration(),
         HomeData::declaration(),
+        Rating::declaration(),
+        SiteRating::declaration(),
+        TimeChoice::declaration(),
+        SettingsData::declaration(),
         TabInfo::declaration(),
         ToCore::declaration(),
         ToChrome::declaration(),

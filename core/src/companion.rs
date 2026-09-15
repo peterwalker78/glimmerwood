@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use gtk::{gio, glib, prelude::*};
 
+use crate::asking::{self, Asker};
 use crate::attention::{self, Signals};
 use crate::bookmarks::Bookmarks;
 use crate::diary;
@@ -23,9 +24,12 @@ use crate::feel_lab::{Lab, Step};
 use crate::home::{self, Facts, PartOfDay, Topic, Words};
 use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
-    HomePlant, PlantKind, ToChrome, WispMode, WispPhase, WispTrend,
+    HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
+    WispTrend,
 };
-use crate::reputation::Lists;
+use crate::ratings::{self, Action};
+use crate::reputation::{self, List, Lists};
+use crate::settings::{self, Settings};
 use crate::store::{GardenDay, Sample, Store};
 use crate::window::Window;
 
@@ -68,14 +72,26 @@ pub struct Companion {
     /// Topics already noted as met, so refreshes don't write them again.
     met: RefCell<HashSet<Topic>>,
     _user_lists_monitor: RefCell<Option<gio::FileMonitor>>,
+    settings: RefCell<Settings>,
+    /// The wisp's questions about sites it hasn't met.
+    asker: RefCell<Asker>,
+    last_typed: Cell<Option<Moment>>,
+    /// What was last looked up on the Settings page.
+    lookup: RefCell<String>,
 }
 
 impl Companion {
     pub fn new(lab: Option<Lab>) -> Rc<Companion> {
-        let rates = Rates::bundled();
+        let mut rates = Rates::bundled();
         let now = attention::now();
         // A lab day is make-believe: it never touches the real history.
         let lab_mode = lab.is_some();
+        let settings = settings::load(&rates);
+        // The lab's script is written for the usual night.
+        if !lab_mode && let Err(err) = rates.set_night(&settings.night_starts, &settings.night_ends)
+        {
+            eprintln!("glimmerwood: keeping the usual night: {err}");
+        }
         let store = if lab_mode { None } else { open_store() };
         let engine = match store.as_ref().and_then(|s| s.latest().ok().flatten()) {
             Some(sample) => Engine::resume(
@@ -119,6 +135,10 @@ impl Companion {
             home_memory: RefCell::new(HashMap::new()),
             met: RefCell::new(HashSet::new()),
             _user_lists_monitor: RefCell::new(None),
+            settings: RefCell::new(settings),
+            asker: RefCell::new(Asker::default()),
+            last_typed: Cell::new(None),
+            lookup: RefCell::new(String::new()),
         });
         this.watch_user_lists();
         this
@@ -157,6 +177,13 @@ impl Companion {
         };
         if renew {
             self.refresh();
+        }
+    }
+
+    /// A key was pressed: the wisp doesn't ask anything mid-sentence.
+    pub fn typed(&self) {
+        if self.lab.borrow().is_none() {
+            self.last_typed.set(Some(attention::now()));
         }
     }
 
@@ -224,8 +251,207 @@ impl Companion {
         }
         self.note_met(now);
         self.push(now, &windows);
+        self.ask(now, &windows);
         self.record(now);
         self.schedule(now, &last_seen);
+    }
+
+    // --- Asking about places the wisp hasn't met ---------------------------
+
+    fn ask(&self, now: Moment, windows: &[Rc<Window>]) {
+        let front = windows.iter().find(|w| w.in_front());
+        let site = {
+            let engine = self.engine.borrow();
+            let lists = self.lists.borrow();
+            match (engine.activity(), front) {
+                (
+                    Activity::Present {
+                        place: Place::Unlisted,
+                        ..
+                    },
+                    Some(window),
+                ) => {
+                    let uri = window.attended_uri();
+                    // Not a part of a site carved back out of a list.
+                    lists
+                        .lookup(&uri)
+                        .is_none()
+                        .then(|| reputation::site_of(&uri, false))
+                        .flatten()
+                }
+                _ => None,
+            }
+        };
+        let allowed = self.settings.borrow().ask_about_new_places
+            && !self.engine.borrow().rates().is_night(now);
+        let day = dose::day_of(self.engine.borrow().rates(), now);
+        self.asker.borrow_mut().observe(asking::Seen {
+            now,
+            day,
+            site: site.as_deref(),
+            allowed,
+            last_typed: self.last_typed.get(),
+        });
+        self.push_question(windows);
+    }
+
+    /// The window in front shows the open question; every other window
+    /// shows none.
+    fn push_question(&self, windows: &[Rc<Window>]) {
+        let question = self.asker.borrow().question().map(str::to_owned);
+        let front = windows.iter().find(|w| w.in_front());
+        for window in windows {
+            let shown = front
+                .is_some_and(|f| Rc::ptr_eq(f, window))
+                .then(|| question.clone())
+                .flatten();
+            window.ask(shown);
+        }
+    }
+
+    fn live_windows(&self) -> Vec<Rc<Window>> {
+        self.windows
+            .borrow()
+            .iter()
+            .filter_map(Weak::upgrade)
+            .collect()
+    }
+
+    /// The question closed unanswered.
+    pub fn not_now(&self, site: &str) {
+        if self.asker.borrow_mut().close(site) {
+            self.push_question(&self.live_windows());
+        }
+    }
+
+    /// Put `site` on the list for `rating` in the user's own file, or take it
+    /// out of the file to go back to Glimmerwood's rating (`None`).
+    pub fn rate_site(self: &Rc<Self>, site: &str, rating: Option<Rating>) {
+        let path = user_lists_path();
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let written = reputation::set_user_entry(&text, site, rating.map(ratings::list_of))
+            .and_then(|text| {
+                let lists = self.seed.with_user(&text)?;
+                if let Some(dir) = path.parent() {
+                    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+                }
+                std::fs::write(&path, &text).map_err(|e| e.to_string())?;
+                Ok(lists)
+            });
+        match written {
+            Ok(lists) => {
+                self.lists.replace(lists);
+            }
+            Err(err) => eprintln!("glimmerwood: couldn't rate {site}: {err}"),
+        }
+        self.asker.borrow_mut().close(site);
+        self.refresh();
+        self.refresh_pages();
+    }
+
+    // --- Settings -----------------------------------------------------------
+
+    /// A fresh Settings page starts without an old look-up.
+    pub fn forget_lookup(&self) {
+        self.lookup.borrow_mut().clear();
+    }
+
+    /// Everything the Settings page shows, right now.
+    pub fn settings_data(&self) -> SettingsData {
+        let path = user_lists_path();
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let (entries, problem) = match reputation::user_entries(&text)
+            .and_then(|entries| self.seed.with_user(&text).map(|_| entries))
+        {
+            Ok(entries) => (entries, String::new()),
+            Err(err) => (reputation::user_entries(&text).unwrap_or_default(), err),
+        };
+        let yours: HashMap<String, Option<List>> = entries.iter().cloned().collect();
+        let lists = self.lists.borrow();
+        let rated = |site: &str| ratings::site_rating(&lists, &self.seed, &yours, site);
+        let lookup = self.lookup.borrow();
+        let found = reputation::site_of(&lookup, true);
+        let settings = self.settings.borrow();
+        let choices = |range| {
+            settings::night_choices(range)
+                .into_iter()
+                .map(|value| TimeChoice {
+                    label: clock_label(&value),
+                    value,
+                })
+                .collect()
+        };
+        SettingsData {
+            lookup: found
+                .as_deref()
+                .map(|site| {
+                    let looked_up = rated(site);
+                    let whole = (!looked_up.matched.is_empty() && looked_up.matched != site)
+                        .then(|| rated(&looked_up.matched));
+                    std::iter::once(looked_up).chain(whole).collect()
+                })
+                .unwrap_or_default(),
+            lookup_failed: if found.is_none() {
+                lookup.trim().to_owned()
+            } else {
+                String::new()
+            },
+            ratings: entries.iter().map(|(site, _)| rated(site)).collect(),
+            ratings_file: tidy_path(&path),
+            ratings_problem: problem,
+            ask: settings.ask_about_new_places,
+            night_starts: settings.night_starts.clone(),
+            night_ends: settings.night_ends.clone(),
+            night_start_choices: choices(settings::NIGHT_STARTS),
+            night_end_choices: choices(settings::NIGHT_ENDS),
+        }
+    }
+
+    /// A control on the Settings page, as the link it followed, without
+    /// `glimmerwood://settings/do/`.
+    pub fn settings_action(self: &Rc<Self>, action: &str) {
+        let unescape =
+            |text: &str| glib::Uri::unescape_string(text, None::<&str>).map(|t| t.to_string());
+        let Some(action) = Action::parse(action, unescape) else {
+            eprintln!("glimmerwood: Settings asked for something unknown: {action}");
+            return;
+        };
+        match action {
+            Action::Rate { site, rating } => {
+                self.rate_site(&site, rating);
+                return;
+            }
+            Action::LookUp(text) => {
+                self.lookup.replace(text);
+            }
+            Action::Ask(on) => {
+                self.settings.borrow_mut().ask_about_new_places = on;
+                self.save_settings();
+                self.refresh();
+            }
+            Action::Night { starts, ends } => {
+                let moved = self.settings.borrow_mut().set_night(&starts, &ends);
+                let moved = moved.and_then(|()| {
+                    self.engine
+                        .borrow_mut()
+                        .set_night(attention::now(), &starts, &ends)
+                });
+                match moved {
+                    Ok(()) => {
+                        self.save_settings();
+                        self.refresh();
+                    }
+                    Err(err) => eprintln!("glimmerwood: couldn't move the night: {err}"),
+                }
+            }
+        }
+        self.refresh_pages();
+    }
+
+    fn save_settings(&self) {
+        if let Err(err) = settings::save(&self.settings.borrow()) {
+            eprintln!("glimmerwood: couldn't save the settings: {err}");
+        }
     }
 
     // --- Home ---------------------------------------------------------
@@ -323,10 +549,10 @@ impl Companion {
             })
     }
 
-    /// Every open Home, in every window, shows the latest.
-    pub fn refresh_homes(&self) {
-        for window in self.windows.borrow().iter().filter_map(Weak::upgrade) {
-            window.refresh_homes();
+    /// Every open Home and Settings page, in every window, shows the latest.
+    pub fn refresh_pages(&self) {
+        for window in self.live_windows() {
+            window.refresh_pages();
         }
     }
 
@@ -631,6 +857,9 @@ impl Companion {
         if let Some(until) = self.welcome_until.get().filter(|&u| u > now.ms) {
             next = next.min(until);
         }
+        if let Some(due) = self.asker.borrow().due() {
+            next = next.min(due.ms);
+        }
         // Keep the minute-by-minute history going.
         next = next.min((now.ms.div_euclid(60_000) + 1) * 60_000);
         let delay = Duration::from_millis((next - now.ms).clamp(20, 60_000) as u64);
@@ -667,6 +896,7 @@ impl Companion {
             let lists = load_user_lists(&this.seed).unwrap_or_else(|| this.seed.clone());
             this.lists.replace(lists);
             this.refresh();
+            this.refresh_pages();
         });
         self._user_lists_monitor.replace(Some(monitor));
     }
@@ -724,6 +954,33 @@ fn open_bookmarks() -> Bookmarks {
         eprintln!("glimmerwood: bookmarks won't be kept; can't open them: {err}");
         Bookmarks::in_memory()
     })
+}
+
+/// A path with the home directory written as `~`.
+fn tidy_path(path: &std::path::Path) -> String {
+    let home = glib::home_dir();
+    match path.strip_prefix(&home) {
+        Ok(rest) => format!("~/{}", rest.display()),
+        Err(_) => path.display().to_string(),
+    }
+}
+
+/// "23:00" → "11pm", "00:30" → "12:30am".
+fn clock_label(time: &str) -> String {
+    let (h, m) = time.split_once(':').unwrap_or((time, "00"));
+    let h: u32 = h.parse().unwrap_or(0);
+    if h == 0 && m == "00" {
+        return "midnight".into();
+    }
+    let (hour, half) = (
+        if h.is_multiple_of(12) { 12 } else { h % 12 },
+        if h < 12 { "am" } else { "pm" },
+    );
+    if m == "00" {
+        format!("{hour}{half}")
+    } else {
+        format!("{hour}:{m}{half}")
+    }
 }
 
 fn user_lists_path() -> PathBuf {

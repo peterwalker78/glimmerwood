@@ -166,6 +166,16 @@ impl Rates {
         Ok(rates)
     }
 
+    /// Move the night window. Both times are "HH:MM" and must differ.
+    pub fn set_night(&mut self, starts_at: &str, ends_at: &str) -> Result<(), String> {
+        if clock_s(starts_at, "the night's start")? == clock_s(ends_at, "the night's end")? {
+            return Err("the night can't start and end at the same time".into());
+        }
+        self.night.starts_at = starts_at.to_owned();
+        self.night.ends_at = ends_at.to_owned();
+        Ok(())
+    }
+
     fn day_start_s(&self) -> i64 {
         clock_s(&self.day.starts_at, "").expect("validated when parsed")
     }
@@ -597,6 +607,12 @@ impl Engine {
     pub fn set_activity(&mut self, now: Moment, activity: Activity) {
         self.advance(now);
         self.activity = activity;
+    }
+
+    /// The user moved the night: everything up to `now` stays as it was.
+    pub fn set_night(&mut self, now: Moment, starts_at: &str, ends_at: &str) -> Result<(), String> {
+        self.advance(now);
+        self.rates.set_night(starts_at, ends_at)
     }
 
     pub fn set_clutter(&mut self, now: Moment, tabs: u32) {
@@ -1294,6 +1310,26 @@ mod tests {
         engine.set_activity(at("23:30"), site("khanacademy.org", 1.0, at("1/01:00")));
         engine.advance(at("1/00:20"));
         assert_near(engine.dose(), 0.4, 1e-9);
+    }
+
+    #[test]
+    fn the_user_can_move_the_night_and_the_past_stays_put() {
+        let mut engine = Engine::new(Rates::bundled(), at("21:00"));
+        engine.set_activity(at("21:00"), site("feed.example", -1.0, at("23:00")));
+        engine.advance(at("22:00"));
+        let before = engine.dose();
+        engine
+            .set_night(at("22:00"), "22:00", "06:00")
+            .expect("a valid window");
+        assert_eq!(engine.dose(), before);
+        assert!(engine.rates().is_night(at("22:30")));
+        assert!(engine.rates().is_night(at("1/05:30")));
+        assert!(!engine.rates().is_night(at("1/06:00")));
+        assert_eq!(engine.rates().night_minutes(), (1020, 1500));
+        let mut rates = Rates::bundled();
+        assert!(rates.set_night("23:00", "23:00").is_err());
+        assert!(rates.set_night("25:00", "05:00").is_err());
+        assert!(rates.is_night(at("23:30")));
     }
 
     #[test]

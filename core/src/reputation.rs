@@ -25,7 +25,6 @@ pub enum List {
 }
 
 impl List {
-    #[cfg(test)]
     pub const ALL: [List; 8] = [
         List::DrainingStrong,
         List::DrainingMild,
@@ -227,6 +226,16 @@ impl Lists {
         best
     }
 
+    /// The list an entry is on exactly, not through a parent.
+    pub fn exact(&self, site: &str) -> Option<List> {
+        self.entries.get(site).copied()
+    }
+
+    /// Which entry, on which list, a site written as an entry falls under.
+    pub fn lookup_site(&self, site: &str) -> Option<(&str, List)> {
+        self.lookup(&format!("https://{site}"))
+    }
+
     /// What the dose engine needs to know about an address.
     pub fn place(&self, uri: &str) -> Place {
         match self.lookup(uri) {
@@ -239,6 +248,100 @@ impl Lists {
             },
         }
     }
+}
+
+/// The user's own entries, in file order: the list each is on, or `None`
+/// for one under `[removed]`.
+pub fn user_entries(text: &str) -> Result<Vec<(String, Option<List>)>, String> {
+    let file = parse(text)?;
+    let mut entries = Vec::new();
+    for (list, table) in file.tables() {
+        for site in table.iter().flat_map(|t| &t.sites) {
+            entries.push((site.clone(), Some(list)));
+        }
+    }
+    for site in file.removed.iter().flat_map(|r| &r.sites) {
+        entries.push((site.clone(), None));
+    }
+    Ok(entries)
+}
+
+/// Written at the top of the user's file when Glimmerwood creates it.
+const USER_FILE_HEADER: &str = "\
+# Your own ratings. They override Glimmerwood's list and survive updates.
+# Glimmerwood's Settings page changes this file; editing it by hand works too.
+# Sites listed here join or move to that list, and sites under [removed] come
+# off Glimmerwood's lists altogether.
+";
+
+/// The user's file with `site` taken out of every table, and then put on
+/// `list` if given. Comments and everything else in the file are kept.
+pub fn set_user_entry(text: &str, site: &str, list: Option<List>) -> Result<String, String> {
+    check_entry(site).map_err(|why| format!("{site:?}: {why}"))?;
+    let fresh = text.trim().is_empty();
+    let mut doc: toml_edit::DocumentMut = text.parse().map_err(|e| format!("{e}"))?;
+    let keys = List::ALL.map(List::key);
+    for key in keys.iter().copied().chain(["removed"]) {
+        if let Some(sites) = doc
+            .get_mut(key)
+            .and_then(|table| table.get_mut("sites"))
+            .and_then(toml_edit::Item::as_array_mut)
+        {
+            sites.retain(|value| value.as_str() != Some(site));
+        }
+    }
+    if let Some(list) = list {
+        let table = doc
+            .entry(list.key())
+            .or_insert_with(|| {
+                let mut table = toml_edit::Table::new();
+                table.decor_mut().set_prefix("\n");
+                toml_edit::Item::Table(table)
+            })
+            .as_table_like_mut()
+            .ok_or_else(|| format!("[{}] isn't a table", list.key()))?;
+        let sites = table
+            .entry("sites")
+            .or_insert(toml_edit::value(toml_edit::Array::new()))
+            .as_array_mut()
+            .ok_or_else(|| format!("[{}] sites isn't a list", list.key()))?;
+        sites.push(site);
+    }
+    if fresh {
+        Ok(format!("{USER_FILE_HEADER}{doc}"))
+    } else {
+        Ok(doc.to_string())
+    }
+}
+
+/// A site as a list entry: what was typed or visited, without the scheme,
+/// `www.` or `m.`, port, query or trailing slash. With `path`, the path is
+/// kept (`reddit.com/r/diy`); without it, only the host.
+pub fn site_of(input: &str, path: bool) -> Option<String> {
+    let input = input.trim();
+    let uri = if input.contains("://") {
+        input.to_owned()
+    } else {
+        format!("https://{input}")
+    };
+    let (host, rest) = split_address(&uri)?;
+    let host = ["www.", "m."]
+        .iter()
+        .fold(host.as_str(), |h, prefix| {
+            h.strip_prefix(prefix).unwrap_or(h)
+        })
+        .to_owned();
+    let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+    let site = if path && !segments.is_empty() {
+        format!("{host}/{}", segments.join("/"))
+    } else {
+        host
+    };
+    let numeric = site
+        .split('/')
+        .next()
+        .is_some_and(|h| h.chars().all(|c| c.is_ascii_digit() || c == '.'));
+    (check_entry(&site).is_ok() && !numeric && !site.starts_with('[')).then_some(site)
 }
 
 fn parse(text: &str) -> Result<File, String> {
@@ -517,6 +620,71 @@ mod tests {
         assert!(lists().with_user("[ordinary]\nweight = 0.3").is_err());
         assert!(lists().with_user("[unlisted]\nweight = 0.3").is_err());
         assert!(lists().with_user("[shiny]\nsites = []").is_err());
+    }
+
+    #[test]
+    fn sites_are_written_the_way_list_entries_are() {
+        assert_eq!(
+            site_of("https://www.Example.org:8080/a/b?c#d", false).as_deref(),
+            Some("example.org")
+        );
+        assert_eq!(
+            site_of("https://m.example.org/", false).as_deref(),
+            Some("example.org")
+        );
+        assert_eq!(
+            site_of("old.reddit.com/r/DIY/", true).as_deref(),
+            Some("old.reddit.com/r/diy")
+        );
+        assert_eq!(site_of("example.org", true).as_deref(), Some("example.org"));
+        assert_eq!(site_of("http://localhost:3000/", false), None);
+        assert_eq!(site_of("http://192.168.1.4/", false), None);
+        assert_eq!(site_of("file:///home/x", false), None);
+        assert_eq!(site_of("not a site", true), None);
+    }
+
+    #[test]
+    fn rating_a_site_edits_the_users_file_and_keeps_the_rest() {
+        let text = "# mine\n[draining-mild]\nweight = -0.5 # tuned\nsites = [\"a.com\", \"b.com\"]\n\n[removed]\nsites = [\"c.com\"]\n";
+        let moved = set_user_entry(text, "a.com", Some(List::NourishingStrong)).expect("edits");
+        assert!(
+            moved.contains("# mine") && moved.contains("# tuned"),
+            "{moved}"
+        );
+        let lists = lists().with_user(&moved).expect("still valid");
+        assert_eq!(lists.exact("a.com"), Some(List::NourishingStrong));
+        assert_eq!(lists.exact("b.com"), Some(List::DrainingMild));
+        assert_eq!(lists.weight(List::DrainingMild), -0.5);
+
+        let unremoved = set_user_entry(&moved, "c.com", Some(List::Private)).expect("edits");
+        assert_eq!(
+            user_entries(&unremoved).expect("parses"),
+            vec![
+                ("b.com".into(), Some(List::DrainingMild)),
+                ("a.com".into(), Some(List::NourishingStrong)),
+                ("c.com".into(), Some(List::Private)),
+            ]
+        );
+
+        // Back to Glimmerwood's rating: out of the file altogether.
+        let back = set_user_entry(&unremoved, "a.com", None).expect("edits");
+        assert!(
+            user_entries(&back)
+                .expect("parses")
+                .iter()
+                .all(|(site, _)| site != "a.com")
+        );
+    }
+
+    #[test]
+    fn the_first_rating_creates_a_file_that_explains_itself() {
+        let text = set_user_entry("", "moss.example", Some(List::Unlisted)).expect("creates");
+        assert!(text.starts_with("# Your own ratings."), "{text}");
+        let lists = lists().with_user(&text).expect("valid");
+        assert_eq!(lists.place("https://moss.example/"), Place::Unlisted);
+        assert_eq!(lists.exact("moss.example"), Some(List::Unlisted));
+        assert!(set_user_entry("[ordinary\n", "a.com", None).is_err());
+        assert!(set_user_entry("", "https://a.com", None).is_err());
     }
 
     #[test]

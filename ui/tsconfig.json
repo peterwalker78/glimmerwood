@@ -11,7 +11,10 @@
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "rootDir": ".",
+    // What both the toolbar and Settings use lives in common/ and is bundled
+    // beside each, so both import it as "./rating.js".
+    "rootDirs": ["chrome", "settings", "common"],
     "outDir": "dist"
   },
-  "include": ["chrome/**/*.ts", "home/**/*.ts", "protocol.gen.ts"]
+  "include": ["chrome/**/*.ts", "home/**/*.ts", "settings/**/*.ts", "common/**/*.ts", "protocol.gen.ts"]
 }

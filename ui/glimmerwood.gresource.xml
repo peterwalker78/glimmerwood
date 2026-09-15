@@ -9,11 +9,16 @@
     <file alias="chrome/shared.js">dist/chrome/shared.js</file>
     <file alias="chrome/caption.js">dist/chrome/caption.js</file>
     <file alias="chrome/tabs.js">dist/chrome/tabs.js</file>
+    <file alias="chrome/rating.js">dist/common/rating.js</file>
     <file>pages/failed.html</file>
     <file>home/index.html</file>
     <file>home/home.css</file>
     <file alias="home/home.js">dist/home/home.js</file>
     <file alias="home/diary.js">dist/home/diary.js</file>
+    <file>settings/index.html</file>
+    <file>settings/settings.css</file>
+    <file alias="settings/settings.js">dist/settings/settings.js</file>
+    <file alias="settings/rating.js">dist/common/rating.js</file>
     <file alias="home/wisp.svg">../data/io.github.peterwalker78.Glimmerwood.svg</file>
   </gresource>
 </gresources>

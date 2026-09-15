@@ -63,5 +63,20 @@
   <aside id="caption" class="caption" role="tooltip" hidden>
     <ul id="caption-lines"></ul>
   </aside>
+  <!-- The wisp asking how a site it hasn't met leaves the user. It never
+       takes focus on its own and closes when the user leaves the site. -->
+  <aside id="ask" class="ask" aria-labelledby="ask-question" hidden>
+    <button id="ask-close" class="step ask-close" type="button" aria-label="Not now" title="Not now">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg>
+    </button>
+    <p id="ask-question" class="ask-question">I haven't met <strong id="ask-site"></strong> before. How does it leave you?</p>
+    <div id="ask-scale"></div>
+    <p class="ask-honest">Only you see this. I can only look after you if it's true.</p>
+    <div class="ask-actions">
+      <button id="ask-unrated" class="ask-link" type="button">Leave it unrated</button>
+      <button id="ask-settings" class="ask-link" type="button">Settings</button>
+      <button id="ask-keep" class="ask-keep" type="button">Keep</button>
+    </div>
+  </aside>
 </body>
 </html>
