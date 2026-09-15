@@ -9,7 +9,6 @@ use webkit::prelude::*;
 use crate::attention;
 use crate::companion::Companion;
 use crate::dose::Mode;
-use crate::dose::Moment;
 use crate::failure::{self, Reason};
 use crate::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode};
 use crate::wisp_view::WispView;
@@ -63,15 +62,11 @@ struct Tab {
     /// While an upgraded HTTPS attempt is in flight: the address it tried and
     /// the plain HTTP address to use if that exact attempt can't connect.
     fallback: RefCell<Option<nav::Target>>,
-    /// When this tab was last on screen, for clutter.
-    last_seen: Cell<Moment>,
     /// The address whose failure page this tab is showing, if it is. Time on
     /// a failure page is time on no site at all.
     failed: RefCell<Option<String>>,
     /// A failure page was asked for and hasn't started loading yet.
     failure_pending: Cell<bool>,
-    /// When this tab last started making sound, while it is.
-    sound_since: Cell<Option<Moment>>,
     /// The site icon as a `data:` URL, encoded once when it changes.
     icon: RefCell<Option<String>>,
 }
@@ -257,31 +252,14 @@ impl Window {
         self.selected_tab().is_some_and(|tab| audible(&tab.view))
     }
 
-    /// Tabs playing sound other than the one on screen (the selected tab
-    /// counts as on screen only in the window in front): when each started,
-    /// and its address.
-    pub fn sounds_off_screen(&self, in_front: bool) -> Vec<(Moment, String)> {
+    /// The addresses of the tabs other than the one on screen.
+    pub fn other_tabs(&self, in_front: bool) -> Vec<String> {
         let selected = self.selected.get();
         self.tabs
             .borrow()
             .iter()
             .filter(|t| !(in_front && t.id == selected))
-            .filter_map(|t| Some((t.sound_since.get()?, t.view.uri()?.to_string())))
-            .collect()
-    }
-
-    /// The tabs other than the one on screen: each one's address and when
-    /// it was last on screen.
-    pub fn other_tabs(&self, in_front: bool) -> Vec<(String, Moment)> {
-        let selected = self.selected.get();
-        self.tabs
-            .borrow()
-            .iter()
-            .filter(|t| !(in_front && t.id == selected))
-            .map(|t| {
-                let uri = t.view.uri().map(|u| u.to_string()).unwrap_or_default();
-                (uri, t.last_seen.get())
-            })
+            .map(|t| t.view.uri().map(|u| u.to_string()).unwrap_or_default())
             .collect()
     }
 
@@ -303,21 +281,6 @@ impl Window {
             .and_then(|tab| tab.view.uri())
             .map(|uri| uri.to_string())
             .unwrap_or_default()
-    }
-
-    /// The visible tab of the window in front is being looked at right now.
-    pub fn mark_seen(&self, now: Moment, in_front: bool) {
-        if in_front && let Some(tab) = self.selected_tab() {
-            tab.last_seen.set(now);
-        }
-    }
-
-    pub fn last_seen(&self) -> Vec<Moment> {
-        self.tabs
-            .borrow()
-            .iter()
-            .map(|t| t.last_seen.get())
-            .collect()
     }
 
     /// Used by the feel lab to show its clock.
@@ -416,10 +379,8 @@ impl Window {
             id,
             view,
             fallback: RefCell::new(None),
-            last_seen: Cell::new(attention::now()),
             failed: RefCell::new(None),
             failure_pending: Cell::new(false),
-            sound_since: Cell::new(None),
             icon: RefCell::new(None),
         });
         self.stack.add_child(&tab.view);
@@ -435,12 +396,10 @@ impl Window {
 
     fn select_tab(self: &Rc<Self>, id: u32) {
         let Some(tab) = self.tab(id) else { return };
-        // The tab being left was on screen until now.
-        if let Some(previous) = self.selected_tab() {
-            previous.last_seen.set(attention::now());
-            if previous.id != id {
-                self.close_find(false);
-            }
+        if let Some(previous) = self.selected_tab()
+            && previous.id != id
+        {
+            self.close_find(false);
         }
         self.selected.set(id);
         self.stack.set_visible_child(&tab.view);
@@ -938,18 +897,13 @@ impl Window {
             finder.connect_failed_to_find_text(move |_| found(None));
         }
 
-        // Sound anywhere matters: on screen it keeps the user present, and
-        // off screen it may be heard.
+        // Sound on screen keeps the user present; the speaker mark on the
+        // tab follows it either way.
         let weak = Rc::downgrade(self);
-        let weak_tab = Rc::downgrade(tab);
-        let sound_changed = move |view: &webkit::WebView| {
-            let (Some(this), Some(tab)) = (weak.upgrade(), weak_tab.upgrade()) else {
+        let sound_changed = move |_view: &webkit::WebView| {
+            let Some(this) = weak.upgrade() else {
                 return;
             };
-            let playing = audible(view);
-            if playing != tab.sound_since.get().is_some() {
-                tab.sound_since.set(playing.then(attention::now));
-            }
             this.push_tabs();
             this.companion.refresh();
         };

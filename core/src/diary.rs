@@ -67,8 +67,7 @@ impl Tally {
     }
 }
 
-/// Time away isn't counted. A tab only heard while away counts where it
-/// moved the dose, as the engine's mode says.
+/// Time away isn't counted.
 fn kind(mode: Mode) -> Option<TimeKind> {
     match mode {
         Mode::Away => None,
@@ -523,7 +522,7 @@ mod tests {
             25,
         ));
         // Too little to name, ordinary, private (never recorded by entry),
-        // before the week, and a heard tab while away.
+        // before the week, and a site left over from a spell now counted away.
         samples.extend(run(Mode::Nourishing, Some(("nhs.uk", 1.0)), 0, 30, 4));
         samples.extend(run(Mode::Resting, Some(("gmail.com", 0.0)), 0, 40, 90));
         samples.extend(run(Mode::Holding, None, 0, 140, 90));

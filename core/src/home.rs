@@ -51,7 +51,6 @@ struct Explanations {
     draining: String,
     night: String,
     privacy: String,
-    heard: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -92,17 +91,10 @@ pub enum Topic {
     Draining,
     Night,
     Privacy,
-    Heard,
 }
 
 impl Topic {
-    pub const ALL: [Topic; 5] = [
-        Topic::About,
-        Topic::Draining,
-        Topic::Night,
-        Topic::Privacy,
-        Topic::Heard,
-    ];
+    pub const ALL: [Topic; 4] = [Topic::About, Topic::Draining, Topic::Night, Topic::Privacy];
 
     pub fn key(self) -> &'static str {
         match self {
@@ -110,7 +102,6 @@ impl Topic {
             Topic::Draining => "draining",
             Topic::Night => "night",
             Topic::Privacy => "privacy",
-            Topic::Heard => "heard",
         }
     }
 
@@ -146,7 +137,6 @@ impl Words {
             Topic::Draining => &e.draining,
             Topic::Night => &e.night,
             Topic::Privacy => &e.privacy,
-            Topic::Heard => &e.heard,
         }
     }
 }
@@ -302,7 +292,7 @@ pub fn greet(words: &Words, rates: &Rates, facts: &Facts) -> Greeting {
     let t = &words.thresholds;
     // Other explanations wait until the introduction has been read.
     let about = !facts.explained.contains(&Topic::About);
-    let explain = [Topic::Draining, Topic::Heard, Topic::Night, Topic::Privacy]
+    let explain = [Topic::Draining, Topic::Night, Topic::Privacy]
         .into_iter()
         .filter(|_| !about)
         .find(|topic| facts.met.contains(topic) && !facts.explained.contains(topic))

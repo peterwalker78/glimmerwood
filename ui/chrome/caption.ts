@@ -22,12 +22,12 @@ function mood(wisp: Wisp): string {
 }
 
 function words(line: CaptionLine): { label: string; effect: string } {
-  const label = line.heard ? `${line.label}, playing` : line.label;
+  const label = line.label;
   switch (line.kind) {
     case "wearing":
-      return { label, effect: line.heard ? "wearing, softly" : "wearing" };
+      return { label, effect: "wearing" };
     case "restoring":
-      return { label, effect: line.heard ? "soothing" : "restoring" };
+      return { label, effect: "restoring" };
     case "ordinary_sites":
       return { label: line.label || "ordinary sites", effect: "resting" };
     case "private":
@@ -36,8 +36,6 @@ function words(line: CaptionLine): { label: string; effect: string } {
       return { label: "here with you", effect: "" };
     case "holding":
       return { label: line.label || "this page", effect: line.label ? "not on my lists yet" : "holding steady" };
-    case "playing":
-      return { label, effect: "" };
     case "away":
       return { label: "away", effect: "resting" };
     default: {
@@ -94,22 +92,15 @@ function plural(n: number, one: string, many: string): string {
 // "Now" first, so a change of site shows at once.
 export function renderCaption(list: HTMLElement, wisp: Wisp): void {
   list.replaceChildren();
-  list.append(heading("Now"), note(mood(wisp), "mood"));
-  for (const line of wisp.now) list.append(lineRow(line, false));
+  list.append(heading("Now"), note(mood(wisp), "mood"), lineRow(wisp.now, false));
 
   list.append(heading("Last 15 minutes"));
   if (wisp.caption.length === 0) list.append(note("Steady", "steady"));
   for (const line of wisp.caption) list.append(lineRow(line, true));
 
-  if (wisp.quiet_tabs + wisp.untouched_tabs > 0) {
+  if (wisp.other_tabs > 0) {
     list.append(heading("Other tabs"));
-    if (wisp.quiet_tabs > 0) {
-      list.append(row(plural(wisp.quiet_tabs, "quiet tab", "quiet tabs"), "no weight", null));
-    }
-    if (wisp.untouched_tabs > 0) {
-      const label = `${wisp.untouched_tabs} untouched since yesterday`;
-      list.append(row(label, "slowing rest", null));
-    }
+    list.append(row(plural(wisp.other_tabs, "other tab", "other tabs"), "no weight", null));
   }
   list.append(note("Click to see its days", "hint"));
 }

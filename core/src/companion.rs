@@ -2,8 +2,8 @@
 //! engine events, and the engine's state into the wisp every chrome draws.
 //!
 //! It sleeps between changes. Each wake-up is scheduled for the next thing
-//! that can matter: a level crossed, presence lapsing, a tab turning into
-//! clutter, a new day, or the next refresh of a moving wisp.
+//! that can matter: a level crossed, presence lapsing, a new day, or the next
+//! refresh of a moving wisp.
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -187,7 +187,7 @@ impl Companion {
         let now = attention::now();
         self.last_input.set(Some(now));
         let renew = match self.engine.borrow().activity() {
-            Activity::Away | Activity::Listening { .. } => true,
+            Activity::Away => true,
             Activity::Present { until, .. } => until.ms - now.ms < LEASE_RENEW_MS,
         };
         if renew {
@@ -215,39 +215,26 @@ impl Companion {
             return;
         }
         let front = windows.iter().find(|w| w.in_front());
-        for window in &windows {
-            window.mark_seen(now, front.is_some_and(|f| Rc::ptr_eq(f, window)));
-        }
-        let last_seen: Vec<Moment> = windows.iter().flat_map(|w| w.last_seen()).collect();
-
-        let heard = heard_tab(&windows).map(|uri| self.lists.borrow().place(&uri));
         let activity = {
             let engine = self.engine.borrow();
-            let present = front.and_then(|window| {
-                let signals = Signals {
-                    in_front: true,
-                    last_input: self.last_input.get(),
-                    sound_on_screen: window.sound_on_screen(),
-                };
-                attention::presence_until(engine.rates(), signals, now).map(|until| {
-                    Activity::Present {
-                        place: self.lists.borrow().place(&window.attended_uri()),
-                        heard: heard.clone(),
-                        until,
-                    }
+            front
+                .and_then(|window| {
+                    let signals = Signals {
+                        in_front: true,
+                        last_input: self.last_input.get(),
+                        sound_on_screen: window.sound_on_screen(),
+                    };
+                    attention::presence_until(engine.rates(), signals, now).map(|until| {
+                        Activity::Present {
+                            place: self.lists.borrow().place(&window.attended_uri()),
+                            until,
+                        }
+                    })
                 })
-            });
-            // Nobody at the window: only a heard draining site still counts,
-            // and only for a while after the last input.
-            let listening = || {
-                let heard = heard.clone().filter(is_draining)?;
-                attention::listening_until(engine.rates(), self.last_input.get(), now)
-                    .map(|until| Activity::Listening { heard, until })
-            };
-            present.or_else(listening).unwrap_or(Activity::Away)
+                .unwrap_or(Activity::Away)
         };
         match (&activity, self.away_since.get()) {
-            (Activity::Away | Activity::Listening { .. }, None) => self.away_since.set(Some(now)),
+            (Activity::Away, None) => self.away_since.set(Some(now)),
             (Activity::Present { .. }, Some(since)) => {
                 self.away_since.set(None);
                 self.returned
@@ -259,17 +246,14 @@ impl Companion {
             _ => {}
         }
         {
-            let mut engine = self.engine.borrow_mut();
-            let clutter = attention::untouched_tabs(engine.rates(), &last_seen, now);
-            engine.set_clutter(now, clutter);
-            engine.set_activity(now, activity);
+            self.engine.borrow_mut().set_activity(now, activity);
         }
         let care = front.is_some_and(|w| self.lists.borrow().cares(&w.attended_uri()));
         self.note_met(now, care);
         self.push(now, &windows, care);
         self.ask(now, &windows);
         self.record(now);
-        self.schedule(now, &last_seen);
+        self.schedule(now);
     }
 
     // --- Asking about places the wisp hasn't met ---------------------------
@@ -521,7 +505,6 @@ impl Companion {
                         }
                     ),
             ),
-            (Topic::Heard, engine.heard_counts()),
         ];
         drop(engine);
         for (topic, happening) in met {
@@ -824,11 +807,8 @@ impl Companion {
             let lab = lab.as_mut().expect("checked by the caller");
             let lab_now = lab.clock(real_now);
             let mut engine = self.engine.borrow_mut();
-            for step in lab.due(lab_now) {
-                match step {
-                    Step::Activity { at, activity } => engine.set_activity(at, activity),
-                    Step::Clutter { at, tabs } => engine.set_clutter(at, tabs),
-                }
+            for Step { at, activity } in lab.due(lab_now) {
+                engine.set_activity(at, activity);
             }
             engine.advance(lab_now);
             (lab_now, lab.next_line())
@@ -873,41 +853,15 @@ impl Companion {
         let lists = self.lists.borrow();
         let engine = self.engine.borrow();
 
-        let heard_uri = heard_tab(windows);
-        let heard = heard_uri.as_ref().map(|uri| {
-            let place = lists.place(uri);
-            let label = match &place {
-                Place::Listed { entry, .. } => entry.clone(),
-                _ => host_of(uri),
-            };
-            (place, label)
-        });
-
         // The other tabs, counted but never named; private ones not even
-        // counted. The heard tab has its own line.
-        let mut others: Vec<(String, Moment)> = windows
+        // counted.
+        let other_tabs = windows
             .iter()
             .flat_map(|w| w.other_tabs(front.is_some_and(|f| Rc::ptr_eq(f, w))))
-            .collect();
-        if let Some(uri) = &heard_uri
-            && let Some(i) = others.iter().position(|(u, _)| u == uri)
-        {
-            others.remove(i);
-        }
-        others.retain(|(uri, _)| lists.place(uri) != Place::Private);
-        let seen: Vec<Moment> = others.iter().map(|(_, seen)| *seen).collect();
-        let untouched = attention::untouched_tabs(engine.rates(), &seen, now);
-        let quiet = others.len() as u32 - untouched;
+            .filter(|uri| lists.place(uri) != Place::Private)
+            .count() as u32;
 
-        let message = wisp_message(
-            &engine,
-            now,
-            &site,
-            heard.as_ref(),
-            (quiet, untouched),
-            welcome,
-            care,
-        );
+        let message = wisp_message(&engine, now, &site, other_tabs, welcome, care);
         self.push_care(windows, care);
         let json = serde_json::to_string(&message).expect("wisp messages serialise");
         if *self.last_sent.borrow() == json {
@@ -934,7 +888,7 @@ impl Companion {
             mode: engine.mode(),
             place: match engine.activity() {
                 Activity::Present { place, .. } => Some(place.clone()),
-                Activity::Away | Activity::Listening { .. } => None,
+                Activity::Away => None,
             },
         };
         match store.record(&sample) {
@@ -943,7 +897,7 @@ impl Companion {
         }
     }
 
-    fn schedule(self: &Rc<Self>, now: Moment, last_seen: &[Moment]) {
+    fn schedule(self: &Rc<Self>, now: Moment) {
         if let Some(id) = self.wake.take() {
             id.remove();
         }
@@ -955,9 +909,6 @@ impl Companion {
                 _ => PRESENT_REFRESH_MS,
             };
             next = next.min(now.ms + every);
-        }
-        if let Some(clutter) = attention::next_untouched(engine.rates(), last_seen, now) {
-            next = next.min(clutter.ms);
         }
         if let Some(until) = self.welcome_until.get().filter(|&u| u > now.ms) {
             next = next.min(until);
@@ -1006,20 +957,6 @@ impl Companion {
         });
         self._user_lists_monitor.replace(Some(monitor));
     }
-}
-
-/// The address of the tab heard in any window, if one is.
-fn heard_tab(windows: &[Rc<Window>]) -> Option<String> {
-    let front = windows.iter().find(|w| w.in_front());
-    attention::heard(
-        windows
-            .iter()
-            .flat_map(|w| w.sounds_off_screen(front.is_some_and(|f| Rc::ptr_eq(f, w)))),
-    )
-}
-
-fn is_draining(place: &Place) -> bool {
-    matches!(place, Place::Listed { weight, .. } if *weight < 0.0)
 }
 
 /// `https://www.example.org/a` → `example.org`; empty for local pages.
@@ -1127,59 +1064,44 @@ fn load_user_lists(seed: &Lists) -> Option<Lists> {
     }
 }
 
-/// `site` is the visible tab's host and `heard` the place and label of the
-/// tab heard, both named live in the caption and never stored. `others` is
-/// the count of quiet and untouched other tabs.
+/// `site` is the visible tab's host, named live in the caption and never
+/// stored. `other_tabs` counts the tabs that aren't on screen.
 fn wisp_message(
     engine: &Engine,
     now: Moment,
     site: &str,
-    heard: Option<&(Place, String)>,
-    others: (u32, u32),
+    other_tabs: u32,
     welcome: bool,
     care: bool,
 ) -> ToChrome {
-    let line = |kind, label: &str, heard| CaptionLine {
+    let line = |kind, label: &str| CaptionLine {
         kind,
         label: label.to_owned(),
         bars: 0,
-        heard,
     };
-    let mut now_lines = vec![match engine.activity() {
-        Activity::Away | Activity::Listening { .. } => line(CaptionKind::Away, "", false),
+    let now_line = match engine.activity() {
+        Activity::Away => line(CaptionKind::Away, ""),
         Activity::Present {
             place: Place::Listed { entry, weight, .. },
             ..
         } => match *weight {
-            w if w < 0.0 => line(CaptionKind::Wearing, entry, false),
-            w if w > 0.0 => line(CaptionKind::Restoring, entry, false),
-            _ => line(CaptionKind::OrdinarySites, entry, false),
+            w if w < 0.0 => line(CaptionKind::Wearing, entry),
+            w if w > 0.0 => line(CaptionKind::Restoring, entry),
+            _ => line(CaptionKind::OrdinarySites, entry),
         },
         Activity::Present {
             place: Place::Unlisted,
             ..
-        } => line(CaptionKind::Holding, site, false),
+        } => line(CaptionKind::Holding, site),
         Activity::Present {
             place: Place::Private,
             ..
-        } if care => line(CaptionKind::Care, "", false),
+        } if care => line(CaptionKind::Care, ""),
         Activity::Present {
             place: Place::Private,
             ..
-        } => line(CaptionKind::Private, "", false),
-    }];
-    match heard {
-        None | Some((Place::Private, _)) => {}
-        Some((place, label)) => {
-            let kind = match place {
-                _ if !engine.heard_counts() => CaptionKind::Playing,
-                Place::Listed { weight, .. } if *weight < 0.0 => CaptionKind::Wearing,
-                _ => CaptionKind::Restoring,
-            };
-            now_lines.push(line(kind, label, true));
-        }
-    }
-    let (quiet_tabs, untouched_tabs) = others;
+        } => line(CaptionKind::Private, ""),
+    };
     ToChrome::Wisp {
         dose: (engine.dose() * 10_000.0).round() / 10_000.0,
         phase: match engine.phase() {
@@ -1211,30 +1133,24 @@ fn wisp_message(
             Trend::Falling => WispTrend::Falling,
             Trend::Steady => WispTrend::Steady,
         },
-        now: now_lines,
-        // Clutter is told among the other tabs instead.
+        now: now_line,
         caption: engine
             .caption(now)
             .into_iter()
-            .filter_map(|factor| {
-                let (kind, label, heard) = match factor.what {
-                    FactorKind::Wearing { entry, heard } => (CaptionKind::Wearing, entry, heard),
-                    FactorKind::Restoring { entry, heard } => {
-                        (CaptionKind::Restoring, entry, heard)
-                    }
-                    FactorKind::OrdinarySites => (CaptionKind::OrdinarySites, String::new(), false),
-                    FactorKind::Away => (CaptionKind::Away, String::new(), false),
-                    FactorKind::Clutter { .. } => return None,
+            .map(|factor| {
+                let (kind, label) = match factor.what {
+                    FactorKind::Wearing { entry } => (CaptionKind::Wearing, entry),
+                    FactorKind::Restoring { entry } => (CaptionKind::Restoring, entry),
+                    FactorKind::OrdinarySites => (CaptionKind::OrdinarySites, String::new()),
+                    FactorKind::Away => (CaptionKind::Away, String::new()),
                 };
-                Some(CaptionLine {
+                CaptionLine {
                     kind,
                     label,
                     bars: u32::from(factor.bars),
-                    heard,
-                })
+                }
             })
             .collect(),
-        quiet_tabs,
-        untouched_tabs,
+        other_tabs,
     }
 }

@@ -11,7 +11,6 @@ pub const DAY: &str = include_str!("../data/feel-lab.day");
 #[derive(Clone, Debug, PartialEq)]
 enum Doing {
     Activity(Option<Place>),
-    Clutter(u32),
     End,
 }
 
@@ -35,9 +34,9 @@ pub struct Lab {
 }
 
 /// One scripted change, ready for the engine.
-pub enum Step {
-    Activity { at: Moment, activity: Activity },
-    Clutter { at: Moment, tabs: u32 },
+pub struct Step {
+    pub at: Moment,
+    pub activity: Activity,
 }
 
 impl Lab {
@@ -115,29 +114,20 @@ impl Lab {
             }
             let until = self
                 .lines
-                .iter()
-                .skip(self.applied + 1)
-                .find(|l| !matches!(l.doing, Doing::Clutter(_)))
+                .get(self.applied + 1)
                 .map(|l| self.moment(l.minute))
                 .unwrap_or(Moment {
                     ms: at.ms + 86_400_000,
                     utc_offset_s: at.utc_offset_s,
                 });
-            match &line.doing {
-                Doing::Activity(Some(place)) => steps.push(Step::Activity {
-                    at,
-                    activity: Activity::Present {
-                        place: place.clone(),
-                        heard: None,
-                        until,
-                    },
-                }),
-                Doing::Activity(None) | Doing::End => steps.push(Step::Activity {
-                    at,
-                    activity: Activity::Away,
-                }),
-                Doing::Clutter(tabs) => steps.push(Step::Clutter { at, tabs: *tabs }),
-            }
+            let activity = match &line.doing {
+                Doing::Activity(Some(place)) => Activity::Present {
+                    place: place.clone(),
+                    until,
+                },
+                Doing::Activity(None) | Doing::End => Activity::Away,
+            };
+            steps.push(Step { at, activity });
             self.applied += 1;
         }
         steps
@@ -195,9 +185,6 @@ fn parse(script: &str) -> Result<Vec<Line>, String> {
             ["unlisted"] => Doing::Activity(Some(Place::Unlisted)),
             ["private"] => Doing::Activity(Some(Place::Private)),
             ["away"] => Doing::Activity(None),
-            ["clutter", tabs] => {
-                Doing::Clutter(tabs.parse().map_err(|_| bad("tabs is not a count"))?)
-            }
             ["end"] => Doing::End,
             _ => return Err(bad("unknown activity")),
         };
@@ -241,11 +228,8 @@ mod tests {
         let steps = lab.due(lab.clock(real(0)));
         // 07:50, 08:10, 09:00, 11:40, 12:10.
         assert_eq!(steps.len(), 5);
-        let Step::Activity { activity, .. } = &steps[4] else {
-            panic!("expected an activity");
-        };
         assert!(matches!(
-            activity,
+            &steps[4].activity,
             Activity::Present { place: Place::Listed { entry, .. }, .. } if entry == "tiktok.com"
         ));
     }

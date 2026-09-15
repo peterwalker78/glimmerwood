@@ -12,9 +12,9 @@ export type WispMode = "away" | "draining" | "resting" | "nourishing" | "holding
 
 export type WispTrend = "rising" | "falling" | "steady";
 
-export type CaptionKind = "wearing" | "restoring" | "ordinary_sites" | "holding" | "playing" | "private" | "care" | "away";
+export type CaptionKind = "wearing" | "restoring" | "ordinary_sites" | "holding" | "private" | "care" | "away";
 
-export type CaptionLine = { kind: CaptionKind; label: string; bars: number; heard: boolean };
+export type CaptionLine = { kind: CaptionKind; label: string; bars: number };
 
 export type DayPart = "morning" | "day" | "evening" | "night";
 
@@ -96,4 +96,4 @@ export type ToChrome =
   | { type: "caption"; open: boolean }
   | { type: "ask"; site: string | null }
   | { type: "care"; open: boolean; samaritans: boolean }
-  | { type: "wisp"; dose: number; phase: WispPhase; mode: WispMode; trend: WispTrend; night: boolean; private: boolean; welcome: boolean; now: CaptionLine[]; caption: CaptionLine[]; quiet_tabs: number; untouched_tabs: number };
+  | { type: "wisp"; dose: number; phase: WispPhase; mode: WispMode; trend: WispTrend; night: boolean; private: boolean; welcome: boolean; now: CaptionLine; caption: CaptionLine[]; other_tabs: number };

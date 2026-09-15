@@ -213,9 +213,6 @@ string_union! {
         /// A site on no list, which holds the dose steady; `label` is the
         /// site. Only ever describes now.
         Holding,
-        /// A tab playing sound that changes nothing; `label` is the site.
-        /// Only ever describes now.
-        Playing,
         /// A private site: nothing about it is named.
         Private,
         /// A care site: nothing about it is named, and the wisp stays close.
@@ -230,10 +227,8 @@ record! {
     pub struct CaptionLine {
         pub kind: CaptionKind,
         pub label: String,
-        /// 1 to 3 by share of the movement; 0 on lines about now.
+        /// 1 to 3 by share of the movement; 0 on the line about now.
         pub bars: u32,
-        /// About a tab that's playing sound rather than the page on screen.
-        pub heard: bool,
     }
 }
 
@@ -594,11 +589,9 @@ messages! {
         /// The companion's state, sent when it changes and while the dose
         /// moves. The native wisp takes the dose, mode, night (it winds down),
         /// private (it gives the user privacy) and welcome (it brightens after a
-        /// long time away); the chrome's
-        /// caption shows `now` (the page on screen and any tab heard) above
-        /// `caption` (what moved it over the last 15 minutes) and a count of
-        /// the other tabs: quiet ones, which weigh nothing, and untouched
-        /// ones, which slow rest.
+        /// long time away); the chrome's caption shows `now` (the page on
+        /// screen) above `caption` (what moved it over the last 15 minutes)
+        /// and a count of the other tabs, which weigh nothing.
         Wisp {
             dose: f64,
             phase: WispPhase,
@@ -607,10 +600,9 @@ messages! {
             night: bool,
             private: bool,
             welcome: bool,
-            now: Vec<CaptionLine>,
+            now: CaptionLine,
             caption: Vec<CaptionLine>,
-            quiet_tabs: u32,
-            untouched_tabs: u32,
+            other_tabs: u32,
         },
     }
 }

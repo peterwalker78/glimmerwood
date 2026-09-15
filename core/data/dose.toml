@@ -47,15 +47,6 @@ draining_factor = 1.5
 # in the next day's carry-over.
 carry_factor = 2.0
 
-[clutter]
-# A design choice, not a research finding.
-# A tab not looked at for this long is clutter.
-untouched_hours = 24.0
-# This many untouched tabs gives the full effect...
-tabs_for_full_effect = 8
-# ...which leaves recovery running at this fraction of its usual speed.
-slowest_recovery = 0.5
-
 [day]
 # Local time a new day begins.
 starts_at = "05:00"
@@ -68,19 +59,9 @@ carry_full_load = 180.0
 [presence]
 # Input within this many seconds counts as being present.
 input_seconds = 240
-# Sound keeps the user present, and a heard draining site keeps counting with
-# nobody at the window, for at most this long after the last input: a TV
-# episode or a long video by day, and at night about how long most people take
-# to fall asleep, so drifting off to rain on YouTube is rest, not scrolling.
-sound_minutes = 60.0
-night_sound_minutes = 20.0
-
-[heard]
-# A tab playing sound that isn't on screen: half attention counts
-# half. A heard draining site climbs at this factor of its usual rate; a heard
-# nourishing site under an ordinary or unlisted page rests as if the page's
-# weight were this factor of the heard site's.
-factor = 0.5
+# Sound on screen keeps the user present for at most this long after the last
+# input, so falling asleep to rain on YouTube is rest, not scrolling.
+sound_minutes = 30.0
 
 [caption]
 # The hover caption explains movement over this many trailing minutes.

@@ -45,10 +45,8 @@ pub struct Rates {
     pub news: News,
     pub rest: Rest,
     pub night: Night,
-    pub clutter: Clutter,
     pub day: Day,
     pub presence: Presence,
-    pub heard: Heard,
     pub caption: Caption,
 }
 
@@ -104,13 +102,6 @@ pub struct Night {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct Clutter {
-    pub untouched_hours: f64,
-    pub tabs_for_full_effect: u32,
-    pub slowest_recovery: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
 pub struct Day {
     pub starts_at: String,
     pub carry_max: f64,
@@ -121,12 +112,6 @@ pub struct Day {
 pub struct Presence {
     pub input_seconds: u32,
     pub sound_minutes: f64,
-    pub night_sound_minutes: f64,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct Heard {
-    pub factor: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -210,13 +195,6 @@ impl Rates {
         self.levels.drained / self.draining.minutes_to_drained
     }
 
-    /// Fraction of usual recovery speed with `tabs` untouched tabs.
-    pub fn recovery_speed(&self, tabs: u32) -> f64 {
-        let full = self.clutter.tabs_for_full_effect.max(1);
-        let share = f64::from(tabs.min(full)) / f64::from(full);
-        1.0 - share * (1.0 - self.clutter.slowest_recovery)
-    }
-
     fn session_factor(&self, minutes: f64) -> f64 {
         let s = &self.session;
         if minutes < s.short_minutes {
@@ -282,17 +260,8 @@ pub enum Activity {
     /// Present on `place` until `until`, unless renewed. The lease is what
     /// makes a laptop lid closed mid-scroll count as away: no renewal arrives
     /// while suspended, so the time after the lease ran out is rest.
-    ///
-    /// `heard` is a tab playing sound that isn't on screen.
     Present {
         place: Place,
-        heard: Option<Place>,
-        until: Moment,
-    },
-    /// Not present, but a tab is playing sound until `until`. Only a draining
-    /// site counts; anything else heard is the same as being away.
-    Listening {
-        heard: Place,
         until: Moment,
     },
 }
@@ -301,78 +270,29 @@ impl Activity {
     fn until(&self) -> Option<Moment> {
         match self {
             Activity::Away => None,
-            Activity::Present { until, .. } | Activity::Listening { until, .. } => Some(*until),
+            Activity::Present { until, .. } => Some(*until),
         }
     }
 }
 
-/// The draining site that counts right now, if any: the page on screen, or a
-/// heard site under a page that isn't draining.
-struct Drain<'a> {
-    entry: &'a str,
+/// The draining site on screen, if the user is present on one.
+#[derive(Clone, Copy)]
+struct Drain {
     weight: f64,
     news: bool,
-    /// ×1 for the page on screen, less for a site only heard.
-    factor: f64,
-    heard: bool,
 }
 
-fn draining_listed(place: &Place) -> Option<(&str, f64, bool)> {
-    match place {
-        Place::Listed {
-            entry,
-            weight,
-            news,
-        } if *weight < 0.0 => Some((entry, *weight, *news)),
+fn drain(activity: &Activity) -> Option<Drain> {
+    match activity {
+        Activity::Present {
+            place: Place::Listed { weight, news, .. },
+            ..
+        } if *weight < 0.0 => Some(Drain {
+            weight: *weight,
+            news: *news,
+        }),
         _ => None,
     }
-}
-
-fn drain<'a>(rates: &Rates, activity: &'a Activity) -> Option<Drain<'a>> {
-    let heard = |place: &'a Place| {
-        draining_listed(place).map(|(entry, weight, news)| Drain {
-            entry,
-            weight,
-            news,
-            factor: rates.heard.factor,
-            heard: true,
-        })
-    };
-    match activity {
-        Activity::Away => None,
-        Activity::Present {
-            place, heard: h, ..
-        } => match draining_listed(place) {
-            Some((entry, weight, news)) => Some(Drain {
-                entry,
-                weight,
-                news,
-                factor: 1.0,
-                heard: false,
-            }),
-            None => h.as_ref().and_then(heard),
-        },
-        Activity::Listening { heard: h, .. } => heard(h),
-    }
-}
-
-/// A heard nourishing site that rests the dose under an ordinary or unlisted
-/// page: its entry and the weight the page counts as.
-fn heard_rest<'a>(rates: &Rates, activity: &'a Activity) -> Option<(&'a str, f64)> {
-    let Activity::Present {
-        place,
-        heard: Some(Place::Listed { entry, weight, .. }),
-        ..
-    } = activity
-    else {
-        return None;
-    };
-    let page_rests_plainly = match place {
-        Place::Unlisted => true,
-        Place::Listed { weight, .. } => *weight == 0.0,
-        Place::Private => false,
-    };
-    (page_rests_plainly && *weight > 0.0).then(|| (entry.as_str(), weight * rates.heard.factor))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -404,28 +324,16 @@ pub enum Trend {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Factor {
     pub what: FactorKind,
-    /// 1 to 3, by share of the movement; 0 for clutter, which moves nothing
-    /// itself.
+    /// 1 to 3, by share of the movement.
     pub bars: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FactorKind {
-    /// `heard`: a tab playing sound, not the page on screen.
-    Wearing {
-        entry: String,
-        heard: bool,
-    },
-    Restoring {
-        entry: String,
-        heard: bool,
-    },
+    Wearing { entry: String },
+    Restoring { entry: String },
     OrdinarySites,
     Away,
-    /// Untouched tabs slowed the recovery above.
-    Clutter {
-        tabs: u32,
-    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -455,9 +363,6 @@ struct Segment {
     dose_at_start: f64,
     activity: Activity,
     effect: Effect,
-    /// The same stretch without clutter, to say how much clutter slowed it.
-    unhindered: Effect,
-    clutter: u32,
 }
 
 pub struct Engine {
@@ -467,7 +372,6 @@ pub struct Engine {
     /// Weighted draining minutes so far today, night minutes counted extra.
     day_load: f64,
     activity: Activity,
-    clutter: u32,
     /// Minutes of the current draining session, and minutes since draining
     /// stopped (a long enough break starts a new session).
     session: f64,
@@ -506,7 +410,6 @@ impl Engine {
             at: snapshot.at,
             day_load: snapshot.day_load.max(0.0),
             activity: Activity::Away,
-            clutter: 0,
             session: 0.0,
             off_draining: break_minutes,
             news_today: 0.0,
@@ -538,15 +441,9 @@ impl Engine {
         self.rates.levels.phase(self.dose)
     }
 
-    /// By the page on screen: a site only heard doesn't change how the wisp
-    /// looks at the page, though it moves the dose.
     pub fn mode(&self) -> Mode {
         match &self.activity {
             Activity::Away => Mode::Away,
-            Activity::Listening { .. } if drain(&self.rates, &self.activity).is_some() => {
-                Mode::Draining
-            }
-            Activity::Listening { .. } => Mode::Away,
             Activity::Present { place, .. } => match place {
                 Place::Unlisted | Place::Private => Mode::Holding,
                 Place::Listed { weight, .. } if *weight < 0.0 => Mode::Draining,
@@ -562,12 +459,6 @@ impl Engine {
             Effect::Halve(_) if self.dose > 0.001 => Trend::Falling,
             _ => Trend::Steady,
         }
-    }
-
-    /// Whether a site that's only heard is moving the dose right now.
-    pub fn heard_counts(&self) -> bool {
-        self.draining().is_some_and(|d| d.heard)
-            || heard_rest(&self.rates, &self.activity).is_some()
     }
 
     /// Bring the dose up to `now`.
@@ -616,11 +507,6 @@ impl Engine {
         self.rates.set_night(starts_at, ends_at)
     }
 
-    pub fn set_clutter(&mut self, now: Moment, tabs: u32) {
-        self.advance(now);
-        self.clutter = tabs;
-    }
-
     /// The next moment anything visible changes on its own: a level crossed,
     /// a rule's rate changing (session, allowance, night), the presence lease
     /// running out, or a new day.
@@ -665,12 +551,8 @@ impl Engine {
             dose_at_start: self.dose,
             activity: self.activity.clone(),
             effect: self.effect(self.at),
-            unhindered: self.effect_with_clutter(self.at, 0),
-            clutter: self.clutter,
         };
         let mut moved: Vec<(FactorKind, f64)> = Vec::new();
-        let mut slowed = 0.0;
-        let mut slowing_tabs = 0;
         for seg in self.recent.iter().chain(std::iter::once(&current)) {
             let (start, end) = (seg.start.max(from), seg.end.min(now.ms));
             if end <= start {
@@ -684,32 +566,21 @@ impl Engine {
             if delta.abs() < 1e-9 {
                 continue;
             }
-            if delta < 0.0 && seg.clutter > 0 {
-                slowed += delta - (seg.unhindered.apply(d0, span) - d0);
-                slowing_tabs = seg.clutter;
-            }
-            let kind = if let Some(d) = drain(&self.rates, &seg.activity) {
-                FactorKind::Wearing {
-                    entry: d.entry.to_string(),
-                    heard: d.heard,
-                }
-            } else if let Some((entry, _)) = heard_rest(&self.rates, &seg.activity) {
-                FactorKind::Restoring {
-                    entry: entry.to_string(),
-                    heard: true,
-                }
-            } else {
-                match &seg.activity {
-                    Activity::Away | Activity::Listening { .. } => FactorKind::Away,
-                    Activity::Present {
-                        place: Place::Listed { entry, weight, .. },
-                        ..
-                    } if *weight > 0.0 => FactorKind::Restoring {
-                        entry: entry.clone(),
-                        heard: false,
-                    },
-                    Activity::Present { .. } => FactorKind::OrdinarySites,
-                }
+            let kind = match &seg.activity {
+                Activity::Away => FactorKind::Away,
+                Activity::Present {
+                    place: Place::Listed { entry, weight, .. },
+                    ..
+                } if *weight < 0.0 => FactorKind::Wearing {
+                    entry: entry.clone(),
+                },
+                Activity::Present {
+                    place: Place::Listed { entry, weight, .. },
+                    ..
+                } if *weight > 0.0 => FactorKind::Restoring {
+                    entry: entry.clone(),
+                },
+                Activity::Present { .. } => FactorKind::OrdinarySites,
             };
             match moved.iter_mut().find(|(k, _)| *k == kind) {
                 Some((_, total)) => *total += delta.abs(),
@@ -721,7 +592,7 @@ impl Engine {
             return Vec::new();
         }
         moved.sort_by(|a, b| b.1.total_cmp(&a.1));
-        let mut factors: Vec<Factor> = moved
+        moved
             .into_iter()
             .filter(|(_, d)| d / total >= 0.05)
             .map(|(what, d)| Factor {
@@ -732,32 +603,20 @@ impl Engine {
                     _ => 1,
                 },
             })
-            .collect();
-        if slowed > 0.001 {
-            factors.push(Factor {
-                what: FactorKind::Clutter { tabs: slowing_tabs },
-                bars: 0,
-            });
-        }
-        factors
+            .collect()
     }
 
     fn caption_window_ms(&self) -> i64 {
         (self.rates.caption.window * MINUTE_MS) as i64
     }
 
-    fn draining(&self) -> Option<Drain<'_>> {
-        drain(&self.rates, &self.activity)
+    fn draining(&self) -> Option<Drain> {
+        drain(&self.activity)
     }
 
     fn effect(&self, at: Moment) -> Effect {
-        self.effect_with_clutter(at, self.clutter)
-    }
-
-    fn effect_with_clutter(&self, at: Moment, clutter: u32) -> Effect {
         let r = &self.rates;
         let night = r.is_night(at);
-        let speed = r.recovery_speed(clutter);
         let away = r.rest.away_half_life;
         if let Some(d) = self.draining() {
             // A session that has been broken for long enough starts over when
@@ -767,7 +626,7 @@ impl Engine {
             } else {
                 self.session
             };
-            let mut rate = r.climb() * d.weight.abs() * r.session_factor(session) * d.factor;
+            let mut rate = r.climb() * d.weight.abs() * r.session_factor(session);
             if night {
                 rate *= r.night.draining_factor;
             }
@@ -777,20 +636,18 @@ impl Engine {
             return Effect::Climb(rate);
         }
         let weight = match &self.activity {
-            Activity::Away | Activity::Listening { .. } => return Effect::Halve(away / speed),
-            Activity::Present { place, .. } => match (place, heard_rest(r, &self.activity)) {
-                (Place::Private, _) => return Effect::Hold,
-                (_, Some((_, weight))) => weight,
-                (Place::Unlisted, None) => return Effect::Hold,
-                (Place::Listed { weight, .. }, None) => *weight,
+            Activity::Away => return Effect::Halve(away),
+            Activity::Present { place, .. } => match place {
+                Place::Private | Place::Unlisted => return Effect::Hold,
+                Place::Listed { weight, .. } => *weight,
             },
         };
         if night && weight == 0.0 {
             Effect::Hold
         } else if night {
-            Effect::Halve(away * 2.0 / speed)
+            Effect::Halve(away * 2.0)
         } else {
-            Effect::Halve(away * (2.0 - weight) / speed)
+            Effect::Halve(away * (2.0 - weight))
         }
     }
 
@@ -845,12 +702,10 @@ impl Engine {
             dose_at_start: self.dose,
             activity: self.activity.clone(),
             effect,
-            unhindered: self.effect_with_clutter(self.at, 0),
-            clutter: self.clutter,
         });
         self.dose = effect.apply(self.dose, span);
 
-        match self.draining().map(|d| (d.weight * d.factor, d.news)) {
+        match self.draining().map(|d| (d.weight, d.news)) {
             Some((weight, news)) => {
                 if self.off_draining >= self.rates.session.break_minutes {
                     self.session = 0.0;
@@ -939,7 +794,6 @@ mod tests {
     fn site(entry: &str, weight: f64, until: Moment) -> Activity {
         Activity::Present {
             place: listed(entry, weight),
-            heard: None,
             until,
         }
     }
@@ -985,10 +839,7 @@ mod tests {
     /// `HH:MM` or `N/HH:MM`:
     ///   `draining W ENTRY`, `news ENTRY` (weight -0.4), `nourishing W ENTRY`,
     ///   `ordinary ENTRY`, `unlisted`, `private`, `away`: what the user is
-    ///   doing from then on (presence is leased to the next such line),
-    ///   optionally followed by `+ heard PLACE` for a tab playing sound;
-    ///   `listening PLACE`: away from the window with PLACE playing;
-    ///   `clutter N`: untouched tabs from then on;
+    ///   doing from then on (presence is leased to the next such line);
     ///   `expect dose X ± T`, `expect phase NAME`: checks at that time.
     fn run(script: &str) -> Engine {
         let lines: Vec<(Moment, Vec<&str>)> = script
@@ -1004,11 +855,11 @@ mod tests {
         let mut engine = Engine::new(Rates::bundled(), lines[0].0);
         for (i, (time, words)) in lines.iter().enumerate() {
             // Presence lasts until the next thing the user does, not the next
-            // check or clutter change.
+            // check.
             let lease = lines
                 .iter()
                 .skip(i + 1)
-                .filter(|(_, w)| !matches!(w.first(), Some(&"expect" | &"clutter")))
+                .filter(|(_, w)| !matches!(w.first(), Some(&"expect")))
                 .map(|(t, _)| *t)
                 .find(|t| t.ms > time.ms)
                 .unwrap_or(Moment {
@@ -1016,30 +867,11 @@ mod tests {
                     utc_offset_s: BST,
                 });
             let number = |i: usize| words[i].parse::<f64>().expect("number");
-            let (doing, heard) = match words.iter().position(|w| *w == "+") {
-                Some(i) => {
-                    assert_eq!(words.get(i + 1), Some(&"heard"), "`+ heard PLACE`");
-                    (&words[..i], place_of(&words[i + 2..]))
-                }
-                None => (&words[..], None),
-            };
-            if let Some(place) = place_of(doing) {
+            if let Some(place) = place_of(words) {
                 engine.set_activity(
                     *time,
                     Activity::Present {
                         place,
-                        heard,
-                        until: lease,
-                    },
-                );
-                continue;
-            }
-            if let ["listening", rest @ ..] = doing {
-                let heard = place_of(rest).expect("listening PLACE");
-                engine.set_activity(
-                    *time,
-                    Activity::Listening {
-                        heard,
                         until: lease,
                     },
                 );
@@ -1047,7 +879,6 @@ mod tests {
             }
             match words.as_slice() {
                 ["away"] => engine.set_activity(*time, Activity::Away),
-                ["clutter", _] => engine.set_clutter(*time, number(1) as u32),
                 ["expect", "dose", _, "±", _] => {
                     engine.advance(*time);
                     assert_near(engine.dose(), number(2), number(4));
@@ -1180,7 +1011,6 @@ mod tests {
                     weight: -0.4,
                     news: true,
                 },
-                heard: None,
                 until: at("1/08:10"),
             },
         );
@@ -1258,28 +1088,6 @@ mod tests {
         let at_lease_end = 0.075 + 0.3 + 12.0 * 0.021;
         assert_near(engine.dose(), at_lease_end * 0.5, 1e-6);
         assert_eq!(engine.mode(), Mode::Away);
-    }
-
-    #[test]
-    fn clutter_slows_recovery_and_never_raises_the_dose() {
-        // With eight untouched tabs, rest takes twice as long to halve.
-        run("
-            09:00 draining 1 tiktok.com
-            09:40 clutter 8
-            09:40 away
-            10:30 expect dose 0.2925 ± 0.0005
-        ");
-        run("
-            09:00 draining 1 tiktok.com
-            09:40 clutter 20
-            09:40 unlisted
-            12:00 expect dose 0.585 ± 0.0005
-        ");
-        let rates = Rates::bundled();
-        assert_eq!(rates.recovery_speed(0), 1.0);
-        assert_eq!(rates.recovery_speed(4), 0.75);
-        assert_eq!(rates.recovery_speed(8), 0.5);
-        assert_eq!(rates.recovery_speed(30), 0.5);
     }
 
     // --- Night ---------------------------------------------------------------
@@ -1451,7 +1259,6 @@ mod tests {
             at("09:00"),
             Activity::Present {
                 place: Place::Unlisted,
-                heard: None,
                 until: at("09:02"),
             },
         );
@@ -1480,39 +1287,10 @@ mod tests {
             caption[0].what,
             FactorKind::Wearing {
                 entry: "tiktok.com".into(),
-                heard: false,
             }
         );
         assert_eq!(caption[0].bars, 3);
         assert_eq!(caption[1].what, FactorKind::Away);
-    }
-
-    #[test]
-    fn caption_mentions_clutter_only_when_it_slowed_recovery() {
-        let engine = run("
-            09:00 draining 1 tiktok.com
-            09:40 clutter 11
-            09:40 ordinary gmail.com
-            09:55 expect phase clouded
-        ");
-        let caption = engine.caption(at("09:55"));
-        assert_eq!(caption[0].what, FactorKind::OrdinarySites);
-        assert_eq!(
-            caption.last().map(|f| &f.what),
-            Some(&FactorKind::Clutter { tabs: 11 })
-        );
-
-        let climbing = run("
-            09:00 clutter 11
-            09:00 draining 1 tiktok.com
-            09:20 expect phase engaged
-        ");
-        assert!(
-            !climbing
-                .caption(at("09:20"))
-                .iter()
-                .any(|f| matches!(f.what, FactorKind::Clutter { .. }))
-        );
     }
 
     #[test]
@@ -1542,136 +1320,6 @@ mod tests {
             caption[0].what,
             FactorKind::Restoring {
                 entry: "khanacademy.org".into(),
-                heard: false,
-            }
-        );
-    }
-
-    #[test]
-    fn a_heard_draining_site_counts_half_under_a_page_that_isnt_draining() {
-        // 40 minutes of a fully draining site on screen reach 0.585 (see the
-        // session test); heard under a page that doesn't drain, half that,
-        // with the same session ramp.
-        run("
-            09:00 unlisted + heard draining 1 youtube.com
-            09:40 expect dose 0.2925 ± 0.0005
-        ");
-        run("
-            09:00 nourishing 1 khanacademy.org + heard draining 1 youtube.com
-            09:40 expect dose 0.2925 ± 0.0005
-        ");
-    }
-
-    #[test]
-    fn heard_sound_never_adds_to_a_draining_page() {
-        run("
-            09:00 draining 1 tiktok.com + heard draining 1 youtube.com
-            09:40 expect dose 0.585 ± 0.0005
-        ");
-    }
-
-    #[test]
-    fn heard_nourishing_sound_turns_holding_into_gentle_rest() {
-        // Unlisted holds; with a strongly nourishing site heard it rests as if
-        // its weight were 0.5, halving every 37.5 minutes: two halvings.
-        let mut engine = engine_at("09:00", 0.5);
-        engine.set_activity(
-            at("09:00"),
-            Activity::Present {
-                place: Place::Unlisted,
-                heard: Some(listed("calm.com", 1.0)),
-                until: at("12:00"),
-            },
-        );
-        engine.advance(at("10:15"));
-        assert_near(engine.dose(), 0.125, 1e-6);
-
-        // A private page stays exactly as it was.
-        let mut private = engine_at("09:00", 0.5);
-        private.set_activity(
-            at("09:00"),
-            Activity::Present {
-                place: Place::Private,
-                heard: Some(listed("calm.com", 1.0)),
-                until: at("12:00"),
-            },
-        );
-        private.advance(at("10:15"));
-        assert_near(private.dose(), 0.5, 1e-9);
-    }
-
-    #[test]
-    fn heard_sound_that_isnt_draining_or_nourishing_changes_nothing() {
-        for heard in [
-            listed("bbc.co.uk/sounds", 0.0),
-            Place::Unlisted,
-            Place::Private,
-        ] {
-            let mut engine = engine_at("09:00", 0.5);
-            engine.set_activity(
-                at("09:00"),
-                Activity::Present {
-                    place: Place::Unlisted,
-                    heard: Some(heard),
-                    until: at("12:00"),
-                },
-            );
-            engine.advance(at("10:00"));
-            assert_near(engine.dose(), 0.5, 1e-9);
-            assert!(engine.caption(at("10:00")).is_empty());
-        }
-    }
-
-    #[test]
-    fn listening_away_from_the_window_counts_half_until_it_lapses() {
-        // 10 minutes ×0.5 session ×0.5 heard, 20 minutes ×0.5 heard, then
-        // away from 09:30: ten minutes of rest.
-        let engine = run("
-            09:00 listening draining 1 youtube.com
-            09:30 away
-            09:30 expect dose 0.1875 ± 0.0005
-            09:40 expect dose 0.1421 ± 0.0005
-        ");
-        assert_eq!(engine.mode(), Mode::Away);
-    }
-
-    #[test]
-    fn music_never_makes_being_away_less_restful() {
-        let mut engine = engine_at("09:00", 0.5);
-        engine.set_activity(
-            at("09:00"),
-            Activity::Listening {
-                heard: listed("calm.com", 1.0),
-                until: at("12:00"),
-            },
-        );
-        engine.advance(at("09:25"));
-        assert_near(engine.dose(), 0.25, 1e-6);
-    }
-
-    #[test]
-    fn caption_says_when_a_site_is_only_heard() {
-        let engine = run("
-            09:00 unlisted + heard draining 1 youtube.com
-            09:14 expect phase rested
-        ");
-        assert_eq!(
-            engine.caption(at("09:14"))[0].what,
-            FactorKind::Wearing {
-                entry: "youtube.com".into(),
-                heard: true,
-            }
-        );
-        let resting = run("
-            09:00 draining 1 tiktok.com
-            09:30 ordinary gmail.com + heard nourishing 1 calm.com
-            09:50 expect phase engaged
-        ");
-        assert_eq!(
-            resting.caption(at("09:50"))[0].what,
-            FactorKind::Restoring {
-                entry: "calm.com".into(),
-                heard: true,
             }
         );
     }
