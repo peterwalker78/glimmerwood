@@ -25,10 +25,21 @@ day = ["Where to next?", "Somewhere good, perhaps."]
 evening = ["Somewhere calm for the evening?", "The day's winding down."]
 night = ["Go gently. Sleep does the most good.", "Somewhere quiet, if anywhere."]
 
-# Explanations, each shown until the user says "Got it". `intro` shows on the
-# first visits; the others once the user has met the thing they explain.
+# The wisp introduces itself in a speech bubble in the garden, until the user
+# dismisses it.
+[about]
+title = "Hello. I'm your wisp."
+paragraphs = [
+  "Wisp is a web browser that keeps you company. Some corners of the web leave you rested and brighter; others are built to keep you scrolling long after they stop doing you any good. I notice which is which.",
+  "You'll see it in me, up at the top of the window, the way you see weather: bright after time away or somewhere kind, clouded and sleepy after a long stretch of endless feeds. Hover over me to see what's moving me, and click me to look back over our days.",
+  "I'll never block a page or tell you off. The idea is simply that noticing helps: more of your time going to things that restore you, less of it lost to the feed, and gentler evenings before sleep. Time away from the screen does us both the most good.",
+  "This garden grows on good days and never wilts. Everything I notice stays on this computer.",
+]
+done = "Got it"
+
+# Explanations, each shown until the user says "Got it", once the user has met
+# the thing they explain.
 [explain]
-intro = "Wisp is a browser that keeps you company. The little light at the top notices which parts of the web restore you and which wear you down, and lets you see it without ever scolding. Hover it any time to see why it looks the way it does, or click it to see its days."
 draining = "Earlier the wisp grew heavy. Some sites are built to keep you scrolling, and the wisp feels that weight. It lifts again when you step away or spend time somewhere kinder."
 night = "After eleven the wisp winds down with you. Late scrolling weighs a little more and restful pages rest a little less, because sleep does the most good of all."
 privacy = "On some private sites the wisp turns away and gives you privacy. Nothing about those visits is counted or kept."
@@ -54,8 +65,6 @@ gentle_present_minutes = 30
 gentle_load = 30.0
 # Away this long, and the dose below Engaged, earns the rested welcome.
 rested_away_minutes = 120
-# The first visits that explain what Wisp is for, unless dismissed sooner.
-intro_visits = 3
 # A place counts as one of the user's own after this many minutes on it in
 # the last 30 days.
 own_place_minutes = 20

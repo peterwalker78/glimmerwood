@@ -15,6 +15,45 @@
       <h1 id="title"></h1>
       <p id="line"></p>
     </div>
+    <div id="about" class="about" hidden>
+      <section class="bubble" aria-labelledby="about-title">
+        <h2 id="about-title"></h2>
+        <div id="about-text"></div>
+        <a id="about-done" class="got-it" href="#"></a>
+      </section>
+      <svg id="about-wisp" class="about-wisp" viewBox="18 10 92 96" aria-hidden="true">
+        <defs>
+          <radialGradient id="about-glow" gradientUnits="userSpaceOnUse" cx="64" cy="70" r="46">
+            <stop offset="0" stop-color="#f0c36b" stop-opacity="0.55"/>
+            <stop offset="0.45" stop-color="#f0c36b" stop-opacity="0.24"/>
+            <stop offset="1" stop-color="#f0c36b" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="about-body" gradientUnits="userSpaceOnUse" cx="64" cy="71.68" fx="57.09" fy="63.39" r="34.56">
+            <stop offset="0.074" stop-color="#fff7df"/>
+            <stop offset="0.72" stop-color="#fbe7bc"/>
+            <stop offset="1" stop-color="#fbe7bc" stop-opacity="0.9"/>
+          </radialGradient>
+          <radialGradient id="about-cheek">
+            <stop offset="0" stop-color="#f29e59" stop-opacity="0.4"/>
+            <stop offset="1" stop-color="#f29e59" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="64" cy="70" r="46" fill="url(#about-glow)"/>
+        <path fill="url(#about-body)" d="M38.4 71.68C38.4 98.56 89.6 98.56 89.6 71.68 89.6 52.48 72.96 42.24 67.84 26.88 62.72 40.96 38.4 51.2 38.4 71.68Z"/>
+        <g class="about-moss">
+          <ellipse cx="45" cy="97" rx="14" ry="6"/>
+          <ellipse cx="64" cy="95.5" rx="17" ry="7"/>
+          <ellipse cx="83" cy="97.5" rx="13" ry="5.5"/>
+        </g>
+        <circle cx="48.13" cy="76.8" r="5.12" fill="url(#about-cheek)"/>
+        <circle cx="79.87" cy="76.8" r="5.12" fill="url(#about-cheek)"/>
+        <ellipse cx="54.27" cy="69.63" rx="2.56" ry="4.35" fill="#2b2119" fill-opacity="0.88"/>
+        <ellipse cx="73.73" cy="69.63" rx="2.56" ry="4.35" fill="#2b2119" fill-opacity="0.88"/>
+        <circle cx="53.35" cy="67.89" r="1.02" fill="#fff" fill-opacity="0.9"/>
+        <circle cx="72.81" cy="67.89" r="1.02" fill="#fff" fill-opacity="0.9"/>
+        <path d="M67.31 79.72C65.68 81.97 62.32 81.97 60.69 79.72" fill="none" stroke="#2b2119" stroke-opacity="0.8" stroke-width="2.05" stroke-linecap="round"/>
+      </svg>
+    </div>
   </header>
 
   <main class="page">

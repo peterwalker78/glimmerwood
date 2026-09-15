@@ -123,6 +123,68 @@ html, body {
   text-wrap: pretty;
 }
 
+/* --- The wisp introducing itself --- */
+
+.scene.has-about {
+  height: auto;
+  min-height: clamp(250px, 44vh, 400px);
+  padding-bottom: 88px;
+}
+
+.about {
+  position: relative;
+  max-width: 820px;
+  margin: 22px auto 0;
+  padding: 0 32px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.about[hidden] { display: none; }
+
+.bubble {
+  position: relative;
+  flex: 0 1 560px;
+  padding: 20px 24px 14px;
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.16);
+}
+/* The tail, reaching down toward the wisp. */
+.bubble::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: var(--tail, 26px);
+  border-style: solid;
+  border-width: 9px 0 9px 20px;
+  border-color: transparent transparent transparent var(--card);
+}
+.bubble h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font: 400 1.4rem/1.2 var(--serif);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.bubble p {
+  margin: 0 0 0.75em;
+  font: 400 1rem/1.55 var(--serif);
+  text-wrap: pretty;
+}
+.bubble .got-it { display: block; width: fit-content; margin: 2px -12px 0 auto; }
+
+.about-wisp { flex: none; width: 88px; height: 92px; }
+.about-moss ellipse { fill: #7fa05f; }
+
+@media (max-width: 700px) {
+  .about { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .bubble { flex: none; }
+  .bubble::after { right: 44px; bottom: -16px; border-width: 18px 9px 0 9px; border-color: var(--card) transparent transparent transparent; transform: none; }
+  .about-wisp { margin-right: 20px; }
+}
+
 /* --- The page below --- */
 
 .page {
@@ -283,7 +345,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 /* Settle in once, then stay still. */
 @media (prefers-reduced-motion: no-preference) {
-  .greeting, .page { animation: arrive 420ms ease-out both; }
+  .greeting, .about, .page { animation: arrive 420ms ease-out both; }
   .page { animation-delay: 60ms; }
 }
 @keyframes arrive {
@@ -291,7 +353,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 }
 
 @media (max-width: 560px) {
-  .greeting, .page { padding-left: 18px; padding-right: 18px; }
+  .greeting, .about, .page { padding-left: 18px; padding-right: 18px; }
   .explain { flex-wrap: wrap; }
 }
 

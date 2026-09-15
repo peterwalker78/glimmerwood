@@ -267,6 +267,17 @@ record! {
 }
 
 record! {
+    /// The wisp introducing itself in the garden, until dismissed with a
+    /// link to `wisp://home/do/got-it/about`.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct HomeAbout {
+        pub title: String,
+        pub paragraphs: Vec<String>,
+        pub done: String,
+    }
+}
+
+record! {
     #[derive(Serialize, Clone, Debug, PartialEq)]
     pub struct HomePlace {
         pub name: String,
@@ -396,6 +407,7 @@ record! {
     pub struct HomeData {
         pub title: String,
         pub line: String,
+        pub about: Option<HomeAbout>,
         pub explain: Option<HomeExplain>,
         pub part: DayPart,
         pub places: Vec<HomePlace>,
@@ -545,6 +557,7 @@ fn typescript() -> String {
         DayPart::declaration(),
         PlantKind::declaration(),
         HomeExplain::declaration(),
+        HomeAbout::declaration(),
         HomePlace::declaration(),
         HomeBookmark::declaration(),
         HomePlant::declaration(),

@@ -905,7 +905,6 @@ impl Window {
                     if tab.view.uri().is_some_and(|uri| scheme::is_home(&uri)) =>
                 {
                     if let Some(this) = weak_self.upgrade() {
-                        this.companion.home_visited();
                         this.push_home(&tab);
                     }
                 }

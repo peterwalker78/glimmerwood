@@ -22,6 +22,8 @@ export type PlantKind = "moss" | "fern" | "flower";
 
 export type HomeExplain = { topic: string; text: string };
 
+export type HomeAbout = { title: string; paragraphs: string[]; done: string };
+
 export type HomePlace = { name: string; line: string; url: string; yours: boolean };
 
 export type HomeBookmark = { id: number; title: string; url: string; host: string };
@@ -42,7 +44,7 @@ export type DiarySite = { label: string; kind: TimeKind; bars: number };
 
 export type HomeWisp = { today: DosePoint[]; now_minute: number; day_start_minute: number; night_from: number; night_until: number; engaged: number; clouded: number; drained: number; week: DiaryDay[]; earlier: DiaryWeek[]; sites: DiarySite[] };
 
-export type HomeData = { title: string; line: string; explain: HomeExplain | null; part: DayPart; places: HomePlace[]; bookmarks: HomeBookmark[]; plants: HomePlant[]; seed: number; wisp: HomeWisp };
+export type HomeData = { title: string; line: string; about: HomeAbout | null; explain: HomeExplain | null; part: DayPart; places: HomePlace[]; bookmarks: HomeBookmark[]; plants: HomePlant[]; seed: number; wisp: HomeWisp };
 
 export type TabInfo = { id: number; title: string; host: string; loading: boolean; sound: TabSound };
 

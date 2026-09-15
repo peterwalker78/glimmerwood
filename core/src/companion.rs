@@ -22,8 +22,8 @@ use crate::dose::{
 use crate::feel_lab::{Lab, Step};
 use crate::home::{self, Facts, PartOfDay, Topic, Words};
 use crate::protocol::{
-    CaptionKind, CaptionLine, DayPart, HomeBookmark, HomeData, HomeExplain, HomePlace, HomePlant,
-    PlantKind, ToChrome, WispMode, WispPhase, WispTrend,
+    CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
+    HomePlant, PlantKind, ToChrome, WispMode, WispPhase, WispTrend,
 };
 use crate::reputation::Lists;
 use crate::store::{GardenDay, Sample, Store};
@@ -286,12 +286,6 @@ impl Companion {
         }
     }
 
-    /// Home was opened: one more visit.
-    pub fn home_visited(&self) {
-        let visits = self.home_value("visits").unwrap_or(0);
-        self.set_home_value("visits", visits + 1);
-    }
-
     /// A button on Home, as the link it followed: `got-it/TOPIC` or
     /// `forget-bookmark/ID`. Returns whether anything changed.
     pub fn home_action(&self, action: &str) -> bool {
@@ -413,7 +407,6 @@ impl Companion {
         let facts = Facts {
             now,
             dose: engine.dose(),
-            visits: self.home_value("visits").unwrap_or(0).max(1) as u32 - 1,
             met: topics("met"),
             explained: topics("explained"),
             today: days.get(&today).cloned(),
@@ -441,6 +434,11 @@ impl Companion {
         HomeData {
             title: greeting.title,
             line: greeting.line,
+            about: greeting.about.then(|| HomeAbout {
+                title: self.words.about.title.clone(),
+                paragraphs: self.words.about.paragraphs.clone(),
+                done: self.words.about.done.clone(),
+            }),
             explain: greeting.explain.map(|(topic, text)| HomeExplain {
                 topic: topic.key().to_owned(),
                 text,

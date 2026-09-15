@@ -20,6 +20,7 @@ pub struct Words {
     welcome: ByPart<String>,
     quiet: ByPart<Vec<String>>,
     explain: Explanations,
+    pub about: About,
     praise: Praise,
     pub thresholds: Thresholds,
     places: Vec<Curated>,
@@ -44,9 +45,16 @@ impl<T> ByPart<T> {
     }
 }
 
+/// The wisp introducing itself and what Wisp is for, until dismissed.
+#[derive(Clone, Debug, Deserialize)]
+pub struct About {
+    pub title: String,
+    pub paragraphs: Vec<String>,
+    pub done: String,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct Explanations {
-    intro: String,
     draining: String,
     night: String,
     privacy: String,
@@ -71,7 +79,6 @@ pub struct Thresholds {
     pub gentle_present_minutes: f64,
     pub gentle_load: f64,
     pub rested_away_minutes: f64,
-    pub intro_visits: u32,
     pub own_place_minutes: f64,
 }
 
@@ -92,10 +99,11 @@ pub enum PartOfDay {
     Night,
 }
 
-/// Something Home explains once.
+/// Something Home explains once. `About` is the wisp's introduction; the
+/// others are explained once the user has met them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Topic {
-    Intro,
+    About,
     Draining,
     Night,
     Privacy,
@@ -104,7 +112,7 @@ pub enum Topic {
 
 impl Topic {
     pub const ALL: [Topic; 5] = [
-        Topic::Intro,
+        Topic::About,
         Topic::Draining,
         Topic::Night,
         Topic::Privacy,
@@ -113,7 +121,7 @@ impl Topic {
 
     pub fn key(self) -> &'static str {
         match self {
-            Topic::Intro => "intro",
+            Topic::About => "about",
             Topic::Draining => "draining",
             Topic::Night => "night",
             Topic::Privacy => "privacy",
@@ -149,7 +157,7 @@ impl Words {
     fn explanation(&self, topic: Topic) -> &str {
         let e = &self.explain;
         match topic {
-            Topic::Intro => &e.intro,
+            Topic::About => &self.about.title,
             Topic::Draining => &e.draining,
             Topic::Night => &e.night,
             Topic::Privacy => &e.privacy,
@@ -275,8 +283,6 @@ pub fn fireflies(day: Option<&Day>) -> bool {
 pub struct Facts {
     pub now: Moment,
     pub dose: f64,
-    /// Visits to Home before this one.
-    pub visits: u32,
     /// Topics the user has met, and topics they've said "Got it" to.
     pub met: HashSet<Topic>,
     pub explained: HashSet<Topic>,
@@ -294,6 +300,8 @@ pub struct Greeting {
     pub title: String,
     pub line: String,
     pub explain: Option<(Topic, String)>,
+    /// The wisp introduces itself, until the user dismisses it.
+    pub about: bool,
 }
 
 pub fn greet(words: &Words, rates: &Rates, facts: &Facts) -> Greeting {
@@ -307,15 +315,13 @@ pub fn greet(words: &Words, rates: &Rates, facts: &Facts) -> Greeting {
     };
 
     let t = &words.thresholds;
-    let intro = !facts.explained.contains(&Topic::Intro) && facts.visits < t.intro_visits;
-    let explain = if intro {
-        Some(Topic::Intro)
-    } else {
-        [Topic::Draining, Topic::Heard, Topic::Night, Topic::Privacy]
-            .into_iter()
-            .find(|topic| facts.met.contains(topic) && !facts.explained.contains(topic))
-    }
-    .map(|topic| (topic, words.explanation(topic).to_owned()));
+    // Other explanations wait until the introduction has been read.
+    let about = !facts.explained.contains(&Topic::About);
+    let explain = [Topic::Draining, Topic::Heard, Topic::Night, Topic::Privacy]
+        .into_iter()
+        .filter(|_| !about)
+        .find(|topic| facts.met.contains(topic) && !facts.explained.contains(topic))
+        .map(|topic| (topic, words.explanation(topic).to_owned()));
 
     let p = &words.praise;
     let today = facts.today.clone().unwrap_or_default();
@@ -348,6 +354,7 @@ pub fn greet(words: &Words, rates: &Rates, facts: &Facts) -> Greeting {
         title: words.welcome.get(part).clone(),
         line: pick(praise.unwrap_or(words.quiet.get(part))),
         explain,
+        about,
     }
 }
 
@@ -443,9 +450,8 @@ mod tests {
         Facts {
             now,
             dose: 0.3,
-            visits: 10,
             met: HashSet::new(),
-            explained: HashSet::from([Topic::Intro]),
+            explained: HashSet::from([Topic::About]),
             today: None,
             yesterday: None,
             week_nourishing: 0.0,
@@ -490,6 +496,7 @@ mod tests {
                 "not enough places for {part:?}"
             );
         }
+        assert!(!words.about.title.is_empty() && words.about.paragraphs.len() >= 2);
         for topic in Topic::ALL {
             assert!(!words.explanation(topic).is_empty());
             assert_eq!(Topic::from_key(topic.key()), Some(topic));
@@ -512,17 +519,18 @@ mod tests {
     }
 
     #[test]
-    fn the_first_visits_explain_what_wisp_is_for() {
+    fn the_wisp_introduces_itself_until_dismissed() {
         let mut f = facts(at(10, 0));
         f.explained.clear();
-        f.visits = 0;
-        assert_eq!(greet_at(&f).explain.map(|e| e.0), Some(Topic::Intro));
-        f.visits = 3;
-        assert_eq!(greet_at(&f).explain, None);
-        // "Got it" ends it at once.
-        f.visits = 1;
-        f.explained.insert(Topic::Intro);
-        assert_eq!(greet_at(&f).explain, None);
+        f.met.insert(Topic::Draining);
+        let g = greet_at(&f);
+        assert!(g.about);
+        // One thing to read at a time.
+        assert_eq!(g.explain, None);
+        f.explained.insert(Topic::About);
+        let g = greet_at(&f);
+        assert!(!g.about);
+        assert_eq!(g.explain.map(|e| e.0), Some(Topic::Draining));
     }
 
     #[test]

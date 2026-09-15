@@ -21,6 +21,13 @@ function element<T extends HTMLElement>(id: string, kind: new () => T): T {
 
 const title = element("title", HTMLHeadingElement);
 const line = element("line", HTMLParagraphElement);
+const scene = element("scene", HTMLElement);
+const about = element("about", HTMLDivElement);
+const aboutTitle = element("about-title", HTMLHeadingElement);
+const aboutText = element("about-text", HTMLDivElement);
+const aboutDone = element("about-done", HTMLAnchorElement);
+const aboutWisp = document.getElementById("about-wisp") as unknown as SVGSVGElement;
+const bubble = about.querySelector(".bubble") as HTMLElement;
 const explain = element("explain", HTMLElement);
 const explainText = element("explain-text", HTMLParagraphElement);
 const explainDone = element("explain-done", HTMLAnchorElement);
@@ -61,6 +68,22 @@ function show(data: HomeData): void {
   title.textContent = data.title;
   line.textContent = data.line;
   document.title = "Home";
+
+  about.hidden = !data.about;
+  scene.classList.toggle("has-about", Boolean(data.about));
+  if (data.about) {
+    aboutTitle.textContent = data.about.title;
+    aboutText.replaceChildren(
+      ...data.about.paragraphs.map((text) => {
+        const p = document.createElement("p");
+        p.textContent = text;
+        return p;
+      }),
+    );
+    aboutDone.textContent = data.about.done;
+    aboutDone.href = "wisp://home/do/got-it/about";
+    seatWisp();
+  }
 
   explain.hidden = !data.explain;
   if (data.explain) {
@@ -139,6 +162,32 @@ function node<K extends keyof SVGElementTagNameMap>(
 
 const W = 1200;
 const H = 360;
+
+// Sit the introducing wisp on the near bank. The garden is scaled to cover
+// the scene and anchored to its bottom middle, so where the bank meets the
+// wisp depends on the scene's size.
+let seated = 0;
+function seatWisp(): void {
+  if (about.hidden) return;
+  const box = scene.getBoundingClientRect();
+  const wisp = aboutWisp.getBoundingClientRect();
+  if (box.width === 0 || wisp.height === 0) return;
+  const scale = Math.max(box.width / W, box.height / H);
+  const gardenX = W / 2 + (wisp.left + wisp.width / 2 - box.left - box.width / 2) / scale;
+  const bankY = box.bottom - (H - bank(gardenX) - 3) * scale;
+  // The moss under the wisp is 90/96 of the way down its drawing.
+  const naturalTop = wisp.top - seated;
+  seated = Math.round(bankY - wisp.height * (90 / 96) - naturalTop);
+  aboutWisp.style.transform = `translateY(${seated}px)`;
+  // Point the bubble's tail at the wisp's face.
+  const room = bubble.getBoundingClientRect();
+  const face = naturalTop + seated + wisp.height * 0.62;
+  const tail = Math.min(room.height - 40, Math.max(18, room.bottom - face - 9));
+  about.style.setProperty("--tail", `${Math.round(tail)}px`);
+}
+new ResizeObserver(seatWisp).observe(scene);
+// It settles in with the rest of the page; measure again once it has.
+about.addEventListener("animationend", seatWisp);
 
 // The height of the near bank at x.
 function bank(x: number): number {
