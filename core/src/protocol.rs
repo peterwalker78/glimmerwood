@@ -218,6 +218,8 @@ string_union! {
         Playing,
         /// A private site: nothing about it is named.
         Private,
+        /// A care site: nothing about it is named, and the wisp stays close.
+        Care,
         Away,
     }
 }
@@ -432,6 +434,8 @@ string_union! {
         News,
         Private,
         Unrated,
+        /// Where someone may be in crisis; not offered as a choice.
+        Care,
     }
 }
 
@@ -520,6 +524,11 @@ messages! {
         RateSite { site: String, rating: Rating },
         /// The question closed without an answer: "not now", or it faded.
         NotNow { site: String },
+        /// The note offering someone to talk to was closed.
+        CloseCare,
+        /// Open a way to talk to someone in a new tab: the international
+        /// helpline finder, or Samaritans.
+        FindSupport { samaritans: bool },
         OpenSettings,
         /// The toolbar's size: `height` is the bar pages sit below;
         /// `overlay_height` is the full height it needs, including the hover
@@ -579,6 +588,9 @@ messages! {
         /// The wisp asks how a site it hasn't met leaves the user, or the
         /// question closes (`site` is null).
         Ask { site: Option<String> },
+        /// On a care site: offer, quietly, a way to talk to someone, or stop
+        /// offering it. `samaritans` adds the UK's Samaritans.
+        Care { open: bool, samaritans: bool },
         /// The companion's state, sent when it changes and while the dose
         /// moves. The native wisp takes the dose, mode, night (it winds down),
         /// private (it gives the user privacy) and welcome (it brightens after a

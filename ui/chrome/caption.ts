@@ -32,6 +32,8 @@ function words(line: CaptionLine): { label: string; effect: string } {
       return { label: line.label || "ordinary sites", effect: "resting" };
     case "private":
       return { label: "giving you some privacy", effect: "" };
+    case "care":
+      return { label: "here with you", effect: "" };
     case "holding":
       return { label: line.label || "this page", effect: line.label ? "not on my lists yet" : "holding steady" };
     case "playing":

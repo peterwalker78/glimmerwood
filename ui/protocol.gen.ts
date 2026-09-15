@@ -12,7 +12,7 @@ export type WispMode = "away" | "draining" | "resting" | "nourishing" | "holding
 
 export type WispTrend = "rising" | "falling" | "steady";
 
-export type CaptionKind = "wearing" | "restoring" | "ordinary_sites" | "holding" | "playing" | "private" | "away";
+export type CaptionKind = "wearing" | "restoring" | "ordinary_sites" | "holding" | "playing" | "private" | "care" | "away";
 
 export type CaptionLine = { kind: CaptionKind; label: string; bars: number; heard: boolean };
 
@@ -46,7 +46,7 @@ export type HomeWisp = { today: DosePoint[]; now_minute: number; day_start_minut
 
 export type HomeData = { title: string; line: string; about: HomeAbout | null; explain: HomeExplain | null; part: DayPart; places: HomePlace[]; bookmarks: HomeBookmark[]; plants: HomePlant[]; seed: number; wisp: HomeWisp };
 
-export type Rating = "drains_a_lot" | "drains_a_little" | "neither" | "restores_a_little" | "restores_a_lot" | "news" | "private" | "unrated";
+export type Rating = "drains_a_lot" | "drains_a_little" | "neither" | "restores_a_little" | "restores_a_lot" | "news" | "private" | "unrated" | "care";
 
 export type SiteRating = { site: string; rating: Rating; matched: string; yours: Rating | null; seed: Rating | null };
 
@@ -76,6 +76,8 @@ export type ToCore =
   | { type: "show_wisp" }
   | { type: "rate_site"; site: string; rating: Rating }
   | { type: "not_now"; site: string }
+  | { type: "close_care" }
+  | { type: "find_support"; samaritans: boolean }
   | { type: "open_settings" }
   | { type: "toolbar_layout"; height: number; overlay_height: number; nook_right: number; nook_top: number; nook_width: number; nook_height: number }
   | { type: "minimize" }
@@ -93,4 +95,5 @@ export type ToChrome =
   | { type: "window"; floating: boolean }
   | { type: "caption"; open: boolean }
   | { type: "ask"; site: string | null }
+  | { type: "care"; open: boolean; samaritans: boolean }
   | { type: "wisp"; dose: number; phase: WispPhase; mode: WispMode; trend: WispTrend; night: boolean; private: boolean; welcome: boolean; now: CaptionLine[]; caption: CaptionLine[]; quiet_tabs: number; untouched_tabs: number };

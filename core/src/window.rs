@@ -100,6 +100,8 @@ pub struct Window {
     sent_wisp: RefCell<String>,
     /// The site the wisp's question was last sent about, if any.
     sent_ask: RefCell<Option<Option<String>>>,
+    /// Whether the note offering someone to talk to was last sent open.
+    sent_care: Cell<Option<(bool, bool)>>,
     /// The find bar is open, and what it last searched for.
     finding: Cell<bool>,
     find_query: RefCell<String>,
@@ -154,6 +156,7 @@ impl Window {
             sent_tabs: RefCell::new(String::new()),
             sent_wisp: RefCell::new(String::new()),
             sent_ask: RefCell::new(None),
+            sent_care: Cell::new(None),
             finding: Cell::new(false),
             find_query: RefCell::new(String::new()),
             find_pending: Cell::new(0),
@@ -331,6 +334,14 @@ impl Window {
         self.send_to_chrome(&ToChrome::Ask { site });
     }
 
+    /// Offer someone to talk to, or stop.
+    pub fn care(&self, open: bool, samaritans: bool) {
+        if self.sent_care.replace(Some((open, samaritans))) == Some((open, samaritans)) {
+            return;
+        }
+        self.send_to_chrome(&ToChrome::Care { open, samaritans });
+    }
+
     pub fn send_to_chrome(&self, message: &ToChrome) {
         if let ToChrome::Wisp {
             dose,
@@ -379,6 +390,7 @@ impl Window {
             | ToChrome::Window { .. }
             | ToChrome::Caption { .. }
             | ToChrome::Ask { .. }
+            | ToChrome::Care { .. }
             | ToChrome::Wisp { .. } => &self.toolbar,
         };
         if let Some(view) = view.borrow().as_ref() {
@@ -634,6 +646,7 @@ impl Window {
                 self.push_window();
                 self.sent_wisp.borrow_mut().clear();
                 self.sent_ask.replace(None);
+                self.sent_care.set(None);
                 self.companion.chrome_ready();
                 if self.companion.lab_shows_caption() {
                     self.send_to_chrome(&ToChrome::Caption { open: true });
@@ -672,6 +685,12 @@ impl Window {
             ToCore::ShowWisp => self.show_wisp(),
             ToCore::RateSite { site, rating } => self.companion.rate_site(&site, Some(rating)),
             ToCore::NotNow { site } => self.companion.not_now(&site),
+            ToCore::CloseCare => self.companion.close_care(),
+            ToCore::FindSupport { samaritans } => {
+                let tab = self.add_tab(None, true);
+                tab.view
+                    .load_uri(if samaritans { SAMARITANS } else { HELPLINES });
+            }
             ToCore::OpenSettings => self.open_settings(),
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
@@ -1401,6 +1420,10 @@ const HOME: &str = "glimmerwood://home/";
 const HOME_ACTIONS: &str = "glimmerwood://home/do/";
 const HOME_WISP: &str = "glimmerwood://home/#wisp";
 const SETTINGS: &str = "glimmerwood://settings/";
+/// Where the care note leads: an international directory of free, confidential
+/// helplines, and Samaritans in the UK and Ireland.
+const HELPLINES: &str = "https://findahelpline.com/";
+const SAMARITANS: &str = "https://www.samaritans.org/how-we-can-help/contact-samaritan/";
 const SETTINGS_ACTIONS: &str = "glimmerwood://settings/do/";
 
 /// Only web pages can be bookmarked.

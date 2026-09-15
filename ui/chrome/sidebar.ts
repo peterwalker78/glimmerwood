@@ -45,6 +45,7 @@ receive((message) => {
     case "window":
     case "caption":
     case "ask":
+    case "care":
     case "wisp":
       // The toolbar's business.
       break;

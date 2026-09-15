@@ -18,6 +18,7 @@ pub fn rating_of(list: Option<List>) -> Rating {
         Some(List::News) => Rating::News,
         Some(List::Private) => Rating::Private,
         Some(List::Unlisted) | None => Rating::Unrated,
+        Some(List::Care) => Rating::Care,
     }
 }
 
@@ -33,6 +34,7 @@ pub fn list_of(rating: Rating) -> List {
         Rating::News => List::News,
         Rating::Private => List::Private,
         Rating::Unrated => List::Unlisted,
+        Rating::Care => List::Care,
     }
 }
 
@@ -138,6 +140,8 @@ mod tests {
         sites = ["adult.example"]
         [unlisted]
         sites = ["mail.bank.example"]
+        [care]
+        sites = ["crisis.example"]
     "#;
 
     /// Percent-decoding for the tests; the app uses GLib's.

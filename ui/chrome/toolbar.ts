@@ -27,6 +27,8 @@ const caption = element("caption", HTMLElement);
 const captionLines = element("caption-lines", HTMLUListElement);
 const ask = element("ask", HTMLElement);
 const askSite = element("ask-site", HTMLElement);
+const care = element("care", HTMLElement);
+const careSamaritans = element("care-samaritans", HTMLButtonElement);
 
 let current: State | null = null;
 // Once the user has typed in the address field, the page loading underneath
@@ -47,8 +49,17 @@ function reportLayout(): void {
   if (asking()) {
     ask.style.right = `${Math.max(8, Math.round(innerWidth - home.right))}px`;
   }
-  // Whatever floats over the page: the caption, or the question.
-  const floating = !caption.hidden ? caption : asking() ? ask : null;
+  if (!care.hidden) {
+    care.style.right = `${Math.max(8, Math.round(innerWidth - home.right))}px`;
+  }
+  // Whatever floats over the page: the caption, the care note, or the question.
+  const floating = !caption.hidden
+    ? caption
+    : !care.hidden && !care.classList.contains("covered")
+      ? care
+      : asking()
+        ? ask
+        : null;
   const layout = {
     type: "toolbar_layout" as const,
     height,
@@ -67,6 +78,7 @@ new ResizeObserver(reportLayout).observe(bar);
 new ResizeObserver(reportLayout).observe(nook);
 new ResizeObserver(reportLayout).observe(caption);
 new ResizeObserver(reportLayout).observe(ask);
+new ResizeObserver(reportLayout).observe(care);
 // The window buttons come and go beside the nook, moving it.
 new MutationObserver(reportLayout).observe(windowButtons, { attributes: true });
 
@@ -92,6 +104,7 @@ function showCaption(): void {
     if (open) updateCaption();
     caption.hidden = !open;
     ask.classList.toggle("covered", open);
+    care.classList.toggle("covered", open);
     reportLayout();
   }
 }
@@ -163,6 +176,19 @@ element("ask-close", HTMLButtonElement).addEventListener("click", () => answer(n
 element("ask-unrated", HTMLButtonElement).addEventListener("click", () => answer("unrated", true));
 element("ask-keep", HTMLButtonElement).addEventListener("click", () => answer(atPosition(askRating.value), true));
 element("ask-settings", HTMLButtonElement).addEventListener("click", () => send({ type: "open_settings" }));
+
+// The care note stays until closed or the user leaves the site; it never
+// fades, and never takes focus on its own.
+element("care-close", HTMLButtonElement).addEventListener("click", () => {
+  care.hidden = true;
+  reportLayout();
+  send({ type: "close_care" });
+  send({ type: "focus_page" });
+});
+element("care-find", HTMLButtonElement).addEventListener("click", () =>
+  send({ type: "find_support", samaritans: false }),
+);
+careSamaritans.addEventListener("click", () => send({ type: "find_support", samaritans: true }));
 
 function render(state: State): void {
   back.disabled = !state.can_go_back;
@@ -281,6 +307,11 @@ receive((message) => {
       break;
     case "ask":
       showQuestion(message.site);
+      break;
+    case "care":
+      care.hidden = !message.open;
+      careSamaritans.hidden = !message.samaritans;
+      reportLayout();
       break;
     case "wisp":
       latest = message;

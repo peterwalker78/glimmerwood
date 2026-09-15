@@ -23,10 +23,14 @@ pub enum List {
     Private,
     /// Parts of listed sites carved back out to hold steady.
     Unlisted,
+    /// Sites where someone may be in crisis: the dose holds, nothing is
+    /// recorded, and the wisp stays close and quietly offers a way to talk to
+    /// someone.
+    Care,
 }
 
 impl List {
-    pub const ALL: [List; 8] = [
+    pub const ALL: [List; 9] = [
         List::DrainingStrong,
         List::DrainingMild,
         List::News,
@@ -35,6 +39,7 @@ impl List {
         List::NourishingStrong,
         List::Private,
         List::Unlisted,
+        List::Care,
     ];
 
     /// The lists that carry a weight.
@@ -50,6 +55,7 @@ impl List {
             List::NourishingStrong => "nourishing-strong",
             List::Private => "private",
             List::Unlisted => "unlisted",
+            List::Care => "care",
         }
     }
 
@@ -77,6 +83,7 @@ struct File {
     nourishing_strong: Option<Table>,
     private: Option<Table>,
     unlisted: Option<Table>,
+    care: Option<Table>,
     removed: Option<Removed>,
 }
 
@@ -96,7 +103,7 @@ struct Removed {
 }
 
 impl File {
-    fn tables(&self) -> [(List, Option<&Table>); 8] {
+    fn tables(&self) -> [(List, Option<&Table>); 9] {
         [
             (List::DrainingStrong, self.draining_strong.as_ref()),
             (List::DrainingMild, self.draining_mild.as_ref()),
@@ -106,6 +113,7 @@ impl File {
             (List::NourishingStrong, self.nourishing_strong.as_ref()),
             (List::Private, self.private.as_ref()),
             (List::Unlisted, self.unlisted.as_ref()),
+            (List::Care, self.care.as_ref()),
         ]
     }
 }
@@ -291,10 +299,15 @@ impl Lists {
         self.lookup(&format!("https://{site}"))
     }
 
+    /// Whether an address is on the care list.
+    pub fn cares(&self, uri: &str) -> bool {
+        matches!(self.lookup(uri), Some((_, List::Care)))
+    }
+
     /// What the dose engine needs to know about an address.
     pub fn place(&self, uri: &str) -> Place {
         match self.lookup(uri) {
-            Some((_, List::Private)) => Place::Private,
+            Some((_, List::Private | List::Care)) => Place::Private,
             Some((_, List::Unlisted)) | None => Place::Unlisted,
             Some((entry, list)) => Place::Listed {
                 entry: entry.to_owned(),
@@ -541,6 +554,9 @@ mod tests {
         [private]
         sites = ["adult.example"]
 
+        [care]
+        sites = ["crisis.example"]
+
         [unlisted]
         sites = ["mail.gmail.com", "reddit.com/r/diy/wiki"]
     "#;
@@ -641,6 +657,13 @@ mod tests {
             Place::Private
         );
         assert_eq!(lists.place("https://mail.gmail.com/inbox"), Place::Unlisted);
+        // Care sites hold and leave no trace, like private ones.
+        assert_eq!(
+            lists.place("https://forum.crisis.example/t/1"),
+            Place::Private
+        );
+        assert!(lists.cares("https://forum.crisis.example/t/1"));
+        assert!(!lists.cares("https://www.adult.example/"));
         assert_eq!(
             lists.place("https://reddit.com/r/diy/wiki/tools"),
             Place::Unlisted
@@ -816,7 +839,7 @@ mod tests {
         }
         assert_eq!(
             List::ALL.map(|l| lists.weight(l)),
-            [-1.0, -0.4, -0.4, 0.0, 0.5, 1.0, 0.0, 0.0]
+            [-1.0, -0.4, -0.4, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0]
         );
     }
 }

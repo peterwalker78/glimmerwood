@@ -5913,6 +5913,17 @@ sites = [
   "zbporn.com",
 ]
 
+[care]
+# Sites where someone may be in crisis. The dose holds and nothing about the
+# visit is recorded, as on private sites, but the wisp stays close instead of
+# turning away, and quietly offers a way to talk to someone. Never a weight:
+# a heavier wisp is the wrong answer to someone in pain.
+sites = [
+  # A forum encouraging suicide (Ofcom's first Online Safety Act investigation, 2025; linked by UK coroners to deaths)
+  "sanctioned-suicide.net",
+  "sanctioned-suicide.org",
+]
+
 [unlisted]
 sites = [
   # Email (frequent checking is linked to stress)

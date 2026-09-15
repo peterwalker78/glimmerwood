@@ -63,6 +63,20 @@
   <aside id="caption" class="caption" role="tooltip" hidden>
     <ul id="caption-lines"></ul>
   </aside>
+  <!-- On a site where someone may be in crisis, the wisp stays close and
+       quietly offers someone to talk to. It never takes focus and never
+       blocks the page. -->
+  <aside id="care" class="ask care" aria-labelledby="care-title" hidden>
+    <button id="care-close" class="step ask-close" type="button" aria-label="Close" title="Close">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg>
+    </button>
+    <p id="care-title" class="ask-question"><strong>I'm here with you.</strong></p>
+    <p class="care-text">If things feel heavy right now, you don't have to hold them alone. Someone can listen, free and in confidence, at any hour.</p>
+    <div class="ask-actions">
+      <button id="care-samaritans" class="ask-link" type="button" hidden>Samaritans, 116 123</button>
+      <button id="care-find" class="ask-keep" type="button">Find someone to talk to</button>
+    </div>
+  </aside>
   <!-- The wisp asking how a site it hasn't met leaves the user. It never
        takes focus on its own and closes when the user leaves the site. -->
   <aside id="ask" class="ask" aria-labelledby="ask-question" hidden>

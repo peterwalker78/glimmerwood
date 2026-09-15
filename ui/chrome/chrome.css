@@ -283,6 +283,7 @@ span.icon {
   user-select: none;
 }
 .ask[hidden], .ask.covered { display: none; }
+.care-text { margin: 0 0 10px; line-height: 1.4; }
 .ask-close { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; color: var(--quiet); }
 .ask-question { margin: 0 26px 10px 0; line-height: 1.4; }
 .ask-question strong { font-weight: 600; overflow-wrap: anywhere; }

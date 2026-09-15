@@ -22,6 +22,7 @@ export const WORDS: Record<Rating, string> = {
   news: "News",
   private: "Private",
   unrated: "Unrated",
+  care: "Offered support",
 };
 
 // A slider's position for a rating; the middle for one off the scale.

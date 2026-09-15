@@ -85,6 +85,8 @@ pub struct Companion {
     picked: RefCell<Option<(PlacesKey, Vec<PlaceCard>)>>,
     /// The country from the user's locale, for places offered only there.
     country: Option<String>,
+    /// The note offering someone to talk to was closed on this visit.
+    care_closed: Cell<bool>,
 }
 
 type PlacesKey = (i64, PartOfDay, Vec<String>);
@@ -151,6 +153,7 @@ impl Companion {
             pool: Pool::bundled(),
             picked: RefCell::new(None),
             country: locale_country(),
+            care_closed: Cell::new(false),
         });
         this.watch_user_lists();
         this
@@ -261,8 +264,9 @@ impl Companion {
             engine.set_clutter(now, clutter);
             engine.set_activity(now, activity);
         }
-        self.note_met(now);
-        self.push(now, &windows);
+        let care = front.is_some_and(|w| self.lists.borrow().cares(&w.attended_uri()));
+        self.note_met(now, care);
+        self.push(now, &windows, care);
         self.ask(now, &windows);
         self.record(now);
         self.schedule(now, &last_seen);
@@ -327,6 +331,33 @@ impl Companion {
             .iter()
             .filter_map(Weak::upgrade)
             .collect()
+    }
+
+    /// On a care site, the window in front quietly offers someone to talk
+    /// to, until the note is closed or the user leaves the site.
+    fn push_care(&self, windows: &[Rc<Window>], care: bool) {
+        let present = matches!(self.engine.borrow().activity(), Activity::Present { .. });
+        if !care {
+            self.care_closed.set(false);
+        }
+        let open = care && present && !self.care_closed.get();
+        let samaritans = matches!(
+            self.country.as_deref(),
+            Some("GB" | "IE" | "IM" | "JE" | "GG")
+        );
+        let front = windows.iter().find(|w| w.in_front());
+        for window in windows {
+            let here = front.is_some_and(|f| Rc::ptr_eq(f, window));
+            window.care(open && here, samaritans);
+        }
+    }
+
+    /// Closed stays closed until the user leaves the site.
+    pub fn close_care(&self) {
+        self.care_closed.set(true);
+        for window in self.live_windows() {
+            window.care(false, false);
+        }
     }
 
     /// The question closed unanswered.
@@ -470,7 +501,7 @@ impl Companion {
     // --- Home ---------------------------------------------------------
 
     /// Things Home explains once the user has met them.
-    fn note_met(&self, now: Moment) {
+    fn note_met(&self, now: Moment, care: bool) {
         let engine = self.engine.borrow();
         let present = matches!(engine.activity(), Activity::Present { .. });
         let met = [
@@ -481,13 +512,14 @@ impl Companion {
             (Topic::Night, present && engine.rates().is_night(now)),
             (
                 Topic::Privacy,
-                matches!(
-                    engine.activity(),
-                    Activity::Present {
-                        place: Place::Private,
-                        ..
-                    }
-                ),
+                !care
+                    && matches!(
+                        engine.activity(),
+                        Activity::Present {
+                            place: Place::Private,
+                            ..
+                        }
+                    ),
             ),
             (Topic::Heard, engine.heard_counts()),
         ];
@@ -801,7 +833,7 @@ impl Companion {
             engine.advance(lab_now);
             (lab_now, lab.next_line())
         };
-        self.push(lab_now, windows);
+        self.push(lab_now, windows, false);
         let local = (lab_now.ms / 1000 + i64::from(lab_now.utc_offset_s)).rem_euclid(86_400);
         let clock = format!("Feel lab · {:02}:{:02}", local / 3600, local / 60 % 60);
         if *self.lab_title.borrow() != clock {
@@ -832,7 +864,7 @@ impl Companion {
         self.wake.replace(Some(id));
     }
 
-    fn push(&self, now: Moment, windows: &[Rc<Window>]) {
+    fn push(&self, now: Moment, windows: &[Rc<Window>], care: bool) {
         let front = windows.iter().find(|w| w.in_front());
         let site = front
             .map(|w| host_of(&w.attended_uri()))
@@ -874,7 +906,9 @@ impl Companion {
             heard.as_ref(),
             (quiet, untouched),
             welcome,
+            care,
         );
+        self.push_care(windows, care);
         let json = serde_json::to_string(&message).expect("wisp messages serialise");
         if *self.last_sent.borrow() == json {
             return;
@@ -1103,6 +1137,7 @@ fn wisp_message(
     heard: Option<&(Place, String)>,
     others: (u32, u32),
     welcome: bool,
+    care: bool,
 ) -> ToChrome {
     let line = |kind, label: &str, heard| CaptionLine {
         kind,
@@ -1124,6 +1159,10 @@ fn wisp_message(
             place: Place::Unlisted,
             ..
         } => line(CaptionKind::Holding, site, false),
+        Activity::Present {
+            place: Place::Private,
+            ..
+        } if care => line(CaptionKind::Care, "", false),
         Activity::Present {
             place: Place::Private,
             ..
@@ -1157,13 +1196,15 @@ fn wisp_message(
             Mode::Holding => WispMode::Holding,
         },
         night: engine.rates().is_night(now),
-        private: matches!(
-            engine.activity(),
-            Activity::Present {
-                place: Place::Private,
-                ..
-            }
-        ),
+        // On a care site the wisp stays close rather than turning away.
+        private: !care
+            && matches!(
+                engine.activity(),
+                Activity::Present {
+                    place: Place::Private,
+                    ..
+                }
+            ),
         welcome,
         trend: match engine.trend() {
             Trend::Rising => WispTrend::Rising,
