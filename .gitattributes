@@ -1,0 +1,3 @@
+# Generated files are compared against what the code produces, byte for byte,
+# so every checkout needs the same line endings, Windows included.
+* text=auto eol=lf
