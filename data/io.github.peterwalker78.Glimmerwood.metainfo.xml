@@ -47,6 +47,17 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.0" date="2026-09-15">
+      <description>
+        <p>Fresh good places, and far more of the web rated.</p>
+        <ul>
+          <li>Home's good places come from over 300 researched places, picked afresh every two hours to suit the time of day, the season and how the wisp is</li>
+          <li>About 8,000 rated sites, up from 2,300, including the 10,000 most-visited sites checked one by one</li>
+          <li>AI companion apps and gore sites now count as strongly draining</li>
+          <li>On sites where someone may be in crisis, the wisp stays close and quietly offers a way to talk to someone</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-09-15">
       <description>
         <p>Settings, and a wisp that asks how new places leave you.</p>
