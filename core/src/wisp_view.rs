@@ -45,8 +45,16 @@ const NOTICE_HOP: f64 = 3.0;
 /// dose: wary on draining sites (lids a little lower, the smile flattened,
 /// the glow a touch dimmer; never sad), calm on ordinary ones, curious on
 /// unlisted ones.
-const WARY_LIDS: f64 = 0.22;
-const WARY_DIM: f64 = 0.08;
+const WARY_LIDS: f64 = 0.34;
+const WARY_DIM: f64 = 0.1;
+/// Eyebrows: how far above the eyes they sit, and how much a mood lifts or
+/// lowers them. They carry most of what the face says, so a mood reads from
+/// across the room rather than only close up.
+const BROW_ABOVE: f64 = 0.46;
+const BROW_TRAVEL: f64 = 0.16;
+/// Brows stay level and only move up or down: tilting either end turns the
+/// face sad (inner end up) or stern (inner end down), and it is never either.
+const BROW_ARCH: f64 = 0.06;
 /// At night the glow warms by this much and the breath slows by
 /// this factor, whatever the dose.
 const NIGHT_WARMTH: f64 = 0.35;
@@ -92,11 +100,11 @@ const MOSS_DRY: Rgb = Rgb(0.62, 0.52, 0.33);
 /// going, so recovering and wearing read at a glance rather than only from
 /// the wisp's colour. Fresh green-blue while it recovers, a dusky haze while
 /// it wears (never red, never alarm), nothing at all when it holds steady.
-const SKY_RECOVERING: Rgb = Rgb(0.53, 0.76, 0.71);
-const SKY_WEARING: Rgb = Rgb(0.42, 0.35, 0.52);
+const SKY_RECOVERING: Rgb = Rgb(0.40, 0.75, 0.65);
+const SKY_WEARING: Rgb = Rgb(0.37, 0.28, 0.54);
 /// How strong that wash gets, and how long it takes to arrive: slow enough
 /// that it reads as weather rather than a status light.
-const SKY_ALPHA: f64 = 0.36;
+const SKY_ALPHA: f64 = 0.52;
 const SKY_MS: f64 = 2500.0;
 /// Light themes only: the soft shadow the wisp glows in.
 const WELL_DEPTH: f64 = 0.07;
@@ -581,10 +589,10 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
         let openness = along(
             &[
                 (0.0, 1.0),
-                (0.35, 0.9),
-                (0.6, 0.55),
-                (0.85, 0.28),
-                (1.0, 0.2),
+                (0.35, 0.88),
+                (0.6, 0.42),
+                (0.85, 0.18),
+                (1.0, 0.1),
             ],
             dose,
         ) * (1.0 - blink)
@@ -600,11 +608,18 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
                 openness,
                 happy: anim.happy * awake,
                 glance: anim.glance,
-                smile: (along(&[(0.0, 1.0), (0.3, 0.6), (0.55, 0.0)], dose)
+                smile: (along(&[(0.0, 1.0), (0.3, 0.65), (0.55, 0.05)], dose)
                     * (1.0 - 0.7 * anim.wary))
-                    .max(0.8 * anim.calm * awake)
+                    .max(0.9 * anim.calm * awake)
                     * awake.max(0.4),
-                blush: along(&[(0.0, 0.9), (0.5, 0.3), (1.0, 0.15)], dose),
+                brow: (0.7 * anim.happy * awake + 0.6 * anim.curious * awake + 0.4 * rested
+                    - 1.0 * anim.wary
+                    - 0.8 * clouded
+                    - 0.5 * drained)
+                    .clamp(-1.0, 1.0)
+                    * (1.0 - anim.sleep * 0.6),
+                sleepy: (drained * awake).max(anim.sleep),
+                blush: along(&[(0.0, 1.0), (0.5, 0.3), (1.0, 0.12)], dose),
                 ink: if drained > 0.5 { 0.72 } else { 0.9 },
                 presence,
             },
@@ -888,6 +903,10 @@ struct Face {
     glance: f64,
     /// 1 = a small smile, 0 = a flat line.
     smile: f64,
+    /// 1 = brows lifted and open, -1 = lowered and watchful.
+    brow: f64,
+    /// 1 = heavy-lidded, mouth fallen open a little: sleepy, never sad.
+    sleepy: f64,
     blush: f64,
     ink: f64,
     presence: f64,
@@ -897,7 +916,7 @@ fn draw_face(cr: &cairo::Context, f: Face) {
     let r = f.radius;
     let alpha = f.presence * f.ink;
     let eye_y = f.y - r * 0.08;
-    let (eye_w, eye_h) = (r * 0.2, r * 0.34);
+    let (eye_w, eye_h) = (r * 0.22, r * 0.38);
     cr.set_line_cap(cairo::LineCap::Round);
 
     for side in [-1.0, 1.0] {
@@ -912,17 +931,39 @@ fn draw_face(cr: &cairo::Context, f: Face) {
         ));
         disc(cr, cheek_x, cheek_y, r * 0.22);
 
-        let eye_x = f.x + side * r * 0.38 + f.glance * r * 0.09;
+        let eye_x = f.x + side * r * 0.4 + f.glance * r * 0.09;
+
+        // The brow, a short stroke that lifts with a bright mood and lowers
+        // with a heavy one, its outer end dipping as it goes.
+        if f.presence > 0.0 && f.openness > 0.05 || f.happy > 0.5 {
+            let brow_y = eye_y - r * BROW_ABOVE - r * BROW_TRAVEL * f.brow;
+            // Arched while the mood is bright, flat while it is heavy.
+            let arch = r * BROW_ARCH * f.brow.max(0.0);
+            source(cr, FACE_INK, alpha * 0.85);
+            cr.set_line_width(r * 0.085);
+            cr.move_to(eye_x - eye_w * 0.85, brow_y);
+            cr.curve_to(
+                eye_x - eye_w * 0.3,
+                brow_y - arch,
+                eye_x + eye_w * 0.3,
+                brow_y - arch,
+                eye_x + eye_w * 0.85,
+                brow_y,
+            );
+            let _ = cr.stroke();
+        }
+
         if f.happy > 0.5 {
             // ^ ^
             source(cr, FACE_INK, alpha);
             cr.set_line_width(r * 0.09);
+            cr.set_line_width(r * 0.11);
             cr.arc(
                 eye_x,
-                eye_y + eye_h * 0.2,
-                eye_w * 0.62,
-                PI * 1.15,
-                PI * 1.85,
+                eye_y + eye_h * 0.24,
+                eye_w * 0.78,
+                PI * 1.1,
+                PI * 1.9,
             );
             let _ = cr.stroke();
         } else if f.openness < 0.12 {
@@ -958,17 +999,26 @@ fn draw_face(cr: &cairo::Context, f: Face) {
         }
     }
 
-    // The mouth: a small smile that flattens as the dose rises.
+    // The mouth: a smile that flattens as the dose rises, and falls a little
+    // open when the wisp is sleepy.
     source(cr, FACE_INK, alpha * 0.9);
     let mouth_y = f.y + r * 0.32;
     if f.happy > 0.5 {
-        cr.arc(f.x, mouth_y - r * 0.12, r * 0.2, PI * 0.1, PI * 0.9);
+        cr.arc(f.x, mouth_y - r * 0.14, r * 0.26, PI * 0.1, PI * 0.9);
         cr.close_path();
         let _ = cr.fill();
+    } else if f.sleepy > 0.6 {
+        // A small oval, as if halfway through a yawn.
+        let _ = cr.save();
+        cr.translate(f.x, mouth_y);
+        cr.scale(r * 0.1, r * 0.13 * f.sleepy);
+        cr.arc(0.0, 0.0, 1.0, 0.0, TAU);
+        let _ = cr.restore();
+        let _ = cr.fill();
     } else {
-        cr.set_line_width(r * 0.08);
-        let width = r * 0.13;
-        let curve = r * 0.1 * f.smile;
+        cr.set_line_width(r * 0.085);
+        let width = r * 0.15;
+        let curve = r * 0.16 * f.smile;
         cr.move_to(f.x - width, mouth_y);
         cr.curve_to(
             f.x - width * 0.4,
