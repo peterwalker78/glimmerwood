@@ -12,6 +12,7 @@ things that leave you better off.
 
 [**Download for Linux**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
 [Meet the wisp](#meet-the-wisp) ·
+[On your phone](#and-on-your-phone) ·
 [How it works](#how-it-works-in-plain-words) ·
 [Privacy](#everything-stays-on-your-computer)
 
@@ -78,6 +79,25 @@ tan after a heavy stretch, and green again as soon as you rest. Nothing about
 the wisp ever dies or disappears for good.
 
 <br>
+
+## And on your phone
+
+<img align="right" width="230" src="data/screenshots/welcome.png" alt="The welcome page on a phone at night: a dark garden with the wisp asleep on the bank, and a list of good places below.">
+
+The wisp lives on your computer. It can't come to your phone — on iOS every
+browser is the same engine underneath, and a phone is the one place you can't
+really sit down with the web anyway.
+
+So there's a page instead: **[glimmerwood on the web](https://peterwalker78.github.io/glimmerwood/)**.
+The same garden, lit for the hour, and good places drawn from the same
+researched list. The wisp is there too, asleep — it has no history to read
+here and stores nothing at all, so it doesn't pretend to see anything.
+
+Add it to your home screen, where a noisier app used to be, and it opens on
+its own without a browser around it. Then do the real browsing at a desk,
+somewhere you can stand up and leave.
+
+<br clear="right">
 
 ## Why a little light works better than a lock
 

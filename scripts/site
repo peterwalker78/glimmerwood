@@ -30,7 +30,7 @@ if [[ "${1:-}" == "--publish" ]]; then
   WORK="$(mktemp -d)"
   trap 'rm -rf "$WORK"' EXIT
   git worktree add --detach "$WORK" >/dev/null
-  git -C "$WORK" checkout --orphan gh-pages >/dev/null 2>&1
+  git -C "$WORK" checkout --orphan publish >/dev/null 2>&1
   git -C "$WORK" rm -rq --cached . 2>/dev/null || true
   find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
   cp -r "$OUT/." "$WORK/"
@@ -38,7 +38,7 @@ if [[ "${1:-}" == "--publish" ]]; then
   touch "$WORK/.nojekyll"
   git -C "$WORK" add -A
   git -C "$WORK" commit -qm "Publish the welcome page" || { echo "site: nothing to publish"; exit 0; }
-  git -C "$WORK" push -qf origin gh-pages
+  git -C "$WORK" push -qf origin HEAD:gh-pages
   git worktree remove --force "$WORK"
   trap - EXIT
   echo "site: published to gh-pages"
