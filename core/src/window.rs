@@ -8,9 +8,11 @@ use webkit::prelude::*;
 
 use crate::attention;
 use crate::companion::Companion;
-use crate::dose::Mode;
+use crate::dose::{Mode, Trend};
 use crate::failure::{self, Reason};
-use crate::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode};
+use crate::protocol::{
+    ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode, WispTrend,
+};
 use crate::wisp_view::WispView;
 use crate::{chrome, find, nav, prefs, scheme, tabs};
 
@@ -309,6 +311,7 @@ impl Window {
         if let ToChrome::Wisp {
             dose,
             mode,
+            trend,
             night,
             private,
             welcome,
@@ -323,7 +326,12 @@ impl Window {
                 WispMode::Nourishing => Mode::Nourishing,
                 WispMode::Holding => Mode::Holding,
             };
-            wisp.update(*dose, mode, *private, *night, *welcome);
+            let trend = match trend {
+                WispTrend::Rising => Trend::Rising,
+                WispTrend::Falling => Trend::Falling,
+                WispTrend::Steady => Trend::Steady,
+            };
+            wisp.update(*dose, mode, trend, *private, *night, *welcome);
         }
         // The native wisp takes every change of dose; the chrome only shows
         // words, so it hears about the rest.

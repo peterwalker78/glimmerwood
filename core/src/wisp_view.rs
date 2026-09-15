@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use gtk::{cairo, gdk, glib, prelude::*};
 
-use crate::dose::Mode;
+use crate::dose::{Mode, Trend};
 use crate::look::{Look, Stops};
 use crate::oklab::Rgb;
 
@@ -88,6 +88,16 @@ const MOSS_HEIGHT: f64 = 8.0;
 const MOSS_FRESH: Rgb = Rgb(0.49, 0.62, 0.34);
 const MOSS_TIRED: Rgb = Rgb(0.55, 0.56, 0.34);
 const MOSS_DRY: Rgb = Rgb(0.62, 0.52, 0.33);
+/// The sky in the nook: a wash behind the wisp saying which way the dose is
+/// going, so recovering and wearing read at a glance rather than only from
+/// the wisp's colour. Fresh green-blue while it recovers, a dusky haze while
+/// it wears (never red, never alarm), nothing at all when it holds steady.
+const SKY_RECOVERING: Rgb = Rgb(0.53, 0.76, 0.71);
+const SKY_WEARING: Rgb = Rgb(0.42, 0.35, 0.52);
+/// How strong that wash gets, and how long it takes to arrive: slow enough
+/// that it reads as weather rather than a status light.
+const SKY_ALPHA: f64 = 0.36;
+const SKY_MS: f64 = 2500.0;
 /// Light themes only: the soft shadow the wisp glows in.
 const WELL_DEPTH: f64 = 0.07;
 /// The face's dark ink.
@@ -121,6 +131,10 @@ struct Anim {
     private: bool,
     night: bool,
     welcome: bool,
+    trend: Trend,
+    /// 0-1, eased: how much the sky shows the dose falling or rising.
+    recovering: f64,
+    wearing: f64,
     /// 0-1, eased toward `night` and `welcome`.
     night_mix: f64,
     welcome_mix: f64,
@@ -170,6 +184,9 @@ impl WispView {
             target: 0.0,
             shown: 0.0,
             mode: Mode::Away,
+            trend: Trend::Steady,
+            recovering: 0.0,
+            wearing: 0.0,
             private: false,
             night: false,
             welcome: false,
@@ -236,11 +253,20 @@ impl WispView {
     /// `private`: the visible tab is on the privacy list, so the
     /// wisp slips out of sight. `night`: it winds down. `welcome`: the user
     /// has just come back after a long time away.
-    pub fn update(&self, dose: f64, mode: Mode, private: bool, night: bool, welcome: bool) {
+    pub fn update(
+        &self,
+        dose: f64,
+        mode: Mode,
+        trend: Trend,
+        private: bool,
+        night: bool,
+        welcome: bool,
+    ) {
         {
             let mut anim = self.anim.borrow_mut();
             if (anim.target - dose).abs() < 1e-6
                 && anim.mode == mode
+                && anim.trend == trend
                 && anim.private == private
                 && anim.night == night
                 && anim.welcome == welcome
@@ -249,6 +275,7 @@ impl WispView {
             }
             anim.target = dose;
             anim.mode = mode;
+            anim.trend = trend;
             anim.private = private;
             anim.night = night;
             anim.welcome = welcome;
@@ -382,6 +409,18 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
         anim.wary = ease_toward(anim.wary, targets.0, dt, 450.0);
         anim.calm = ease_toward(anim.calm, targets.1, dt, 450.0);
         anim.curious = ease_toward(anim.curious, targets.2, dt, 450.0);
+        anim.recovering = ease_toward(
+            anim.recovering,
+            as_f64(anim.trend == Trend::Falling),
+            dt,
+            SKY_MS,
+        );
+        anim.wearing = ease_toward(
+            anim.wearing,
+            as_f64(anim.trend == Trend::Rising),
+            dt,
+            SKY_MS,
+        );
         anim.night_mix = ease_toward(anim.night_mix, as_f64(anim.night), dt, 4000.0);
         anim.welcome_mix = ease_toward(anim.welcome_mix, as_f64(anim.welcome), dt, 1500.0);
     } else {
@@ -390,6 +429,8 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
         anim.happy = as_f64(nourishing);
         anim.sleep = as_f64(asleep);
         (anim.wary, anim.calm, anim.curious) = targets;
+        anim.recovering = as_f64(anim.trend == Trend::Falling);
+        anim.wearing = as_f64(anim.trend == Trend::Rising);
         anim.night_mix = as_f64(anim.night);
         anim.welcome_mix = as_f64(anim.welcome);
     }
@@ -412,9 +453,17 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
     let drained = ((dose - 0.72) / 0.28).clamp(0.0, 1.0);
     let awake = 1.0 - anim.sleep;
 
-    // The moss comes first: it's behind everything, and the wisp rests on it.
+    // The sky is behind everything, then the moss the wisp rests on.
     let width = anim.width;
     let home_x = width / 2.0;
+    draw_sky(
+        cr,
+        width,
+        height,
+        anim.recovering * (1.0 - anim.privacy),
+        anim.wearing * (1.0 - anim.privacy),
+        dark,
+    );
     draw_moss(cr, width, height, dose, anim.happy, dark, now, moving);
 
     // --- Where and how big ---------------------------------------------------
@@ -598,6 +647,39 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
         }
     }
     Some(delay)
+}
+
+/// The nook's weather: a soft wash of colour behind the wisp, fading out
+/// downward so the moss keeps its own green.
+fn draw_sky(
+    cr: &cairo::Context,
+    width: f64,
+    height: f64,
+    recovering: f64,
+    wearing: f64,
+    dark: bool,
+) {
+    let strength = recovering.max(wearing);
+    if strength < 0.01 {
+        return;
+    }
+    let colour = SKY_RECOVERING.mix(SKY_WEARING, wearing / (recovering + wearing).max(1e-6));
+    // A dark chrome takes less of it: the same wash reads twice as strong.
+    let alpha = SKY_ALPHA * strength * if dark { 0.6 } else { 1.0 };
+    let sky = cairo::LinearGradient::new(0.0, 0.0, 0.0, height);
+    sky.add_color_stop_rgba(0.0, colour.0, colour.1, colour.2, alpha);
+    sky.add_color_stop_rgba(0.65, colour.0, colour.1, colour.2, alpha * 0.45);
+    sky.add_color_stop_rgba(1.0, colour.0, colour.1, colour.2, 0.0);
+    let _ = cr.set_source(&sky);
+    // Rounded like the nook it sits in.
+    let r = height / 3.2;
+    cr.new_path();
+    cr.arc(r, r, r, PI, 1.5 * PI);
+    cr.arc(width - r, r, r, 1.5 * PI, TAU);
+    cr.line_to(width, height);
+    cr.line_to(0.0, height);
+    cr.close_path();
+    let _ = cr.fill();
 }
 
 /// A soft mound of moss along the nook's floor, with a few tufts.
