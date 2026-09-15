@@ -6,8 +6,8 @@
 
 ### The web browser that's on your side.
 
-A quiet browser for Linux with a small living companion who notices
-how your time online really feels, so you can spend more of it on the
+A quiet browser for Linux, and home to the wisp: a small living companion
+who notices how your time online really feels, so you can spend more of it on the
 things that leave you better off.
 
 [**Download for Linux**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
@@ -44,7 +44,8 @@ and then gets out of your way.
 
 <img align="right" width="300" src="data/screenshots/caption.png" alt="The wisp in its nook with its caption open, showing what is moving it right now and over the last 15 minutes.">
 
-Up in the corner of the toolbar lives a small, glowing flame with a face.
+Glimmerwood is home to the wisp, a small, glowing flame with a face who lives
+up in the corner of the toolbar.
 It's yours, and it reflects the quality of your time online the way the sky
 reflects the weather.
 
