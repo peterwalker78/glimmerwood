@@ -1,14 +1,15 @@
 [package]
-name = "glimmerwood"
+name = "glimmerwood-core"
 version = "0.4.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
-description = "A minimalist browser with a living companion"
+description = "Everything about Glimmerwood that is true wherever it runs"
 publish = false
 
+[lib]
+name = "glimmerwood_core"
+
 [dependencies]
-gtk = { package = "gtk4", version = "0.11", features = ["v4_20"] }
-webkit = { package = "webkit6", version = "0.6" }
 rusqlite = "0.40"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

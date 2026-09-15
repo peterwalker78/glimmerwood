@@ -1,29 +1,14 @@
-mod asking;
-mod attention;
-mod bookmarks;
 mod chrome;
+mod clock;
 mod companion;
-mod diary;
-mod dose;
 mod failure;
-mod feel_lab;
-mod find;
-mod home;
-mod look;
-mod nav;
-mod oklab;
-mod places;
 mod prefs;
-mod protocol;
-mod ratings;
-mod reputation;
 mod scheme;
-mod settings;
-mod store;
-mod sun;
 mod tabs;
 mod window;
 mod wisp_view;
+
+use glimmerwood_core::feel_lab;
 
 use std::cell::OnceCell;
 use std::rc::Rc;
@@ -128,7 +113,7 @@ fn feel_lab_args(args: Vec<String>) -> Result<(Vec<String>, Option<feel_lab::Lab
     if !lab {
         return Ok((rest, None));
     }
-    let mut lab = feel_lab::Lab::new(feel_lab::DAY, attention::now(), speed, from.as_deref())?;
+    let mut lab = feel_lab::Lab::new(feel_lab::DAY, clock::now(), speed, from.as_deref())?;
     lab.show_caption = caption;
     Ok((rest, Some(lab)))
 }

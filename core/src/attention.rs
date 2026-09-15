@@ -1,8 +1,8 @@
-//! Where the user's attention is: the rule for presence, and the app's only
-//! view of the clock.
+//! Where the user's attention is: the rule for presence, and the one place
+//! the wall clock is read.
 //!
-//! The rules are pure functions of what the window reports; the GTK side lives
-//! in `companion.rs`.
+//! The rules are pure functions of what the window reports. Which zone the
+//! user is in only the platform knows, so it is handed in.
 
 use crate::dose::{Moment, Rates};
 
@@ -10,16 +10,14 @@ use crate::dose::{Moment, Rates};
 /// until sound stops counting) and renewed well before it runs out.
 pub const SOUND_LEASE_MS: i64 = 60_000;
 
-/// The one place Glimmerwood reads the wall clock. Everything else is handed the
-/// moment it concerns.
+/// The one place Glimmerwood reads the wall clock. Everything else is handed
+/// the moment it concerns. Which zone the user is in is the platform's to
+/// know, so the offset from UTC comes in.
 #[allow(clippy::disallowed_methods)]
-pub fn now() -> Moment {
+pub fn now(utc_offset_s: i32) -> Moment {
     let ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_millis() as i64);
-    let utc_offset_s = gtk::glib::DateTime::now_local()
-        .map(|t| (t.utc_offset().as_seconds()) as i32)
-        .unwrap_or(0);
     Moment { ms, utc_offset_s }
 }
 

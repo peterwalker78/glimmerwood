@@ -6,6 +6,6 @@ cd "$ROOT"
 
 scripts/build-ui
 cargo fmt --all --check
-cargo clippy --all-targets --locked -- -D warnings
-cargo test --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 echo "check: all passed"

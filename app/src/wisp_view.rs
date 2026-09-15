@@ -14,9 +14,9 @@ use std::time::Duration;
 
 use gtk::{cairo, gdk, glib, prelude::*};
 
-use crate::dose::{Mode, Trend};
-use crate::look::{Look, Stops};
-use crate::oklab::Rgb;
+use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::look::{Look, Stops};
+use glimmerwood_core::oklab::Rgb;
 
 /// The drawing area covers the nook; its size comes from the toolbar's
 /// layout, these are only the size before that arrives.

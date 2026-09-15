@@ -13,26 +13,27 @@ use std::time::Duration;
 
 use gtk::{gio, glib, prelude::*};
 
-use crate::asking::{self, Asker};
-use crate::attention::{self, Signals};
-use crate::bookmarks::Bookmarks;
-use crate::diary;
-use crate::dose::{
+use crate::clock;
+use crate::window::Window;
+use glimmerwood_core::asking::{self, Asker};
+use glimmerwood_core::attention::{self, Signals};
+use glimmerwood_core::bookmarks::Bookmarks;
+use glimmerwood_core::diary;
+use glimmerwood_core::dose::{
     self, Activity, Engine, FactorKind, Mode, Moment, Phase, Place, Rates, Snapshot, Trend,
 };
-use crate::feel_lab::{Lab, Step};
-use crate::home::{self, Facts, PartOfDay, Topic, Words};
-use crate::places::{self, PlaceCard, Pool};
-use crate::protocol::{
+use glimmerwood_core::feel_lab::{Lab, Step};
+use glimmerwood_core::home::{self, Facts, PartOfDay, Topic, Words};
+use glimmerwood_core::places::{self, PlaceCard, Pool};
+use glimmerwood_core::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
     HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
     WispTrend,
 };
-use crate::ratings::{self, Action};
-use crate::reputation::{self, List, Lists};
-use crate::settings::{self, Settings};
-use crate::store::{GardenDay, Sample, Store};
-use crate::window::Window;
+use glimmerwood_core::ratings::{self, Action};
+use glimmerwood_core::reputation::{self, List, Lists};
+use glimmerwood_core::settings::{self, Settings};
+use glimmerwood_core::store::{GardenDay, Sample, Store};
 
 /// How often a moving wisp is refreshed while someone is there to see it,
 /// and while they aren't. The wisp eases between updates on its own, and
@@ -94,10 +95,10 @@ type PlacesKey = (i64, PartOfDay, Vec<String>);
 impl Companion {
     pub fn new(lab: Option<Lab>) -> Rc<Companion> {
         let mut rates = Rates::bundled();
-        let now = attention::now();
+        let now = clock::now();
         // A lab day is make-believe: it never touches the real history.
         let lab_mode = lab.is_some();
-        let settings = settings::load(&rates);
+        let settings = settings::load(&rates, &settings_path());
         // The lab's script is written for the usual night.
         if !lab_mode && let Err(err) = rates.set_night(&settings.night_starts, &settings.night_ends)
         {
@@ -184,7 +185,7 @@ impl Companion {
         if self.lab.borrow().is_some() {
             return;
         }
-        let now = attention::now();
+        let now = clock::now();
         self.last_input.set(Some(now));
         let renew = match self.engine.borrow().activity() {
             Activity::Away => true,
@@ -198,13 +199,13 @@ impl Companion {
     /// A key was pressed: the wisp doesn't ask anything mid-sentence.
     pub fn typed(&self) {
         if self.lab.borrow().is_none() {
-            self.last_typed.set(Some(attention::now()));
+            self.last_typed.set(Some(clock::now()));
         }
     }
 
     /// Re-read every window's situation and bring the engine up to date.
     pub fn refresh(self: &Rc<Self>) {
-        let now = attention::now();
+        let now = clock::now();
         let windows: Vec<Rc<Window>> = {
             let mut list = self.windows.borrow_mut();
             list.retain(|w| w.strong_count() > 0);
@@ -462,7 +463,7 @@ impl Companion {
                 let moved = moved.and_then(|()| {
                     self.engine
                         .borrow_mut()
-                        .set_night(attention::now(), &starts, &ends)
+                        .set_night(clock::now(), &starts, &ends)
                 });
                 match moved {
                     Ok(()) => {
@@ -477,7 +478,7 @@ impl Companion {
     }
 
     fn save_settings(&self) {
-        if let Err(err) = settings::save(&self.settings.borrow()) {
+        if let Err(err) = settings::save(&self.settings.borrow(), &settings_path()) {
             eprintln!("glimmerwood: couldn't save the settings: {err}");
         }
     }
@@ -570,7 +571,7 @@ impl Companion {
     /// Returns whether `url` is bookmarked now.
     pub fn toggle_bookmark(&self, url: &str, title: &str) -> bool {
         self.bookmarks
-            .toggle(url, title, attention::now())
+            .toggle(url, title, clock::now())
             .unwrap_or_else(|err| {
                 eprintln!("glimmerwood: couldn't change the bookmark: {err}");
                 false
@@ -1039,6 +1040,12 @@ fn clock_label(time: &str) -> String {
     } else {
         format!("{hour}:{m}{half}")
     }
+}
+
+fn settings_path() -> PathBuf {
+    glib::user_config_dir()
+        .join("glimmerwood")
+        .join("settings.toml")
 }
 
 fn user_lists_path() -> PathBuf {

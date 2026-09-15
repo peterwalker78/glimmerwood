@@ -6,15 +6,16 @@ use std::rc::{Rc, Weak};
 use gtk::{gdk, gio, glib, prelude::*};
 use webkit::prelude::*;
 
-use crate::attention;
+use crate::clock;
 use crate::companion::Companion;
-use crate::dose::{Mode, Trend};
 use crate::failure::{self, Reason};
-use crate::protocol::{
+use crate::wisp_view::WispView;
+use crate::{chrome, prefs, scheme, tabs};
+use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::protocol::{
     ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode, WispTrend,
 };
-use crate::wisp_view::WispView;
-use crate::{chrome, find, nav, prefs, scheme, tabs};
+use glimmerwood_core::{find, nav};
 
 /// The toolbar's height until it reports its own.
 const INITIAL_TOOLBAR_HEIGHT: i32 = 65;
@@ -505,7 +506,7 @@ impl Window {
     fn push_page(&self, tab: &Tab) {
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
         let (json, page, global) = if scheme::is_home(&uri) {
-            let data = self.companion.home_data(attention::now());
+            let data = self.companion.home_data(clock::now());
             let json = serde_json::to_string(&data).expect("home data serialises");
             (json, "home", "wispHome")
         } else if scheme::is_settings(&uri) {

@@ -43,7 +43,7 @@ fn chrome_has_no_modal_dialogs() {
 #[test]
 fn chrome_uses_no_red() {
     let mut found = Vec::new();
-    let wisp = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/wisp.toml");
+    let wisp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/data/wisp.toml");
     for file in ui_sources(&["css", "html"]).into_iter().chain([wisp]) {
         let toml = file.extension().is_some_and(|e| e == "toml");
         for (n, line) in read(&file).lines().enumerate() {

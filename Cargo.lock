@@ -305,13 +305,21 @@ dependencies = [
 name = "glimmerwood"
 version = "0.4.0"
 dependencies = [
+ "glimmerwood-core",
  "gtk4",
+ "serde_json",
+ "webkit6",
+]
+
+[[package]]
+name = "glimmerwood-core"
+version = "0.4.0"
+dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
  "toml",
  "toml_edit",
- "webkit6",
 ]
 
 [[package]]

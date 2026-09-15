@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Rewrite ui/protocol.gen.ts from core/src/protocol.rs, then rebuild the UI.
+# The core is a plain library with no resource bundle, so nothing has to be
+# built for the UI before the types can be written.
 source "$(dirname "$0")/lib.sh"
 require_box "$@"
 cd "$ROOT"
 
-GLIMMERWOOD_WITHOUT_UI=1 GLIMMERWOOD_BLESS=1 cargo test --quiet --bin glimmerwood protocol::tests::typescript_file_is_current
+GLIMMERWOOD_BLESS=1 cargo test --quiet -p glimmerwood-core protocol::tests::typescript_file_is_current
 scripts/build-ui

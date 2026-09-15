@@ -7,8 +7,8 @@
 use gtk::{gdk, gio};
 use webkit::prelude::*;
 
-use crate::protocol::{ToChrome, ToCore};
 use crate::scheme;
+use glimmerwood_core::protocol::{ToChrome, ToCore};
 
 const HANDLER: &str = "wisp";
 

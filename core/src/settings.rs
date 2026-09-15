@@ -4,9 +4,8 @@
 //! Parsing and writing are pure; reading and saving the file are the two
 //! functions at the bottom.
 
-use std::path::PathBuf;
+use std::path::Path;
 
-use gtk::glib;
 use serde::Deserialize;
 
 use crate::dose::Rates;
@@ -121,17 +120,10 @@ pub fn night_choices((from, to): (&str, &str)) -> Vec<String> {
         .collect()
 }
 
-fn path() -> PathBuf {
-    glib::user_config_dir()
-        .join("glimmerwood")
-        .join("settings.toml")
-}
-
 /// The user's settings, or the defaults if there's no file or it has a
 /// mistake (which is reported).
-pub fn load(rates: &Rates) -> Settings {
-    let path = path();
-    match std::fs::read_to_string(&path) {
+pub fn load(rates: &Rates, path: &Path) -> Settings {
+    match std::fs::read_to_string(path) {
         Ok(text) => Settings::parse(&text, rates).unwrap_or_else(|err| {
             eprintln!(
                 "glimmerwood: ignoring {} until it's fixed: {err}",
@@ -143,12 +135,11 @@ pub fn load(rates: &Rates) -> Settings {
     }
 }
 
-pub fn save(settings: &Settings) -> Result<(), String> {
-    let path = path();
+pub fn save(settings: &Settings, path: &Path) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|err| err.to_string())?;
     }
-    std::fs::write(&path, settings.to_toml()).map_err(|err| err.to_string())
+    std::fs::write(path, settings.to_toml()).map_err(|err| err.to_string())
 }
 
 #[cfg(test)]
