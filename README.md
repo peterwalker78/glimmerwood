@@ -1,66 +1,299 @@
+<div align="center">
+
+<img src="data/io.github.peterwalker78.Wisp.svg" width="112" alt="The wisp, a small glowing flame with a friendly face, resting on moss">
+
 # Wisp
 
-A quiet web browser for Linux with a living companion.
+### The web browser that's on your side.
 
-A small light called the wisp lives in a nook at the end of the toolbar. It
-notices which parts of the web restore you and which wear you down, and shows
-it the way weather shows: bright and breathing gently after time away or
-somewhere good, clouded and sleepy after a long stretch of endless feeds. It
-never scolds, never blocks a page and never pops up a dialog about your
-habits. Hover it to see what is moving it; click it to see its days.
+A quiet browser for Linux with a small living companion who notices
+how your time online really feels, so you can spend more of it on the
+things that leave you better off.
 
-Wisp is in early development.
+[**Download for Linux**](https://github.com/peterwalker78/wisp/releases/latest) ·
+[Meet the wisp](#meet-the-wisp) ·
+[How it works](#how-it-works-in-plain-words) ·
+[Privacy](#everything-stays-on-your-computer)
 
-## What it does
+<br>
 
-- **The wisp.** Its look follows a *dose* that rises with time on draining
-  sites and falls with rest. Being away from the screen restores it fastest;
-  restorative sites help too. Late at night it winds down, and on private
-  sites it turns away and gives you privacy.
-- **Home.** Every new tab opens a local page with a garden that grows on good
-  days and never wilts, a greeting that notices what went well, good places to
-  go, your bookmarks, and the wisp's days: today's shape, the week and the
-  weeks before.
-- **Reputation lists.** About 2,300 sites sorted into lists from strongly
-  draining to strongly nourishing, following published research on wellbeing
-  online (the sources are cited in `core/data/reputation.toml`). A site on no
-  list holds steady. You can move any site in your own `reputation.toml`
-  (`~/.config/wisp/`, or
-  `~/.var/app/io.github.peterwalker78.Wisp/config/wisp/` in the Flatpak),
-  which overrides the bundled lists.
-- **A plain browser underneath.** WebKitGTK, tabs in a resizable column,
-  HTTPS first, find in page, tracking prevention.
+<img src="data/screenshots/browsing.png" alt="Wisp showing a Wikipedia article. In the corner of the toolbar the wisp is bright and smiling, and its caption reads: Now, Bright, wikipedia.org, restoring.">
 
-## Privacy
+</div>
 
-Everything Wisp knows stays on your computer. It makes no network requests of
-its own: no telemetry, no update checks, no remote classification. The dose
-history records the reputation list entry a page matched, never the address
-you visited, and sites on the private list are never named anywhere.
+<br>
 
-## Building
+## You know the feeling
 
-Wisp is written in Rust on GTK 4 and WebKitGTK 6.0, with a small TypeScript
-interface compiled by the native TypeScript 7 compiler (fetched and checked by
-the build scripts; no Node needed).
+You open the laptop to check one thing. You look up and an hour has gone.
+You can't remember much of what you saw, and you feel a little flatter than
+when you started.
+
+**That isn't a lack of willpower.** Some of the biggest sites on the web are
+designed, tested and tuned by very large teams to keep you scrolling. Every
+other browser treats that hour exactly the same as an hour spent learning
+something, reading something beautiful or talking to someone you love.
+
+Wisp doesn't. It's a browser built around a simple idea: **you can't change
+what you can't see.** So Wisp helps you see it, gently, while you browse,
+and then gets out of your way.
+
+<br>
+
+## Meet the wisp
+
+<img align="right" width="300" src="data/screenshots/caption.png" alt="The wisp in its nook with its caption open, showing what is moving it right now and over the last 15 minutes.">
+
+Up in the corner of the toolbar lives a small, glowing flame with a face.
+It's yours, and it reflects the quality of your time online the way the sky
+reflects the weather.
+
+Spend time somewhere that restores you and it brightens, closes its eyes
+happily and lets off little motes of light. Sink into an endless feed and it
+slowly clouds over, grows tired and drifts toward the edge of its nook, as if
+it's ready to go outside and hoping you'll come too.
+
+**It never scolds you.** At its heaviest it looks sleepy, never sad or cross.
+Step away for a while and it perks up again. Hover over it any time and it
+tells you, in plain words, exactly what's moving it.
+
+<br clear="right">
+
+<table>
+  <tr>
+    <td align="center"><img src="data/screenshots/wisp-bright.png" width="151" alt="Bright: open eyes and a smile"><br><b>Bright</b><br><sub>rested and ready</sub></td>
+    <td align="center"><img src="data/screenshots/wisp-happy.png" width="151" alt="Happy: eyes closed in a smile"><br><b>Happy</b><br><sub>somewhere that restores you</sub></td>
+    <td align="center"><img src="data/screenshots/wisp-clouded.png" width="151" alt="Clouded: pale blue-grey and wary"><br><b>Clouded</b><br><sub>a long scroll is weighing on it</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="data/screenshots/wisp-sleepy.png" width="151" alt="Sleepy: a dim ember drifting toward the edge on dry moss"><br><b>Sleepy</b><br><sub>time for a breather</sub></td>
+    <td align="center"><img src="data/screenshots/wisp-dozing.png" width="151" alt="Dozing: eyes closed while you're away"><br><b>Dozing</b><br><sub>you're away, and it's resting too</sub></td>
+    <td align="center"><img src="data/screenshots/wisp-night.png" width="151" alt="Winding down: a warm glow late at night"><br><b>Winding down</b><br><sub>late at night, with you</sub></td>
+  </tr>
+</table>
+
+Even its moss follows along: fresh and green when things are good, dry and
+tan after a heavy stretch, and green again as soon as you rest. Nothing about
+the wisp ever dies or disappears for good.
+
+<br>
+
+## Why a little light works better than a lock
+
+Most tools for "digital wellbeing" lean on blocking, timers and guilt. They
+work for a week, then you find the switch that turns them off, because nobody
+likes being told what to do.
+
+Wisp is built on what tends to stick instead:
+
+- 🪞 **Noticing, not nagging.** Just keeping track of how you use the web has
+  been found to leave people less anxious and less afraid of missing out. The
+  wisp does the noticing for you, so the choice stays yours.
+- 🌱 **Kindness over shame.** Guilt makes people hide from the problem;
+  self-compassion makes it easier to change. Wisp celebrates good days out
+  loud and never lectures you about the rest.
+- 🚪 **You're always in charge.** Wisp never blocks a page, never pops up a
+  warning, never makes you prove anything. Every site stays one click away.
+- ☀️ **Time away counts the most.** The best thing for your wisp isn't a
+  "good" website: it's closing the laptop. Wisp is probably the only browser
+  that's happiest when you're not using it.
+- 🌙 **Your evenings matter.** Screens late at night are one of the clearest
+  links between life online and poor sleep, so after 11pm the wisp winds down
+  with you.
+
+<br>
+
+## A home that grows with you
+
+<img src="data/screenshots/home.png" alt="Wisp's Home page: a garden under an evening sky with ferns, flowers and fireflies, a greeting that reads 'Good evening. You stepped away for a while today. The wisp noticed.', and cards for good places such as Project Gutenberg and Wikipedia.">
+
+Every new tab opens **Home**, a calm page made on your computer rather than
+fetched from anywhere.
+
+- **A garden that grows on good days.** A quiet day brings moss, a day of
+  learning brings ferns, a gentle day brings flowers, and a calm night leaves
+  fireflies. A heavy day simply grows nothing. **Nothing ever wilts, and
+  missing a day costs you nothing:** there are no streaks to break.
+- **A greeting that notices what went well.** "You took a proper break
+  earlier." "Last night stayed calm after dark." Only ever true, and never
+  about what went badly.
+- **Good places.** Instead of a grid of the sites you visit most (the ones you
+  least need reminding of), Home offers somewhere worth going: the good
+  places you already return to, and suggestions for the time of day. Learning
+  and making by day, reading and nature in the evening, stillness at night.
+- **Your bookmarks,** kept on your computer.
+
+The first time you open Home, the wisp introduces itself:
+
+<img src="data/screenshots/welcome.png" alt="The wisp sitting in the garden with a speech bubble: Hello. I'm your wisp. Wisp is a web browser that keeps you company...">
+
+<br>
+
+## See your days, not a scoreboard
+
+<img align="right" width="440" src="data/screenshots/days.png" alt="The wisp's days: a line showing today from bright to busy, seven day columns split into restoring, everyday and wearing time, and the sites that moved it this week.">
+
+Click the wisp and it shows you its days: how today has felt, hour by hour,
+the shape of your last week, and which places restored you or wore you down.
+
+There are **no minutes, scores or percentages** anywhere. Days are only
+compared with each other, so you see the pattern without a number to feel
+bad about.
+
+It's the kind of mirror that makes the next choice easier: *oh, Thursday
+evenings are always like that.*
+
+<br clear="right">
+
+<br>
+
+## Start today
+
+Wisp is free and open source. Install it, make it your default browser, and
+then just use the web as you normally would. There's nothing to set up and
+nothing to learn: the wisp starts noticing straight away, and your garden can
+grow its first plant tomorrow.
+
+**Install the Flatpak** (x86_64 Linux, needs [Flathub](https://flathub.org/setup)
+for the GNOME runtime):
+
+```sh
+curl -LO https://github.com/peterwalker78/wisp/releases/latest/download/wisp-x86_64.flatpak
+flatpak install --user wisp-x86_64.flatpak
+```
+
+Then open **Wisp** from your applications. To make it your default browser,
+choose it under *Default Applications* in your desktop's settings.
+
+> Wisp is young. It's already a comfortable everyday browser for most of the
+> web, and it's growing quickly. If something doesn't work, please
+> [open an issue](https://github.com/peterwalker78/wisp/issues).
+
+<br>
+
+## Everything stays on your computer
+
+A browser that watches how you feel online has to be trustworthy, so Wisp is
+private by design, not by promise:
+
+- **Nothing about you ever leaves your computer.** No accounts, no telemetry,
+  no update pings, no cloud. The only network traffic is the pages you choose
+  to visit.
+- **It never records the pages you visit.** Its history keeps only which
+  *kind* of place you were on (say, "reddit.com, on the wearing list"), never
+  the address, what you read or what you typed.
+- **Private sites stay private.** On adult sites the wisp closes its eyes,
+  turns away and gives you privacy. Nothing about those visits is named.
+- **Built-in tracking protection** runs on your machine, and HTTPS is tried
+  first for every site.
+
+<br>
+
+## How it works, in plain words
+
+### The dose
+
+Behind the wisp is a single number between 0 and 1, called the **dose**. Think
+of it as how heavy the wisp feels. It rises while you're on draining sites and
+falls while you rest, and the wisp's look follows it: bright below 0.2, busy
+up to 0.5, clouded up to 0.75, and sleepy beyond.
+
+- **On a draining site** it climbs steadily. A long unbroken session reaches
+  sleepy in about 50 minutes.
+- **Short visits cost less than long sessions.** The first ten minutes count
+  half, and after half an hour each minute counts a little more. A five-minute
+  break starts you fresh.
+- **Away from the screen** it halves every 25 minutes. This is the fastest
+  way to recover, on purpose.
+- **On a restorative site** it recovers too, just more slowly than being away.
+  Everyday sites (your bank, your email, a map) recover it more slowly still.
+- **Late at night** (11pm to 5am) draining time counts one and a half times,
+  and everyday sites stop counting as rest.
+- **A new day** starts fresh at 5am, carrying over at most a little of a very
+  heavy yesterday.
+
+Wisp only counts time you're actually there: if you haven't touched the
+keyboard or mouse for four minutes, it treats you as away (unless you're
+watching a video).
+
+### The lists
+
+How a site affects the dose depends on which list it's on. Wisp comes with
+about 2,300 sites already sorted, based on published research into wellbeing
+online. The studies behind each group are cited in
+[`core/data/reputation.toml`](core/data/reputation.toml).
+
+| List | Weight | Examples |
+|---|---|---|
+| Draining, strong | −1 | endless short-video feeds, gambling |
+| Draining, mild | −0.4 | dating and trading apps, clickbait, gossip |
+| News | −0.4 | news sites; the first 15 minutes each day count half |
+| Everyday | 0 | banking, government, health services, maps, shops |
+| Restoring, mild | +0.5 | reference, learning, making, the arts, puzzles |
+| Restoring, strong | +1 | meditation, books and reading, live nature cams |
+
+A site on no list simply holds the wisp steady. Where the research was mixed,
+a site went on the milder list. Everyone is different, so you can move any
+site to any list in your own `reputation.toml` (the same list names as the
+bundled file, such as `draining-mild` or `nourishing-strong`), which lives in
+`~/.config/wisp/` (or `~/.var/app/io.github.peterwalker78.Wisp/config/wisp/`
+for the Flatpak) and takes effect immediately.
+
+### A few more things it notices
+
+- **Sound from other tabs** counts for half: a video playing in the background
+  still matters, a little. Mute the tab from its speaker mark and it counts
+  for nothing.
+- **Tabs left untouched for more than a day** gently slow the wisp's recovery,
+  up to half speed with eight or more. Nothing is ever closed for you.
+- **Coming back after two hours away,** the wisp greets you visibly brighter.
+
+<br>
+
+## On the way
+
+- A short **daily read** in the garden: something good, then done. No feed.
+- Rare, gentle **whispers** from the wisp at natural stopping points, never
+  mid-flow and never more than twice a day.
+- An optional **pause at the door** for sites *you* choose, with two equal
+  buttons: go in, or not now.
+- Zoom, downloads, session restore and the rest of the everyday basics.
+
+Have a site you think is on the wrong list? That's exactly the kind of help
+Wisp needs: please [open an issue](https://github.com/peterwalker78/wisp/issues)
+and say why.
+
+<br>
+
+## For developers
+
+Wisp is written in Rust on GTK 4 and WebKitGTK 6.0. The wisp itself is drawn
+natively rather than in a web page, so the whole browser idles at around one
+percent of a CPU core with the wisp breathing. The
+toolbar and Home are small TypeScript pages compiled by the native TypeScript
+7 compiler, so there's no Node in the build.
 
 Requirements: Rust (stable), GTK 4.20 or later, WebKitGTK 6.0,
-`glib-compile-resources`, SQLite, and `curl` for fetching the compiler.
+`glib-compile-resources`, SQLite, and `curl` to fetch the compiler.
 
 ```sh
 scripts/dev      # build and run from the source tree
 scripts/check    # formatting, clippy, tests and the TypeScript build
 scripts/flatpak  # build and install the Flatpak for your user
+scripts/bundle   # build a single-file Flatpak bundle for release
 ```
 
 If a distrobox named `wisp` exists, `scripts/dev` and `scripts/check` run
-inside it. `scripts/flatpak` needs Flathub's `org.flatpak.Builder`.
+inside it. `scripts/flatpak` and `scripts/bundle` need Flathub's
+`org.flatpak.Builder`.
 
-`wisp --feel-lab` plays a scripted day at speed, to watch how the wisp moves
-without living through a day of browsing (`--from=HH:MM`, `--speed=N`).
+`wisp --feel-lab` plays a scripted day at high speed, so you can watch the
+wisp's moods without living through a day of browsing (`--from=HH:MM`,
+`--speed=N`).
 
 AI coding tools are used in writing Wisp's code.
 
 ## Licence
 
-GPL-3.0-or-later. See `COPYING`.
+Wisp is free software under the GNU General Public License, version 3 or
+later. See [`COPYING`](COPYING).

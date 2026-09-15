@@ -2,17 +2,45 @@
 <component type="desktop-application">
   <id>io.github.peterwalker78.Wisp</id>
   <name>Wisp</name>
-  <summary>A quiet browser with a living companion</summary>
+  <summary>The web browser that's on your side</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.peterwalker78">
+    <name>Wisp contributors</name>
+  </developer>
   <description>
     <p>
-      Wisp is a minimalist web browser. A small light in its corner reflects
-      the quality of your time online, gently and without nagging. Everything
-      it knows stays on your computer.
+      Wisp is a quiet web browser with a small living companion. The wisp, a
+      glowing flame with a friendly face, notices how your time online really
+      feels: it brightens somewhere that restores you, clouds over during a
+      long scroll, and perks up again when you step away. It never blocks a
+      page or scolds you.
     </p>
+    <ul>
+      <li>Hover the wisp to see, in plain words, what is moving it</li>
+      <li>Home: a garden that grows on good days and never wilts, a greeting that notices what went well, and good places to go</li>
+      <li>The wisp's days: today, the week and the weeks before, with no minutes or scores</li>
+      <li>About 2,300 sites sorted by published research on wellbeing online, and yours to change</li>
+      <li>Private by design: nothing leaves your computer, and the addresses you visit are never recorded</li>
+    </ul>
   </description>
   <launchable type="desktop-id">io.github.peterwalker78.Wisp.desktop</launchable>
+  <url type="homepage">https://github.com/peterwalker78/wisp</url>
+  <url type="bugtracker">https://github.com/peterwalker78/wisp/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The wisp, bright on a page that restores you</caption>
+      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/browsing.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Home, with a garden that grows on good days</caption>
+      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/home.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The wisp introducing itself</caption>
+      <image>https://raw.githubusercontent.com/peterwalker78/wisp/main/data/screenshots/welcome.png</image>
+    </screenshot>
+  </screenshots>
   <categories>
     <category>Network</category>
     <category>WebBrowser</category>
@@ -20,7 +48,14 @@
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="0.1.0" date="2026-09-15">
-      <description><p>The first shell: one window, one tab, an address field.</p></description>
+      <description>
+        <p>The first release.</p>
+        <ul>
+          <li>The wisp, with its moods, moss and a caption that explains what moves it</li>
+          <li>Home with its garden, greeting, good places, bookmarks and the wisp's days</li>
+          <li>Tabs in a resizable column, find in page, HTTPS first and tracking protection</li>
+        </ul>
+      </description>
     </release>
   </releases>
 </component>
