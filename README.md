@@ -213,8 +213,8 @@ up to 0.5, clouded up to 0.75, and sleepy beyond.
   way to recover, on purpose.
 - **On a restorative site** it recovers too, just more slowly than being away.
   Everyday sites (your bank, your email, a map) recover it more slowly still.
-- **Late at night** (11pm to 5am) draining time counts one and a half times,
-  and everyday sites stop counting as rest.
+- **Late at night** (11pm to 5am, or your own hours in Settings) draining time
+  counts one and a half times, and everyday sites stop counting as rest.
 - **A new day** starts fresh at 5am, carrying over at most a little of a very
   heavy yesterday.
 
@@ -239,11 +239,18 @@ online. The studies behind each group are cited in
 | Restoring, strong | +1 | meditation, books and reading, live nature cams |
 
 A site on no list simply holds the wisp steady. Where the research was mixed,
-a site went on the milder list. Everyone is different, so you can move any
-site to any list in your own `reputation.toml` (the same list names as the
-bundled file, such as `draining-mild` or `nourishing-strong`), which lives in
-`~/.config/glimmerwood/` (or `~/.var/app/io.github.peterwalker78.Glimmerwood/config/glimmerwood/`
-for the Flatpak) and takes effect immediately.
+a site went on the milder list.
+
+Everyone is different, so the lists are yours to change. Spend a few minutes
+on a site the wisp hasn't met and it asks, once, how the place leaves you,
+with a slider from *drains me* to *restores me*. Only you see the answer; it's
+there so the wisp can look after you honestly. Every rating can be changed
+later in **Settings** (Ctrl+comma, or the link at the foot of Home), where you
+can also look up and rate any site. Ratings are kept in your own
+`reputation.toml` (the same list names as the bundled file, such as
+`draining-mild` or `nourishing-strong`) in `~/.config/glimmerwood/` (or
+`~/.var/app/io.github.peterwalker78.Glimmerwood/config/glimmerwood/` for the
+Flatpak), which you can edit by hand too. Changes take effect immediately.
 
 ### A few more things it notices
 
