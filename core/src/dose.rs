@@ -120,12 +120,13 @@ pub struct Day {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Presence {
     pub input_seconds: u32,
+    pub sound_minutes: f64,
+    pub night_sound_minutes: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Heard {
     pub factor: f64,
-    pub listening_minutes: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]

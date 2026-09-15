@@ -43,7 +43,7 @@ done = "Got it"
 draining = "Earlier the wisp grew heavy. Some sites are built to keep you scrolling, and the wisp feels that weight. It lifts again when you step away or spend time somewhere kinder."
 night = "Late at night the wisp winds down with you. Late scrolling weighs a little more and restful pages rest a little less, because sleep does the most good of all."
 privacy = "On some private sites the wisp turns away and gives you privacy. Nothing about those visits is counted or kept."
-heard = "Tabs playing sound count too, even off screen: a tab in the background counts for half, and one you mute from its speaker mark counts for nothing. The wisp only knows that a tab is making sound, never what it is, and it never uses your microphone."
+heard = "Tabs playing sound count too, even off screen: a tab in the background counts for half, and one you mute from its speaker mark counts for nothing. After an hour without a touch, or twenty minutes at night, the wisp takes it that you've stepped away or dozed off. It only knows that a tab is making sound, never what it is, and it never uses your microphone."
 
 # Praise, only when it's true. The first that applies is said.
 [praise]

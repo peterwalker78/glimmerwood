@@ -6,8 +6,8 @@
 
 use crate::dose::{Moment, Rates};
 
-/// While sound plays with no input, presence is leased this far ahead and
-/// renewed well before it runs out.
+/// While sound plays with no input, presence is leased this far ahead (or
+/// until sound stops counting) and renewed well before it runs out.
 pub const SOUND_LEASE_MS: i64 = 60_000;
 
 /// The one place Glimmerwood reads the wall clock. Everything else is handed the
@@ -43,7 +43,11 @@ pub fn presence_until(rates: &Rates, signals: Signals, now: Moment) -> Option<Mo
         .last_input
         .map(|t| t.ms + i64::from(rates.presence.input_seconds) * 1000)
         .filter(|&until| until > now.ms);
-    let by_sound = signals.sound_on_screen.then_some(now.ms + SOUND_LEASE_MS);
+    let by_sound = signals
+        .sound_on_screen
+        .then(|| sound_until(rates, signals.last_input, now))
+        .flatten()
+        .map(|until| until.min(now.ms + SOUND_LEASE_MS));
     by_input.max(by_sound).map(|ms| Moment {
         ms,
         utc_offset_s: now.utc_offset_s,
@@ -51,14 +55,26 @@ pub fn presence_until(rates: &Rates, signals: Signals, now: Moment) -> Option<Mo
 }
 
 /// Until when a heard draining site keeps counting with nobody present: the
-/// listening window after the last input in Glimmerwood, or `None` once
-/// it has passed.
+/// sound window after the last input in Glimmerwood, or `None` once it has
+/// passed.
 pub fn listening_until(rates: &Rates, last_input: Option<Moment>, now: Moment) -> Option<Moment> {
-    let until = last_input?.ms + (rates.heard.listening_minutes * 60_000.0) as i64;
-    (until > now.ms).then_some(Moment {
-        ms: until,
+    sound_until(rates, last_input, now).map(|ms| Moment {
+        ms,
         utc_offset_s: now.utc_offset_s,
     })
+}
+
+/// Until when sound still counts without input, or `None` once it doesn't.
+/// The window is shorter at night, so falling asleep to something is rest.
+fn sound_until(rates: &Rates, last_input: Option<Moment>, now: Moment) -> Option<i64> {
+    let p = &rates.presence;
+    let minutes = if rates.is_night(now) {
+        p.night_sound_minutes
+    } else {
+        p.sound_minutes
+    };
+    let until = last_input?.ms + (minutes * 60_000.0) as i64;
+    (until > now.ms).then_some(until)
 }
 
 /// The tab heard right now: of the tabs playing sound that aren't the one on
@@ -107,6 +123,24 @@ mod tests {
         }
     }
 
+    /// Minutes after noon and after midnight, local time.
+    fn noon(minutes: i64) -> Moment {
+        local(12 * 60, minutes)
+    }
+
+    fn midnight(minutes: i64) -> Moment {
+        local(0, minutes)
+    }
+
+    fn local(at_minute: i64, minutes: i64) -> Moment {
+        let start = t(0);
+        let into_day = (start.ms / 1000 + i64::from(start.utc_offset_s)).rem_euclid(86_400) / 60;
+        Moment {
+            ms: start.ms + (at_minute - into_day + minutes) * 60_000,
+            utc_offset_s: start.utc_offset_s,
+        }
+    }
+
     #[test]
     fn present_means_in_front_with_recent_input() {
         let rates = Rates::bundled();
@@ -125,28 +159,62 @@ mod tests {
     }
 
     #[test]
-    fn sound_on_screen_keeps_you_present_without_input() {
+    fn sound_on_screen_keeps_you_present_for_an_hour_without_input() {
         let rates = Rates::bundled();
         let watching = Signals {
             in_front: true,
-            last_input: Some(t(0)),
+            last_input: Some(noon(0)),
             sound_on_screen: true,
         };
-        assert_eq!(presence_until(&rates, watching, t(30)), Some(t(31)));
+        assert_eq!(presence_until(&rates, watching, noon(30)), Some(noon(31)));
+        assert_eq!(presence_until(&rates, watching, noon(59)), Some(noon(60)));
+        assert_eq!(presence_until(&rates, watching, noon(60)), None);
         // ...but not with the window behind another.
         let behind = Signals {
             in_front: false,
             ..watching
         };
-        assert_eq!(presence_until(&rates, behind, t(30)), None);
+        assert_eq!(presence_until(&rates, behind, noon(30)), None);
+        // ...and not without any input at all.
+        let untouched = Signals {
+            last_input: None,
+            ..watching
+        };
+        assert_eq!(presence_until(&rates, untouched, noon(1)), None);
     }
 
     #[test]
-    fn heard_sound_counts_for_half_an_hour_after_the_last_input() {
+    fn falling_asleep_to_sound_at_night_is_being_away() {
         let rates = Rates::bundled();
-        assert_eq!(listening_until(&rates, Some(t(0)), t(10)), Some(t(30)));
-        assert_eq!(listening_until(&rates, Some(t(0)), t(30)), None);
-        assert_eq!(listening_until(&rates, None, t(1)), None);
+        let in_bed = Signals {
+            in_front: true,
+            last_input: Some(midnight(0)),
+            sound_on_screen: true,
+        };
+        assert_eq!(
+            presence_until(&rates, in_bed, midnight(10)),
+            Some(midnight(11))
+        );
+        assert_eq!(presence_until(&rates, in_bed, midnight(20)), None);
+        assert_eq!(
+            listening_until(&rates, Some(midnight(0)), midnight(19)),
+            Some(midnight(20))
+        );
+        assert_eq!(
+            listening_until(&rates, Some(midnight(0)), midnight(20)),
+            None
+        );
+    }
+
+    #[test]
+    fn heard_sound_counts_for_an_hour_after_the_last_input_by_day() {
+        let rates = Rates::bundled();
+        assert_eq!(
+            listening_until(&rates, Some(noon(0)), noon(10)),
+            Some(noon(60))
+        );
+        assert_eq!(listening_until(&rates, Some(noon(0)), noon(60)), None);
+        assert_eq!(listening_until(&rates, None, noon(1)), None);
     }
 
     #[test]

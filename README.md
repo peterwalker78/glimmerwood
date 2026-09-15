@@ -261,7 +261,8 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
 
 - **Sound from other tabs** counts for half: a video playing in the background
   still matters, a little. Mute the tab from its speaker mark and it counts
-  for nothing.
+  for nothing. Sound stops counting an hour after you last touched anything,
+  or twenty minutes at night, so falling asleep to rain sounds is rest.
 - **Tabs left untouched for more than a day** gently slow the wisp's recovery,
   up to half speed with eight or more. Nothing is ever closed for you.
 - **Coming back after two hours away,** the wisp greets you visibly brighter.
