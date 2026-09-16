@@ -10,6 +10,9 @@ mod files {
 }
 
 #[cfg(target_os = "macos")]
+mod host;
+
+#[cfg(target_os = "macos")]
 mod shell;
 
 #[cfg(target_os = "macos")]

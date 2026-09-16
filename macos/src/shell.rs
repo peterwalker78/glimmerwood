@@ -4,8 +4,11 @@
 //! WKWebView. The toolbar is Glimmerwood's own chrome and is the only one
 //! given a handler for `glimmerwood://`; the page below it is the web.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 
+use glimmerwood_core::companion::Companion;
+use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{Security, ToChrome, ToCore};
@@ -31,14 +34,24 @@ const INITIAL_HEIGHT: f64 = 760.0;
 const TOOLBAR_HEIGHT: f64 = 56.0;
 
 thread_local! {
-    static SHELL: RefCell<Option<Shell>> = const { RefCell::new(None) };
+    static SHELL: RefCell<Option<Rc<Shell>>> = const { RefCell::new(None) };
+    static COMPANION: RefCell<Option<Rc<Companion>>> = const { RefCell::new(None) };
 }
 
-struct Shell {
+/// The shell, for the few places that need it from outside.
+pub fn held() -> Option<Rc<Shell>> {
+    SHELL.with_borrow(|held| held.clone())
+}
+
+pub fn companion() -> Option<Rc<Companion>> {
+    COMPANION.with_borrow(|held| held.clone())
+}
+
+pub struct Shell {
     window: Retained<NSWindow>,
     toolbar: Retained<WKWebView>,
-    page: Retained<WKWebView>,
-    toolbar_height: f64,
+    pub(crate) page: Retained<WKWebView>,
+    toolbar_height: Cell<f64>,
 }
 
 pub fn run() {
@@ -75,15 +88,20 @@ pub fn run() {
     load(&toolbar, "glimmerwood://chrome/toolbar.html");
     load(&page, "glimmerwood://home/");
 
-    SHELL.with_borrow_mut(|held| {
-        *held = Some(Shell {
-            window: window.clone(),
-            toolbar,
-            page,
-            toolbar_height: TOOLBAR_HEIGHT,
-        });
+    let shell = Rc::new(Shell {
+        window: window.clone(),
+        toolbar,
+        page,
+        toolbar_height: Cell::new(TOOLBAR_HEIGHT),
     });
+    SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
     lay_out();
+
+    // The companion decides how the time is going. It is the same one the
+    // Linux build uses; this only tells it what is on screen.
+    let started = Companion::new(shell as Rc<dyn host::Host>, None);
+    started.windows_changed();
+    COMPANION.with_borrow_mut(|held| *held = Some(started));
 
     window.center();
     window.makeKeyAndOrderFront(None);
@@ -134,7 +152,7 @@ fn lay_out() {
             return;
         };
         let whole = content.frame();
-        let split = shell.toolbar_height.min(whole.size.height);
+        let split = shell.toolbar_height.get().min(whole.size.height);
         shell.toolbar.setFrame(NSRect::new(
             NSPoint::new(0.0, whole.size.height - split),
             NSSize::new(whole.size.width, split),
@@ -192,8 +210,8 @@ fn push_state() {
 }
 
 fn heard(message: ToCore) {
-    SHELL.with_borrow_mut(|held| {
-        let Some(shell) = held.as_mut() else { return };
+    SHELL.with_borrow(|held| {
+        let Some(shell) = held.as_ref() else { return };
         match message {
             ToCore::Navigate { input } => {
                 if let Some(target) = nav::resolve(&input) {
@@ -214,12 +232,32 @@ fn heard(message: ToCore) {
             },
             ToCore::GoHome => load(&shell.page, "glimmerwood://home/"),
             ToCore::ToolbarLayout { height, .. } => {
-                shell.toolbar_height = f64::from(height);
+                shell.toolbar_height.set(f64::from(height));
             }
             ToCore::Minimize => shell.window.miniaturize(None),
             ToCore::CloseWindow => shell.window.close(),
-            // The rest belong to tabs, the wisp and the lists, which this
-            // shell has yet to grow.
+            ToCore::RateSite { site, rating } => {
+                if let Some(companion) = companion() {
+                    companion.rate_site(&site, Some(rating));
+                }
+            }
+            ToCore::NotNow { site } => {
+                if let Some(companion) = companion() {
+                    companion.not_now(&site);
+                }
+            }
+            ToCore::CloseCare => {
+                if let Some(companion) = companion() {
+                    companion.close_care();
+                }
+            }
+            ToCore::Ready { .. } => {
+                if let Some(companion) = companion() {
+                    companion.chrome_ready();
+                }
+            }
+            // The rest belong to tabs and the lists, which this shell has yet
+            // to grow.
             _ => {}
         }
     });
@@ -310,4 +348,49 @@ fn file(path: &str) -> Option<&'static [u8]> {
         .iter()
         .find(|(name, _)| *name == path)
         .map(|(_, bytes)| *bytes)
+}
+
+impl host::Window for Shell {
+    fn in_front(&self) -> bool {
+        self.window.isKeyWindow() && self.window.isVisible()
+    }
+
+    fn attended_uri(&self) -> String {
+        unsafe { self.page.URL() }
+            .and_then(|url| url.absoluteString())
+            .map(|text| text.to_string())
+            .unwrap_or_default()
+    }
+
+    fn other_tabs(&self, _in_front: bool) -> Vec<String> {
+        // One page at a time, until this shell grows tabs.
+        Vec::new()
+    }
+
+    fn sound_on_screen(&self) -> bool {
+        // WebKit tells an app this only through a private property, so until
+        // there is a supported way to ask, sound is not counted here.
+        false
+    }
+
+    fn send_to_chrome(&self, message: &ToChrome) {
+        tell_the_chrome(message);
+    }
+
+    fn refresh_pages(&self) {
+        // Home and Settings are not served here yet, so there is nothing
+        // showing that could have gone stale.
+    }
+
+    fn ask(&self, site: Option<String>) {
+        tell_the_chrome(&ToChrome::Ask { site });
+    }
+
+    fn care(&self, open: bool, samaritans: bool) {
+        tell_the_chrome(&ToChrome::Care { open, samaritans });
+    }
+
+    fn set_title(&self, title: &str) {
+        self.window.setTitle(&NSString::from_str(title));
+    }
 }
