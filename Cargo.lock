@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "glimmerwood"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "glimmerwood-core",
  "gtk4",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "glimmerwood-core"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "rusqlite",
  "serde",
@@ -396,11 +396,11 @@ dependencies = [
 
 [[package]]
 name = "glimmerwood-embed"
-version = "0.8.1"
+version = "0.8.2"
 
 [[package]]
 name = "glimmerwood-macos"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "block2",
  "glimmerwood-core",
@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "glimmerwood-raster"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "glimmerwood-core",
  "tiny-skia",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "glimmerwood-windows"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "glimmerwood-core",
  "glimmerwood-embed",
