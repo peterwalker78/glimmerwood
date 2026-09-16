@@ -47,6 +47,18 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.6.0" date="2026-09-16">
+      <description>
+        <p>The wisp does its real work on Windows and macOS, and the welcome page has things to do.</p>
+        <ul>
+          <li>The Windows and macOS builds run the same dose engine, lists and history as the Linux one: the wisp watches, takes ratings and keeps its own memory there too</li>
+          <li>Home and Settings open on all three</li>
+          <li>The welcome page has a fact worth knowing, with the study named, more good places to walk on through, and a game of catch with the wisp</li>
+          <li>That page reads properly on a phone, and its home-screen icon survives being cut to a circle</li>
+          <li>Downloads for Windows and macOS beside the Flatpak, with what to do about the warnings an unsigned app gets</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-09-16">
       <description>
         <p>The wisp reads from across the room, the garden follows the real sun, and there's a page for your phone.</p>
