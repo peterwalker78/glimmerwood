@@ -30,7 +30,7 @@ designed, tested and tuned by very large teams to keep you scrolling. Every
 other browser treats that hour exactly the same as an hour spent learning
 something, making something, or talking to someone you love.
 
-Glimmerwood doesn't. **You can't change what you can't see** — so it helps you
+Glimmerwood doesn't. **You can't change what you can't see** - so it helps you
 see it, gently, while you browse, and then gets out of your way.
 
 ## Meet the wisp
@@ -72,7 +72,7 @@ and it tells you, in plain words, exactly what's moving it.
 Every new tab opens **Home**, a calm page made on your computer rather than
 fetched from anywhere. A quiet day brings moss, a day of learning brings
 ferns, a calm night leaves fireflies. A heavy day simply grows nothing.
-**Nothing ever wilts, and missing a day costs you nothing** — there are no
+**Nothing ever wilts, and missing a day costs you nothing** - there are no
 streaks to break.
 
 Instead of a grid of the sites you visit most, Home offers somewhere worth
@@ -122,7 +122,7 @@ Glimmerwood is private by design, not by promise.
 - **No accounts, no telemetry, no update pings, no cloud.** The only network
   traffic is the pages you choose to visit.
 - **The wisp never sees an address.** Its record of how your time felt holds
-  only which list a place was on — "reddit.com, on the wearing list" — and
+  only which list a place was on - "reddit.com, on the wearing list" - and
   never a page, a title, or anything you typed.
 - **The history is an ordinary one, and it only keeps a week.** Addresses and
   titles, on your computer, so you can find Tuesday's page again; after seven
@@ -142,9 +142,17 @@ The wisp can't come to your phone: on an iPhone every browser is really the
 same browser wearing a different coat, and a phone is the one place you can't
 properly sit down with the web anyway.
 
-So there's a page instead: **[glimmerwood on the web](https://peterwalker78.github.io/glimmerwood/)** —
+So there's a page instead: **[glimmerwood on the web](https://peterwalker78.github.io/glimmerwood/)** -
 the same garden, lit for the hour, with good places from the same researched
-list. Add it to your home screen where a noisier app used to be, and do the
+list. It has no history to read and stores nothing at all, so it doesn't
+pretend to see anything.
+
+**Wake the wisp and it will play catch with you.** It throws a light, five
+times, for you to reach out and catch. Nothing is scored and nothing is kept:
+after the fifth throw it yawns and settles back down on the bank.
+
+**It installs like an app.** Add it to your home screen, where a noisier one
+used to be, and it opens on its own with no browser around it. Then do the
 real browsing at a desk, somewhere you can stand up and leave.
 
 <br clear="right">
@@ -153,7 +161,7 @@ real browsing at a desk, somewhere you can stand up and leave.
 
 **Glimmerwood and [Slipstream](https://github.com/peterwalker78/slipstream-desktop)
 are two halves of the same desktop:** one looks after the hours you spend
-online, the other is the workshop you come back to — a keyboard-first Linux
+online, the other is the workshop you come back to - a keyboard-first Linux
 desktop built so that nothing on your screen is competing for you.
 
 Slipstream installs Glimmerwood and keeps it up to date. Glimmerwood is its
