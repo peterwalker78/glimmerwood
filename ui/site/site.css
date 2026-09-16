@@ -54,6 +54,27 @@
   .dozing { width: 78px; height: 82px; right: 16px; }
 }
 
+/* --- Readable at any size ---
+   Home is read sitting at a desk with the page a foot away; this one is read
+   at arm's length, on a phone, often outdoors. It starts a size up. Only this
+   page loads these rules, so Home keeps its own measure. */
+
+html,
+body {
+  font-size: 16px;
+}
+
+h2 {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.note,
+.made-here,
+.fact figcaption {
+  font-size: 0.9rem;
+}
+
 /* --- Asleep --- */
 
 .zzz .z path {
@@ -122,11 +143,11 @@ button.quiet,
 
 button.quiet {
   margin-left: 8px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   background: var(--card);
   border-color: var(--hairline);
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 button.quiet:hover { background: var(--card-hover); }
 
@@ -188,3 +209,65 @@ button.quiet:hover { background: var(--card-hover); }
   font-size: 0.85rem;
 }
 .fact figcaption a { color: inherit; }
+
+/* --- On a phone ---
+   Which is who this page is for. Everything small enough to squint at on a
+   desktop is too small held at arm's length, and anything meant to be tapped
+   needs to be big enough for a thumb. */
+
+@media (max-width: 900px) {
+  /* The quiet section labels, which were the smallest thing on the page. */
+  h2 {
+    font-size: 0.86rem;
+    letter-spacing: 0.07em;
+  }
+
+  .note,
+  .made-here,
+  .fact figcaption {
+    font-size: 0.95rem;
+  }
+
+  .place .line { font-size: 1rem; }
+  .place a { padding: 16px; }
+
+  .fact blockquote { font-size: 1.1rem; }
+  .prose p { font-size: 1.1rem; }
+
+  .greeting p { font-size: clamp(1.1rem, 4.4vw, 1.3rem); }
+
+  /* Room for a thumb: nothing tappable under 44px tall. */
+  .play button,
+  button.quiet,
+  .get {
+    min-height: 44px;
+    padding-inline: 18px;
+    font-size: 1rem;
+  }
+
+  button.quiet {
+    display: inline-flex;
+    align-items: center;
+    margin: 10px 0 0;
+  }
+
+  /* The places note and its button stack rather than squeeze. */
+  #places-note {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .play {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+
+  .made-here { line-height: 1.6; }
+  .made-here a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}
