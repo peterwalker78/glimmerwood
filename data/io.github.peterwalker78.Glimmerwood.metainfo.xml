@@ -47,6 +47,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.8.4" date="2026-09-16">
+      <description>
+        <p>Three things the macOS build was missing, two of which Windows was missing as well.</p>
+        <ul>
+          <li>The wisp notices that someone is there: neither shell was telling the companion about input, so it slept through whatever you were doing</li>
+          <li>The macOS app has an icon</li>
+          <li>The tab column opens wide enough to read a title, and Home and Settings wear the wisp on macOS as they do elsewhere</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.8.3" date="2026-09-16">
       <description>
         <p>Home's forgetting block sits with the week above it rather than beside it.</p>
