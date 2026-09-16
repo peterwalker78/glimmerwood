@@ -33,6 +33,27 @@ something, making something, or talking to someone you love.
 Glimmerwood doesn't. **You can't change what you can't see** - so it helps you
 see it, gently, while you browse, and then gets out of your way.
 
+## Get Glimmerwood
+
+Free and open source. Install it, make it your default browser, and then just
+use the web as you normally would. There's nothing to set up and nothing to
+learn: the wisp starts noticing straight away, and your garden can grow its
+first plant tomorrow.
+
+**Install the Flatpak** (x86_64 Linux, needs [Flathub](https://flathub.org/setup)
+for the GNOME runtime):
+
+```sh
+curl -LO https://github.com/peterwalker78/glimmerwood/releases/latest/download/glimmerwood-x86_64.flatpak
+flatpak install --user glimmerwood-x86_64.flatpak
+```
+
+Then open **Glimmerwood** from your applications, and choose it under *Default
+Applications* in your desktop's settings.
+
+**Glimmerwood is for Linux only.** There is no Windows or macOS version, and
+there is no plan for one.
+
 ## Meet the wisp
 
 <img align="right" width="300" src="data/screenshots/caption.png" alt="The wisp in its nook with its caption open, showing what is moving it right now and over the last 15 minutes.">
@@ -166,27 +187,6 @@ desktop built so that nothing on your screen is competing for you.
 
 Slipstream installs Glimmerwood and keeps it up to date. Glimmerwood is its
 own project, though, and just as happy on any other Linux desktop.
-
-## Get Glimmerwood
-
-Free and open source. Install it, make it your default browser, and then just
-use the web as you normally would. There's nothing to set up and nothing to
-learn: the wisp starts noticing straight away, and your garden can grow its
-first plant tomorrow.
-
-**Install the Flatpak** (x86_64 Linux, needs [Flathub](https://flathub.org/setup)
-for the GNOME runtime):
-
-```sh
-curl -LO https://github.com/peterwalker78/glimmerwood/releases/latest/download/glimmerwood-x86_64.flatpak
-flatpak install --user glimmerwood-x86_64.flatpak
-```
-
-Then open **Glimmerwood** from your applications, and choose it under *Default
-Applications* in your desktop's settings.
-
-**Glimmerwood is for Linux only.** There is no Windows or macOS version, and
-there is no plan for one.
 
 ## On the way
 
