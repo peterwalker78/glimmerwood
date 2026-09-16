@@ -121,10 +121,15 @@ Glimmerwood is private by design, not by promise.
 
 - **No accounts, no telemetry, no update pings, no cloud.** The only network
   traffic is the pages you choose to visit.
-- **It never records the pages you visit.** Its history keeps only which
-  *kind* of place you were on, never the address or what you read.
+- **The wisp never sees an address.** Its record of how your time felt holds
+  only which list a place was on — "reddit.com, on the wearing list" — and
+  never a page, a title, or anything you typed.
+- **The history is an ordinary one, and it only keeps a week.** Addresses and
+  titles, on your computer, so you can find Tuesday's page again; after seven
+  days they're deleted. Nothing is ever uploaded.
 - **Private sites stay private.** On adult sites the wisp closes its eyes and
-  turns away, and nothing about those visits is named.
+  turns away, nothing about those visits is named, and they never reach the
+  history at all.
 - **Trackers are blocked** before they can load, and every site is asked for a
   secure connection first.
 
