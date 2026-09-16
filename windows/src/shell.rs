@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::{Rc, Weak};
 
+use crate::nook;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{Security, ToChrome, ToCore};
@@ -86,6 +87,10 @@ pub fn run() -> Fallible<()> {
     serve_our_own_files(&toolbar_view, &environment)?;
     listen_to_the_chrome(&toolbar_view, &shell)?;
     watch_the_page(&page_view, &shell)?;
+
+    // The wisp's own window, over the toolbar's corner. It is created after
+    // the engines so that it sits above them.
+    nook::open(window)?;
 
     shell.lay_out();
     unsafe {
@@ -203,9 +208,29 @@ impl Shell {
                         .MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC)
                 };
             }
-            ToCore::ToolbarLayout { height, .. } => {
+            ToCore::ToolbarLayout {
+                height,
+                nook_right,
+                nook_top,
+                nook_width,
+                nook_height,
+                ..
+            } => {
                 *self.toolbar_height.borrow_mut() = height as i32;
                 self.lay_out();
+                let mut whole = RECT::default();
+                let _ = unsafe { GetClientRect(self.window, &mut whole) };
+                // The toolbar gives the nook's inset from its right edge.
+                let width = nook_width.max(1) as i32;
+                let height = nook_height.max(1) as i32;
+                let left = whole.right - nook_right as i32 - width;
+                let top = nook_top as i32;
+                nook::move_to(RECT {
+                    left,
+                    top,
+                    right: left + width,
+                    bottom: top + height,
+                });
             }
             ToCore::Minimize => unsafe {
                 let _ = ShowWindow(self.window, SW_MINIMIZE);

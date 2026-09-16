@@ -11,6 +11,9 @@ mod files {
 }
 
 #[cfg(windows)]
+mod nook;
+
+#[cfg(windows)]
 mod shell;
 
 #[cfg(windows)]
