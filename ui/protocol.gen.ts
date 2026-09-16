@@ -6,6 +6,12 @@ export type ChromeView = "sidebar" | "toolbar";
 
 export type TabSound = "silent" | "playing" | "muted";
 
+export type Progress = "running" | "saved" | "stopped" | "failed";
+
+export type Download = { id: number; name: string; path: string; progress: Progress; fraction: number | null };
+
+export type Page = { at: number; url: string; title: string; host: string };
+
 export type WispPhase = "rested" | "engaged" | "clouded" | "drained";
 
 export type WispMode = "away" | "draining" | "resting" | "nourishing" | "holding";
@@ -44,7 +50,7 @@ export type DiarySite = { label: string; kind: TimeKind; bars: number };
 
 export type HomeWisp = { today: DosePoint[]; now_minute: number; day_start_minute: number; night_from: number; night_until: number; engaged: number; clouded: number; drained: number; week: DiaryDay[]; earlier: DiaryWeek[]; sites: DiarySite[] };
 
-export type HomeData = { title: string; line: string; about: HomeAbout | null; explain: HomeExplain | null; part: DayPart; places: HomePlace[]; bookmarks: HomeBookmark[]; plants: HomePlant[]; seed: number; wisp: HomeWisp };
+export type HomeData = { title: string; line: string; about: HomeAbout | null; explain: HomeExplain | null; part: DayPart; places: HomePlace[]; bookmarks: HomeBookmark[]; plants: HomePlant[]; seed: number; wisp: HomeWisp; pages: Page[]; downloads: Download[] };
 
 export type Rating = "drains_a_lot" | "drains_a_little" | "neither" | "restores_a_little" | "restores_a_lot" | "news" | "private" | "unrated" | "care";
 
@@ -54,11 +60,12 @@ export type TimeChoice = { value: string; label: string };
 
 export type SettingsData = { lookup: SiteRating[]; lookup_failed: string; ratings: SiteRating[]; ratings_file: string; ratings_problem: string; ask: boolean; night_starts: string; night_ends: string; night_start_choices: TimeChoice[]; night_end_choices: TimeChoice[] };
 
-export type TabInfo = { id: number; title: string; host: string; loading: boolean; sound: TabSound };
+export type TabInfo = { id: number; title: string; host: string; loading: boolean; sound: TabSound; asleep: boolean };
 
 export type ToCore =
   | { type: "ready"; view: ChromeView }
   | { type: "navigate"; input: string }
+  | { type: "navigate_dot_com"; input: string }
   | { type: "back" }
   | { type: "forward" }
   | { type: "reload" }
@@ -79,6 +86,7 @@ export type ToCore =
   | { type: "close_care" }
   | { type: "find_support"; samaritans: boolean }
   | { type: "open_settings" }
+  | { type: "open_download"; id: number }
   | { type: "toolbar_layout"; height: number; overlay_height: number; nook_right: number; nook_top: number; nook_width: number; nook_height: number }
   | { type: "minimize" }
   | { type: "toggle_maximize" }
@@ -90,6 +98,7 @@ export type ToChrome =
   | { type: "tabs"; tabs: TabInfo[]; selected: number }
   | { type: "tab_icon"; id: number; icon: string | null }
   | { type: "focus_address" }
+  | { type: "downloads"; running: number }
   | { type: "find"; open: boolean }
   | { type: "found"; query: string; summary: string }
   | { type: "window"; floating: boolean }

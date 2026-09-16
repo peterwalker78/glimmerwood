@@ -241,6 +241,39 @@ record! {
         pub host: String,
         pub loading: bool,
         pub sound: TabSound,
+        /// Restored from the last run and not loaded yet: the column shows
+        /// it faintly, and it wakes when it is asked for.
+        pub asleep: bool,
+    }
+}
+
+string_union! {
+    /// How a download is getting on.
+    #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Progress { Running, Saved, Stopped, Failed }
+}
+
+record! {
+    /// A file arriving, or one that just arrived and hasn't been opened.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct Download {
+        pub id: u32,
+        pub name: String,
+        pub path: String,
+        pub progress: Progress,
+        /// How far along, 0 to 1, or null when the size isn't known.
+        pub fraction: Option<f64>,
+    }
+}
+
+record! {
+    /// A page visited this week.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct Page {
+        pub at: i64,
+        pub url: String,
+        pub title: String,
+        pub host: String,
     }
 }
 
@@ -413,6 +446,10 @@ record! {
         /// Where the garden puts things; fixed for this install.
         pub seed: u32,
         pub wisp: HomeWisp,
+        /// This week's pages, newest first. Nothing older is kept.
+        pub pages: Vec<Page>,
+        /// Files that have arrived and haven't been opened yet.
+        pub downloads: Vec<Download>,
     }
 }
 
@@ -491,6 +528,9 @@ messages! {
         Ready { view: ChromeView },
         /// The user submitted the address field.
         Navigate { input: String },
+        /// The user submitted it with Ctrl or Cmd held: a bare word means
+        /// the `.com` of that name.
+        NavigateDotCom { input: String },
         Back,
         Forward,
         Reload,
@@ -525,6 +565,8 @@ messages! {
         /// helpline finder, or Samaritans.
         FindSupport { samaritans: bool },
         OpenSettings,
+        /// Open a file that has finished downloading, and take it off Home.
+        OpenDownload { id: u32 },
         /// The toolbar's size: `height` is the bar pages sit below;
         /// `overlay_height` is the full height it needs, including the hover
         /// caption when open, which floats over the page. The nook is where
@@ -568,6 +610,9 @@ messages! {
         TabIcon { id: u32, icon: Option<String> },
         /// Put the caret in the address field and select its contents.
         FocusAddress,
+        /// How many files are arriving: a quiet mark in the toolbar while
+        /// any are, and nothing at all when none are.
+        Downloads { running: u32 },
         /// Open the find bar with the caret in it, or close it (another tab
         /// was selected, or the page moved on).
         Find { open: bool },
@@ -626,6 +671,9 @@ fn typescript() -> String {
         Security::declaration(),
         ChromeView::declaration(),
         TabSound::declaration(),
+        Progress::declaration(),
+        Download::declaration(),
+        Page::declaration(),
         WispPhase::declaration(),
         WispMode::declaration(),
         WispTrend::declaration(),

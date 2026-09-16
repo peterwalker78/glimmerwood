@@ -18,6 +18,9 @@ pub struct Facts {
     pub muted: bool,
     /// The site icon as a `data:` URL, sent to the chrome on its own.
     pub icon: Option<String>,
+    /// Restored from the last run and not loaded yet. It holds its place in
+    /// the column with the title it had, and wakes when it is asked for.
+    pub asleep: bool,
 }
 
 impl Facts {
@@ -31,7 +34,7 @@ impl Facts {
 
     /// What the column shows on the tab: its title, or failing that where it
     /// is, or failing that nothing at all.
-    fn label(&self) -> String {
+    pub(crate) fn label(&self) -> String {
         if self.title.is_empty() {
             self.uri.clone()
         } else {
@@ -72,6 +75,46 @@ impl Tabs {
             self.selected = Some(id);
         }
         id
+    }
+
+    /// A tab restored from the last run: it holds a place in the column with
+    /// what it was, and nothing is loaded until it is selected.
+    pub fn open_asleep(&mut self, url: &str, title: &str) -> u32 {
+        let id = self.open(false);
+        self.update(id, |facts| {
+            facts.uri = url.to_owned();
+            facts.title = title.to_owned();
+            facts.asleep = true;
+        });
+        id
+    }
+
+    /// True if this tab was asleep and is now awake, which is the shell's
+    /// cue to load the address it has been holding.
+    pub fn wake(&mut self, id: u32) -> bool {
+        let asleep = self.facts(id).is_some_and(|facts| facts.asleep);
+        if asleep {
+            self.update(id, |facts| facts.asleep = false);
+        }
+        asleep
+    }
+
+    /// What to write down for next time: everything that is a page, and
+    /// which one was in front.
+    pub fn session(&self) -> crate::session::Session {
+        let tabs: Vec<crate::session::Sleeper> = self
+            .tabs
+            .iter()
+            .map(|tab| crate::session::Sleeper {
+                url: tab.facts.uri.clone(),
+                title: tab.facts.label(),
+            })
+            .collect();
+        let selected = self
+            .selected
+            .and_then(|id| self.index_of(id))
+            .unwrap_or(0);
+        crate::session::Session { tabs, selected }.worth_restoring()
     }
 
     /// Closes a tab, and says which one is in front afterwards: the one that
@@ -178,6 +221,7 @@ impl Tabs {
                 host: nav::host_of(&tab.facts.uri),
                 loading: tab.facts.loading,
                 sound: tab.facts.sound(),
+                asleep: tab.facts.asleep,
             })
             .collect()
     }
@@ -301,6 +345,33 @@ mod tests {
 
         tabs.update(0, |facts| facts.title = "An example".into());
         assert_eq!(tabs.info()[0].title, "An example");
+    }
+
+    #[test]
+    fn a_restored_tab_sleeps_until_it_is_asked_for() {
+        let mut tabs = Tabs::new();
+        let id = tabs.open_asleep("https://example.org/a", "An example");
+        assert!(tabs.facts(id).unwrap().asleep);
+        assert!(tabs.info()[0].asleep);
+        assert!(tabs.wake(id));
+        assert!(!tabs.wake(id), "waking twice is not a second wake");
+        assert!(!tabs.facts(id).unwrap().asleep);
+    }
+
+    #[test]
+    fn the_session_keeps_the_pages_and_which_was_in_front() {
+        let mut tabs = Tabs::new();
+        let home = tabs.open(true);
+        tabs.update(home, |facts| facts.uri = "glimmerwood://home/".into());
+        let one = tabs.open(true);
+        tabs.update(one, |facts| {
+            facts.uri = "https://one.example/".into();
+            facts.title = "One".into();
+        });
+        let session = tabs.session();
+        assert_eq!(session.tabs.len(), 1, "Home is not a place you were");
+        assert_eq!(session.tabs[0].title, "One");
+        assert_eq!(session.selected, 0);
     }
 
     #[test]

@@ -52,6 +52,29 @@ pub fn resolve(input: &str) -> Option<Target> {
 
 /// Whether two addresses name the same page, allowing for WebKit adding the
 /// trailing slash to an empty path (`https://example.org` → `https://example.org/`).
+/// What Ctrl+Enter means: a bare word becomes a `.com`. Anything that
+/// already looks like an address, or reads like a search, is left to
+/// `resolve` to deal with. There is no completion as you type — this is
+/// typing help, not a suggestion.
+pub fn dot_com(input: &str) -> Option<Target> {
+    let typed = input.trim();
+    if typed.is_empty() {
+        return None;
+    }
+    let bare = !typed.contains([' ', '/', '.', ':', '?'])
+        && typed
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if !bare {
+        return resolve(typed);
+    }
+    let host = format!("{typed}.com");
+    Some(Target {
+        uri: format!("https://{host}"),
+        fallback: Some(format!("http://{host}")),
+    })
+}
+
 pub fn same_address(a: &str, b: &str) -> bool {
     let trim = |uri: &str| -> String {
         match uri.split_once("://") {
@@ -175,6 +198,36 @@ pub fn unescape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::dot_com;
+
+    #[test]
+    fn ctrl_enter_turns_a_bare_word_into_a_com() {
+        let target = dot_com("example").expect("an address");
+        assert_eq!(target.uri, "https://example.com");
+        assert_eq!(target.fallback.as_deref(), Some("http://example.com"));
+    }
+
+    #[test]
+    fn ctrl_enter_leaves_a_real_address_alone() {
+        assert_eq!(dot_com("example.org").expect("an address").uri, "https://example.org");
+        assert_eq!(
+            dot_com("https://example.org/a").expect("an address").uri,
+            "https://example.org/a"
+        );
+    }
+
+    #[test]
+    fn ctrl_enter_on_a_search_searches() {
+        let target = dot_com("how deep is the sea").expect("a search");
+        assert_eq!(target.uri, resolve("how deep is the sea").expect("a search").uri);
+        assert!(!target.uri.starts_with("https://how"), "{}", target.uri);
+    }
+
+    #[test]
+    fn ctrl_enter_on_nothing_does_nothing() {
+        assert!(dot_com("   ").is_none());
+    }
+
     use super::*;
 
     fn uri(input: &str) -> String {

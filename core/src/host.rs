@@ -38,6 +38,12 @@ pub trait Window {
 
 /// The machine the companion is running on.
 pub trait Host {
+    /// Hand a file to the system to open: a download that has finished, and
+    /// nothing else. Shells that can, do; the default says it couldn't.
+    fn open_file(&self, _path: &str) -> bool {
+        false
+    }
+
     /// Every window still open, in the order they were opened.
     fn windows(&self) -> Vec<Rc<dyn Window>>;
     /// The moment it is now, including the offset from UTC.

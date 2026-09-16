@@ -31,6 +31,10 @@ use crate::protocol::{
 use crate::ratings::{self, Action};
 use crate::reputation::{self, List, Lists};
 use crate::settings::{self, Settings};
+use crate::downloads::{Download, Downloads, Progress};
+use crate::history::History;
+use crate::protocol::Page;
+use crate::session::Session;
 use crate::store::{GardenDay, Sample, Store};
 
 /// How often a moving wisp is refreshed while someone is there to see it,
@@ -52,6 +56,11 @@ pub struct Companion {
     seed: Lists,
     lists: RefCell<Lists>,
     store: Option<Store>,
+    /// Pages visited, kept a week. Its own database: the dose store never
+    /// sees an address, and this one holds nothing else.
+    history: Option<History>,
+    /// What is arriving now, and what arrived and hasn't been opened.
+    downloads: RefCell<Downloads>,
     host: Rc<dyn Host>,
     last_input: Cell<Option<Moment>>,
     last_recorded_minute: Cell<i64>,
@@ -121,6 +130,16 @@ impl Companion {
         {
             eprintln!("glimmerwood: couldn't prune old history: {err}");
         }
+        let history = if lab_mode {
+            None
+        } else {
+            open_history(&host.data_dir())
+        };
+        if let Some(history) = &history
+            && let Err(err) = history.prune(now)
+        {
+            eprintln!("glimmerwood: couldn't drop pages older than the week: {err}");
+        }
         let seed = Lists::bundled();
         let lists = load_user_lists(&seed, &user_lists_path(&host)).unwrap_or_else(|| seed.clone());
         Rc::new(Companion {
@@ -128,6 +147,8 @@ impl Companion {
             seed,
             lists: RefCell::new(lists),
             store,
+            history,
+            downloads: RefCell::new(Downloads::new()),
             host: host.clone(),
             last_input: Cell::new(None),
             last_recorded_minute: Cell::new(i64::MIN),
@@ -535,7 +556,7 @@ impl Companion {
 
     /// A button on Home, as the link it followed: `got-it/TOPIC` or
     /// `forget-bookmark/ID`. Returns whether anything changed.
-    pub fn home_action(&self, action: &str) -> bool {
+    pub fn home_action(self: &Rc<Self>, action: &str) -> bool {
         match action.split_once('/') {
             Some(("got-it", topic)) => match Topic::from_key(topic) {
                 Some(topic) => {
@@ -552,7 +573,117 @@ impl Companion {
                     .is_ok(),
                 Err(_) => false,
             },
+            Some(("open-download", id)) => match id.parse::<u32>() {
+                Ok(id) => match self.open_download(id) {
+                    Some(path) => self.host.open_file(&path),
+                    None => false,
+                },
+                Err(_) => false,
+            },
+            // A way out of somewhere you didn't mean to go: the pages and the
+            // finished downloads of the last hour. Never the dose — the wisp
+            // is only worth having if it can't be talked round.
+            None if action == "forget-hour" => {
+                let now = self.now();
+                if let Some(history) = &self.history
+                    && let Err(err) = history.forget_since(now, HOUR_MS)
+                {
+                    eprintln!("glimmerwood: couldn't forget the last hour: {err}");
+                    return false;
+                }
+                self.downloads.borrow_mut().forget_finished();
+                true
+            }
             _ => false,
+        }
+    }
+
+    // --- Pages visited, downloads, and the session ----------------------------
+
+    /// Remember a page, unless it is on the private list, where nothing is
+    /// written down at all.
+    pub fn visited(&self, url: &str, title: &str) {
+        // A private-list site is never written down, here or anywhere.
+        if matches!(self.lists.borrow().place(url), Place::Private) {
+            return;
+        }
+        let Some(history) = &self.history else { return };
+        if let Err(err) = history.record(self.now(), url, title) {
+            eprintln!("glimmerwood: couldn't remember a page: {err}");
+        }
+    }
+
+    /// This week, newest first.
+    pub fn week_of_pages(&self) -> Vec<Page> {
+        let Some(history) = &self.history else {
+            return Vec::new();
+        };
+        history
+            .week(self.now())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|visit| Page {
+                at: visit.at,
+                url: visit.url,
+                title: visit.title,
+                host: visit.host,
+            })
+            .collect()
+    }
+
+    /// Where the open tabs are kept, for the shell that writes them.
+    pub fn session_path(&self) -> PathBuf {
+        self.host.data_dir().join("glimmerwood").join("session.json")
+    }
+
+    pub fn last_session(&self) -> Session {
+        Session::load(&self.session_path()).worth_restoring()
+    }
+
+    pub fn keep_session(&self, session: &Session) {
+        if let Err(err) = session.save(&self.session_path()) {
+            eprintln!("glimmerwood: couldn't keep the open tabs: {err}");
+        }
+    }
+
+    pub fn download_started(self: &Rc<Self>, name: &str, path: &str) -> u32 {
+        let id = self.downloads.borrow_mut().started(name, path);
+        self.push_downloads();
+        self.refresh_pages();
+        id
+    }
+
+    pub fn download_progressed(self: &Rc<Self>, id: u32, fraction: Option<f64>) {
+        if self.downloads.borrow_mut().progressed(id, fraction) {
+            self.refresh_pages();
+        }
+    }
+
+    pub fn download_finished(self: &Rc<Self>, id: u32, progress: Progress, path: Option<&str>) {
+        if self.downloads.borrow_mut().finished(id, progress, path) {
+            self.push_downloads();
+            self.refresh_pages();
+        }
+    }
+
+    /// The file to open, if it is still listed. Opening it takes it off Home.
+    pub fn open_download(self: &Rc<Self>, id: u32) -> Option<String> {
+        let path = self.downloads.borrow_mut().opened(id);
+        if path.is_some() {
+            self.push_downloads();
+            self.refresh_pages();
+        }
+        path
+    }
+
+    pub fn downloads_showing(&self) -> Vec<Download> {
+        self.downloads.borrow().showing()
+    }
+
+    fn push_downloads(self: &Rc<Self>) {
+        let running = self.downloads.borrow().running() as u32;
+        for window in self.host.windows() {
+            window.send_to_chrome(&ToChrome::Downloads { running });
         }
     }
 
@@ -679,6 +810,8 @@ impl Companion {
         let wisp = diary::build(rates, &samples, &garden, now, engine.dose());
 
         HomeData {
+            pages: self.week_of_pages(),
+            downloads: self.downloads_showing(),
             title: greeting.title,
             line: greeting.line,
             about: greeting.about.then(|| HomeAbout {
@@ -928,6 +1061,21 @@ fn open_store(data: &std::path::Path) -> Option<Store> {
     }
 }
 
+fn open_history(data: &std::path::Path) -> Option<History> {
+    let dir = data.join("glimmerwood");
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        eprintln!("glimmerwood: can't create {}: {err}", dir.display());
+        return None;
+    }
+    match History::open(&dir.join("pages.sqlite")) {
+        Ok(history) => Some(history),
+        Err(err) => {
+            eprintln!("glimmerwood: pages won't be remembered: {err}");
+            None
+        }
+    }
+}
+
 fn open_bookmarks(data: &std::path::Path) -> Bookmarks {
     let dir = data.join("glimmerwood");
     let opened = std::fs::create_dir_all(&dir)
@@ -941,6 +1089,9 @@ fn open_bookmarks(data: &std::path::Path) -> Bookmarks {
 
 /// What Home remembers about the good places it offered.
 const OFFERED: &str = "offered:";
+
+/// An hour, for forgetting one.
+const HOUR_MS: i64 = 60 * 60 * 1000;
 
 /// `en_GB.UTF-8` → `GB`: the country of the first language the user set.
 /// Every platform names its locales this way; only the asking differs.
