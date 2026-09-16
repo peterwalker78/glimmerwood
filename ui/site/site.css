@@ -271,3 +271,29 @@ button.quiet:hover { background: var(--card-hover); }
     padding: 0 8px;
   }
 }
+
+/* --- At a desk ---
+   The rules above stop at 900px. A wide window was giving the page a squat
+   band of ground under the greeting, three edges down the right of one
+   column, and cards too narrow for the line under their name. */
+
+@media (min-width: 901px) {
+  /* Room for the garden: the scene crops to fill, so a short one keeps
+     nothing but foreground. */
+  .scene { height: clamp(380px, 52vh, 520px); }
+
+  /* One measure for everything. The prose was already reading at 36em
+     inside a column half again as wide, so the paragraphs, the cards and
+     the fact all ended in a different place. */
+  .page,
+  .greeting { max-width: 680px; }
+  .prose p,
+  .fact blockquote { max-width: none; }
+
+  /* Two across rather than three, which is what it takes for a place to
+     keep its line on one row. */
+  .places { grid-template-columns: repeat(2, 1fr); }
+
+  /* Sitting under the thing it acts on, at the edge everything else keeps. */
+  button.quiet { margin-left: 0; }
+}
