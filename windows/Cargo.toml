@@ -10,6 +10,9 @@ publish = false
 name = "glimmerwood"
 path = "src/main.rs"
 
+[build-dependencies]
+glimmerwood-embed = { path = "../embed" }
+
 [dependencies]
 glimmerwood-core = { path = "../core" }
 glimmerwood-raster = { path = "../raster" }

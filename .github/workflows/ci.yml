@@ -69,5 +69,40 @@ jobs:
         with:
           name: chrome
           path: ui/dist
-      - run: cargo build --locked -p glimmerwood-windows
+      - run: cargo build --locked --release -p glimmerwood-windows
       - run: cargo clippy --locked -p glimmerwood-windows -- -D warnings
+      - name: Gather it up
+        shell: bash
+        run: |
+          mkdir -p out
+          cp target/release/glimmerwood.exe out/
+          cp target/release/WebView2Loader.dll out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glimmerwood-windows-x64
+          path: out
+
+  # macOS has WebKit itself, the same family as the WebKitGTK the Linux build
+  # uses, so the page is rendered by the same lineage on both.
+  macos:
+    name: the macOS shell
+    runs-on: macos-latest
+    needs: linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - uses: actions/download-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+      - run: cargo build --locked --release -p glimmerwood-macos
+      - run: cargo clippy --locked -p glimmerwood-macos -- -D warnings
+      - name: Make it an app
+        run: scripts/macos-app target/release/glimmerwood out/Glimmerwood.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glimmerwood-macos
+          path: out

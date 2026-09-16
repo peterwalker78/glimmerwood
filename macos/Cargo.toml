@@ -1,0 +1,54 @@
+[package]
+name = "glimmerwood-macos"
+version = "0.4.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Glimmerwood on macOS"
+publish = false
+
+[[bin]]
+name = "glimmerwood"
+path = "src/main.rs"
+
+[build-dependencies]
+glimmerwood-embed = { path = "../embed" }
+
+[dependencies]
+glimmerwood-core = { path = "../core" }
+glimmerwood-raster = { path = "../raster" }
+serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# WebKit is the system engine here, the same family as WebKitGTK on Linux,
+# so the page is rendered by the same lineage on both.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = [
+    "NSApplication",
+    "NSWindow",
+    "NSView",
+    "NSResponder",
+    "NSGraphics",
+    "NSColor",
+    "NSRunningApplication",
+] }
+objc2-foundation = { version = "0.3", features = [
+    "NSString",
+    "NSURL",
+    "NSURLRequest",
+    "NSURLResponse",
+    "NSData",
+    "NSGeometry",
+    "NSDictionary",
+    "NSError",
+    "NSJSONSerialization",
+] }
+objc2-web-kit = { version = "0.3", features = [
+    "WKWebView",
+    "WKWebViewConfiguration",
+    "WKURLSchemeHandler",
+    "WKURLSchemeTask",
+    "WKUserContentController",
+    "WKScriptMessageHandler",
+    "WKScriptMessage",
+    "WKNavigationDelegate",
+] }
