@@ -402,6 +402,9 @@ impl Shell {
             return;
         }
         companion.visited(&facts.uri, &facts.title);
+        // The session keeps titles, and a page often names itself after it
+        // has loaded; a restored tab should come back as its title.
+        self.keep_session();
     }
 
     fn select_tab(self: &Rc<Self>, id: u32) {

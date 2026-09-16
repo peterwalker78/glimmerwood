@@ -1038,6 +1038,8 @@ impl Window {
             changed(false);
             if let Some(tab) = weak_tab.upgrade() {
                 this.visited(&tab);
+                // The session keeps titles, and this is when one arrives.
+                this.keep_session();
             }
             if this.selected.get() == id {
                 let title = view.title().filter(|t| !t.is_empty());

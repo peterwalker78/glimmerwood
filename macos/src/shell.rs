@@ -671,6 +671,9 @@ fn note_visit(id: u32, uri: &str, title: &str) {
     if let Some(companion) = companion() {
         companion.visited(uri, title);
     }
+    // The session keeps titles, and a page often names itself after it has
+    // loaded; a restored tab should come back as its title.
+    keep_the_session();
 }
 
 /// The tabs as they stand, for next time. Written whenever they change and
