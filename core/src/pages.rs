@@ -44,6 +44,51 @@ pub fn path_of(uri: &str) -> Option<String> {
     clean.then(|| rest.to_string())
 }
 
+/// One of Glimmerwood's own pages, which any tab may open.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Local {
+    Home,
+    Settings,
+}
+
+impl Local {
+    /// Which page an address is, if it is one of ours.
+    pub fn of(uri: &str) -> Option<Local> {
+        if is_home(uri) {
+            Some(Local::Home)
+        } else if is_settings(uri) {
+            Some(Local::Settings)
+        } else {
+            None
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Local::Home => "home",
+            Local::Settings => "settings",
+        }
+    }
+
+    fn global(self) -> &'static str {
+        match self {
+            Local::Home => "wispHome",
+            Local::Settings => "wispSettings",
+        }
+    }
+
+    /// The script that hands the page what it shows. It checks where it has
+    /// landed first, because a page can go somewhere else between being asked
+    /// for and answering.
+    pub fn hand_over(self, json: &str) -> String {
+        let (page, global) = (self.name(), self.global());
+        format!(
+            "if (location.href.startsWith('glimmerwood://{page}/')) \
+             {{ window.{global}Data = {json}; window.{global}?.show(window.{global}Data); }}"
+        )
+    }
+}
+
 pub fn mime_type(path: &str) -> &'static str {
     match path.rsplit_once('.').map(|(_, ext)| ext) {
         Some("html") => "text/html",

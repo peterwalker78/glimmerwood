@@ -500,27 +500,23 @@ impl Window {
     /// load finished.
     fn push_page(&self, tab: &Tab) {
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
-        let (json, page, global) = if pages::is_home(&uri) {
-            let data = self.companion.home_data(clock::now());
-            let json = serde_json::to_string(&data).expect("home data serialises");
-            (json, "home", "wispHome")
-        } else if pages::is_settings(&uri) {
-            let data = self.companion.settings_data();
-            let json = serde_json::to_string(&data).expect("settings data serialises");
-            (json, "settings", "wispSettings")
-        } else {
+        let Some(page) = pages::Local::of(&uri) else {
             return;
         };
+        let json = match page {
+            pages::Local::Home => serde_json::to_string(&self.companion.home_data(clock::now()))
+                .expect("home data serialises"),
+            pages::Local::Settings => serde_json::to_string(&self.companion.settings_data())
+                .expect("settings data serialises"),
+        };
         tab.view.evaluate_javascript(
-            &format!(
-                "if (location.href.startsWith('glimmerwood://{page}/')) {{ window.{global}Data = {json}; window.{global}?.show(window.{global}Data); }}"
-            ),
+            &page.hand_over(&json),
             None,
             None,
             None::<&gio::Cancellable>,
             move |result| {
                 if let Err(err) = result {
-                    eprintln!("glimmerwood: the {page} page didn't take its data: {err}");
+                    eprintln!("glimmerwood: a page didn't take its data: {err}");
                 }
             },
         );

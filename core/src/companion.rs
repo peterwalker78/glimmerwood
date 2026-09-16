@@ -155,6 +155,11 @@ impl Companion {
         })
     }
 
+    /// The moment it is now, as the host reckons it.
+    pub fn now(&self) -> Moment {
+        self.host.now()
+    }
+
     /// A window has opened or closed; the host knows which are live.
     pub fn windows_changed(self: &Rc<Self>) {
         self.refresh();

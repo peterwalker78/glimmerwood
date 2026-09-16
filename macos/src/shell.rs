@@ -49,7 +49,7 @@ pub fn companion() -> Option<Rc<Companion>> {
 
 pub struct Shell {
     window: Retained<NSWindow>,
-    toolbar: Retained<WKWebView>,
+    pub(crate) toolbar: Retained<WKWebView>,
     pub(crate) page: Retained<WKWebView>,
     toolbar_height: Cell<f64>,
 }
@@ -113,7 +113,7 @@ pub fn run() {
 /// files; the page below it is the web, and has no handler for the scheme.
 fn make_webview(mtm: MainThreadMarker, is_chrome: bool) -> Retained<WKWebView> {
     let configuration = unsafe { WKWebViewConfiguration::new(mtm) };
-    if is_chrome {
+    {
         let scheme: Retained<Scheme> = unsafe { msg_send![Scheme::alloc(mtm), init] };
         let scheme = ProtocolObject::from_retained(scheme);
         unsafe {
@@ -122,6 +122,8 @@ fn make_webview(mtm: MainThreadMarker, is_chrome: bool) -> Retained<WKWebView> {
                 &NSString::from_str("glimmerwood"),
             );
         }
+    }
+    if is_chrome {
         let controller = unsafe { WKUserContentController::new(mtm) };
         let listener: Retained<Listener> = unsafe { msg_send![Listener::alloc(mtm), init] };
         let listener = ProtocolObject::from_retained(listener);
@@ -179,8 +181,35 @@ fn tell_the_chrome(message: &ToChrome) {
     });
 }
 
+/// Hand Home or Settings what it shows, if that is what is on the page.
+fn push_page() {
+    let Some(shell) = held() else { return };
+    let Some(companion) = companion() else { return };
+    let uri = unsafe { shell.page.URL() }
+        .and_then(|url| url.absoluteString())
+        .map(|text| text.to_string())
+        .unwrap_or_default();
+    let Some(page) = pages::Local::of(&uri) else {
+        return;
+    };
+    let json = match page {
+        pages::Local::Home => serde_json::to_string(&companion.home_data(companion.now()))
+            .expect("home data serialises"),
+        pages::Local::Settings => {
+            serde_json::to_string(&companion.settings_data()).expect("settings serialises")
+        }
+    };
+    let script = NSString::from_str(&page.hand_over(&json));
+    unsafe {
+        shell
+            .page
+            .evaluateJavaScript_completionHandler(&script, None);
+    }
+}
+
 /// What the page is showing, for the address field and the buttons.
 fn push_state() {
+    push_page();
     SHELL.with_borrow(|held| {
         let Some(shell) = held.as_ref() else { return };
         let uri = unsafe { shell.page.URL() }
@@ -283,6 +312,10 @@ define_class!(
                 .and_then(|url| url.absoluteString())
                 .map(|s| s.to_string())
                 .unwrap_or_default();
+            let ours = held().is_some_and(|shell| &*shell.toolbar == _view);
+            if !ours && !pages::is_local_page(&uri) {
+                return;
+            }
             let Some(path) = pages::path_of(&uri) else {
                 return;
             };
@@ -378,8 +411,7 @@ impl host::Window for Shell {
     }
 
     fn refresh_pages(&self) {
-        // Home and Settings are not served here yet, so there is nothing
-        // showing that could have gone stale.
+        push_page();
     }
 
     fn ask(&self, site: Option<String>) {

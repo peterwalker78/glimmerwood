@@ -97,7 +97,8 @@ pub fn run() -> Fallible<()> {
 
     // Only the chrome is served Glimmerwood's own files. The page below is
     // the web, and has no way to ask for them.
-    serve_our_own_files(&toolbar_view, &environment)?;
+    serve_our_own_files(&toolbar_view, &environment, true)?;
+    serve_our_own_files(&page_view, &environment, false)?;
     listen_to_the_chrome(&toolbar_view, &shell)?;
     watch_the_page(&page_view, &shell)?;
 
@@ -142,6 +143,27 @@ impl Shell {
         };
     }
 
+    /// Hand Home or Settings what it shows, if that is what is on the page.
+    fn push_page(&self) {
+        let Some(companion) = companion() else { return };
+        let Ok(view) = (unsafe { self.page.CoreWebView2() }) else {
+            return;
+        };
+        let uri = unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default();
+        let Some(page) = pages::Local::of(&uri) else {
+            return;
+        };
+        let json = match page {
+            pages::Local::Home => serde_json::to_string(&companion.home_data(companion.now()))
+                .expect("home data serialises"),
+            pages::Local::Settings => {
+                serde_json::to_string(&companion.settings_data()).expect("settings serialises")
+            }
+        };
+        let script = HSTRING::from(page.hand_over(&json));
+        let _ = unsafe { view.ExecuteScript(PCWSTR(script.as_ptr()), None) };
+    }
+
     fn tell_the_chrome(&self, message: &ToChrome) {
         let Ok(json) = serde_json::to_string(message) else {
             return;
@@ -163,6 +185,7 @@ impl Shell {
         let can_go_back = unsafe { taken_bool(|out| view.CanGoBack(out)) };
         let can_go_forward = unsafe { taken_bool(|out| view.CanGoForward(out)) };
         let local = pages::is_local_page(&uri);
+        self.push_page();
         self.tell_the_chrome(&ToChrome::State {
             security: if local {
                 Security::Local
@@ -395,6 +418,7 @@ fn missing(why: &str) -> Box<dyn Error> {
 fn serve_our_own_files(
     webview: &ICoreWebView2,
     environment: &ICoreWebView2Environment,
+    ours_only: bool,
 ) -> Fallible<()> {
     unsafe {
         webview.AddWebResourceRequestedFilter(
@@ -407,6 +431,9 @@ fn serve_our_own_files(
         let Some(args) = args else { return Ok(()) };
         let request = unsafe { args.Request()? };
         let uri = unsafe { taken_string(|out| request.Uri(out))? };
+        if !ours_only && !pages::is_local_page(&uri) {
+            return Ok(());
+        }
         let Some(path) = pages::path_of(&uri) else {
             return Ok(());
         };
@@ -620,8 +647,7 @@ impl host::Window for Shell {
     }
 
     fn refresh_pages(&self) {
-        // Home and Settings are not served here yet, so there is nothing
-        // showing that could have gone stale.
+        self.push_page();
     }
 
     fn ask(&self, site: Option<String>) {
