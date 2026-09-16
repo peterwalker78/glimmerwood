@@ -10,8 +10,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # The core has no platform in it. This is what says so: it builds and runs
-  # its tests on all three, with no GTK or WebKit anywhere in sight.
+  # The core has no platform in it, and neither has the surface Windows and
+  # macOS will draw the wisp on. This is what says so: both build and run
+  # their tests on all three, with no GTK or WebKit anywhere in sight, and
+  # the wisp has to come out identical on each.
   core:
     name: core on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -25,8 +27,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
-      - run: cargo test --locked -p glimmerwood-core
-      - run: cargo clippy --locked -p glimmerwood-core --all-targets -- -D warnings
+      - run: cargo test --locked -p glimmerwood-core -p glimmerwood-raster
+      - run: cargo clippy --locked -p glimmerwood-core -p glimmerwood-raster --all-targets -- -D warnings
 
   # The GTK build, on the toolchain it is developed against.
   linux:
