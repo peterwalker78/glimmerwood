@@ -101,7 +101,9 @@ jobs:
       - run: cargo build --locked --release -p glimmerwood-macos
       - run: cargo clippy --locked -p glimmerwood-macos -- -D warnings
       - name: Make it an app
-        run: scripts/macos-app target/release/glimmerwood out/Glimmerwood.app
+        run: |
+          scripts/macos-app target/release/glimmerwood out/Glimmerwood.app
+          test -f out/Glimmerwood.app/Contents/Resources/Glimmerwood.icns
       - uses: actions/upload-artifact@v4
         with:
           name: glimmerwood-macos

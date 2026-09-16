@@ -11,6 +11,24 @@ version=${VERSION:-$(awk -F'"' '/^version = /{print $2; exit}' \
 : "${version:?no version in macos/Cargo.toml}"
 
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+
+# The icon, when the tools to build one are here. macOS wants an .icns, and
+# the one source of truth is the same drawing every other platform shows, so
+# the sizes are cut from the PNG rendered from it.
+icon=""
+art="$(dirname "$0")/../data/icon-1024.png"
+if [ -f "$art" ] && command -v sips >/dev/null && command -v iconutil >/dev/null; then
+  set="$(mktemp -d)/Glimmerwood.iconset"
+  mkdir -p "$set"
+  for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" "$art" --out "$set/icon_${size}x${size}.png" >/dev/null
+    sips -z "$((size * 2))" "$((size * 2))" "$art" --out "$set/icon_${size}x${size}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$set" -o "$app/Contents/Resources/Glimmerwood.icns"
+  rm -rf "$(dirname "$set")"
+  icon="  <key>CFBundleIconFile</key><string>Glimmerwood</string>
+  <key>CFBundleIconName</key><string>Glimmerwood</string>"
+fi
 cp "$binary" "$app/Contents/MacOS/Glimmerwood"
 chmod +x "$app/Contents/MacOS/Glimmerwood"
 
@@ -24,6 +42,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Glimmerwood</string>
   <key>CFBundleIdentifier</key><string>io.github.peterwalker78.Glimmerwood</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+${icon}
   <key>CFBundleShortVersionString</key><string>${version}</string>
   <key>CFBundleVersion</key><string>${version}</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>

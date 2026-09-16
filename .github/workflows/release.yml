@@ -110,6 +110,8 @@ jobs:
             target/aarch64-apple-darwin/release/glimmerwood \
             target/x86_64-apple-darwin/release/glimmerwood
           scripts/macos-app target/universal/glimmerwood Glimmerwood.app
+          # The icon is easy to lose and hard to notice missing.
+          test -f Glimmerwood.app/Contents/Resources/Glimmerwood.icns
       # Signing and notarising need an Apple Developer account in the
       # repository's secrets: APPLE_CERTIFICATE (base64 of a Developer ID
       # Application .p12), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
