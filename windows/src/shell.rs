@@ -193,7 +193,7 @@ pub fn run() -> Fallible<()> {
         );
     }
     if let Err(why) = runtime_version() {
-        complain(window, &why);
+        complain(Some(window), &why);
         return Ok(());
     }
     let environment = make_environment()?;
@@ -1542,17 +1542,21 @@ fn runtime_version() -> std::result::Result<String, String> {
     Ok(version)
 }
 
-/// Say what is wrong, in the window, rather than exiting without a word.
-fn complain(window: HWND, why: &str) {
+/// Say what is wrong, on screen, rather than exiting without a word. There
+/// is no console to print to: a window the size of a browser is all anyone
+/// sees, and it closing without a word is the least useful thing it could do.
+pub fn complain(window: Option<HWND>, why: &str) {
     let text = HSTRING::from(why);
     unsafe {
         MessageBoxW(
-            Some(window),
+            window,
             PCWSTR(text.as_ptr()),
             w!("Glimmerwood"),
             MB_OK | MB_ICONINFORMATION,
         );
-        let _ = DestroyWindow(window);
+        if let Some(window) = window {
+            let _ = DestroyWindow(window);
+        }
     }
 }
 
