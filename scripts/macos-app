@@ -6,8 +6,9 @@ set -euo pipefail
 binary=$1
 app=$2
 # The crate is where the version lives; $VERSION overrides it for a one-off.
-version=${VERSION:-$(sed -n '0,/^version = /s/^version = "\(.*\)"/\1/p' \
+version=${VERSION:-$(awk -F'"' '/^version = /{print $2; exit}' \
   "$(dirname "$0")/../macos/Cargo.toml")}
+: "${version:?no version in macos/Cargo.toml}"
 
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/Glimmerwood"
