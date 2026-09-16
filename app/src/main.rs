@@ -1,5 +1,6 @@
 mod chrome;
 mod clock;
+mod downloads;
 mod failure;
 mod host;
 mod prefs;
@@ -67,6 +68,7 @@ fn main() -> glib::ExitCode {
             window::install_accels(app);
             let started = Companion::new(host.clone(), lab.borrow_mut().take());
             host.attach(&started);
+            downloads::watch(&started);
             let _ = companion.set(started);
         }
     ));

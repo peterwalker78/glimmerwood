@@ -86,6 +86,10 @@ impl GtkHost {
 }
 
 impl host::Host for GtkHost {
+    fn open_file(&self, path: &str) -> bool {
+        open_file(path)
+    }
+
     fn windows(&self) -> Vec<Rc<dyn host::Window>> {
         let mut live = self.windows.borrow_mut();
         live.retain(|w| w.strong_count() > 0);
@@ -135,6 +139,25 @@ impl host::Host for GtkHost {
     fn noise(&self) -> u32 {
         glib::random_int()
     }
+}
+
+/// Hand a file to whatever the desktop opens it with. Inside the sandbox
+/// this goes through the portal, which hands the file over without the other
+/// app needing to see the folder it came from. The launch is asynchronous, so
+/// what comes back is that it was handed over, not that it opened.
+pub fn open_file(path: &str) -> bool {
+    let file = gio::File::for_path(path);
+    let launcher = gtk::FileLauncher::new(Some(&file));
+    launcher.launch(
+        None::<&gtk::Window>,
+        gio::Cancellable::NONE,
+        move |result| {
+            if let Err(err) = result {
+                eprintln!("glimmerwood: couldn't open the file: {err}");
+            }
+        },
+    );
+    true
 }
 
 impl host::Window for Window {

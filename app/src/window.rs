@@ -8,13 +8,16 @@ use webkit::prelude::*;
 
 use crate::clock;
 use crate::failure::{self, Reason};
-use crate::host::GtkHost;
+use crate::host::{self, GtkHost};
 use crate::wisp_view::WispView;
 use crate::{chrome, prefs, tabs};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::pages;
-use glimmerwood_core::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore};
+use glimmerwood_core::protocol::{
+    ChromeView, Progress, Security, TabInfo, TabSound, ToChrome, ToCore,
+};
+use glimmerwood_core::session::{Session, Sleeper};
 use glimmerwood_core::{find, nav, zoom};
 
 /// The toolbar's height until it reports its own.
@@ -65,6 +68,12 @@ type Press = (gdk::Device, u32, f64, f64, u32);
 /// What a window action does when triggered.
 type Action = Box<dyn Fn(&Rc<Window>)>;
 
+thread_local! {
+    /// Whether the tabs from the last run have been taken back out. A second
+    /// window is a new window, not the same one again.
+    static RESTORED: Cell<bool> = const { Cell::new(false) };
+}
+
 struct Tab {
     id: u32,
     view: webkit::WebView,
@@ -78,6 +87,23 @@ struct Tab {
     failure_pending: Cell<bool>,
     /// The site icon as a `data:` URL, encoded once when it changes.
     icon: RefCell<Option<String>>,
+    /// Where this tab was when the browser last closed, while it is still
+    /// only that: the column shows it, and the page is loaded the first time
+    /// the tab is asked for.
+    asleep: RefCell<Option<Sleeper>>,
+}
+
+impl Tab {
+    /// The address the tab is at, which is nowhere while it sleeps.
+    fn uri(&self) -> String {
+        if self.asleep.borrow().is_some() {
+            return String::new();
+        }
+        self.view
+            .uri()
+            .map(|uri| uri.to_string())
+            .unwrap_or_default()
+    }
 }
 
 pub struct Window {
@@ -101,6 +127,9 @@ pub struct Window {
     /// What each chrome page was last sent that it would redraw for, so an
     /// update that changes nothing it shows isn't sent at all.
     sent_tabs: RefCell<String>,
+    /// The tabs as they were last written down, so the same session isn't
+    /// written twice.
+    kept_session: RefCell<String>,
     sent_wisp: RefCell<String>,
     /// The site the wisp's question was last sent about, if any.
     sent_ask: RefCell<Option<Option<String>>>,
@@ -160,6 +189,7 @@ impl Window {
             state_queued: Cell::new(false),
             toolbar_cover: Cell::new(INITIAL_TOOLBAR_HEIGHT),
             sent_tabs: RefCell::new(String::new()),
+            kept_session: RefCell::new(String::new()),
             sent_wisp: RefCell::new(String::new()),
             sent_ask: RefCell::new(None),
             sent_care: Cell::new(None),
@@ -214,14 +244,20 @@ impl Window {
 
         this.install_actions();
         this.watch_attention();
+        // The tabs from the last run come back in the first window of the
+        // run, behind the Home tab every window opens with.
+        if !RESTORED.replace(true) {
+            this.restore_session();
+        }
         this.add_home_tab();
 
         // The GTK window owns this struct. Every other closure holds a weak
         // reference; this handler holds the strong one, and GTK drops it when
-        // the window is destroyed.
+        // the window is destroyed. Closing is also the last chance to write
+        // down where the tabs were.
         let owner = Rc::clone(&this);
         this.window.connect_destroy(move |_| {
-            let _ = &owner;
+            owner.keep_session();
         });
         host.add_window(&this);
         this
@@ -264,14 +300,16 @@ impl Window {
         self.selected_tab().is_some_and(|tab| audible(&tab.view))
     }
 
-    /// The addresses of the tabs other than the one on screen.
+    /// The addresses of the tabs other than the one on screen. A tab still
+    /// asleep is one of them, but it names no address: where it would go is
+    /// not somewhere the user has been.
     pub fn other_tabs(&self, in_front: bool) -> Vec<String> {
         let selected = self.selected.get();
         self.tabs
             .borrow()
             .iter()
             .filter(|t| !(in_front && t.id == selected))
-            .map(|t| t.view.uri().map(|u| u.to_string()).unwrap_or_default())
+            .map(|t| t.uri())
             .collect()
     }
 
@@ -279,20 +317,13 @@ impl Window {
     /// a failure page stands in for it.
     pub fn attended_uri(&self) -> String {
         match self.selected_tab() {
-            Some(tab) if tab.failed.borrow().is_none() => tab
-                .view
-                .uri()
-                .map(|uri| uri.to_string())
-                .unwrap_or_default(),
+            Some(tab) if tab.failed.borrow().is_none() => tab.uri(),
             _ => String::new(),
         }
     }
 
     pub fn selected_uri(&self) -> String {
-        self.selected_tab()
-            .and_then(|tab| tab.view.uri())
-            .map(|uri| uri.to_string())
-            .unwrap_or_default()
+        self.selected_tab().map(|tab| tab.uri()).unwrap_or_default()
     }
 
     /// Used by the feel lab to show its clock.
@@ -363,6 +394,7 @@ impl Window {
             | ToChrome::FocusAddress
             | ToChrome::Find { .. }
             | ToChrome::Found { .. }
+            | ToChrome::Downloads { .. }
             | ToChrome::Window { .. }
             | ToChrome::Caption { .. }
             | ToChrome::Ask { .. }
@@ -395,6 +427,7 @@ impl Window {
             failed: RefCell::new(None),
             failure_pending: Cell::new(false),
             icon: RefCell::new(None),
+            asleep: RefCell::new(None),
         });
         self.stack.add_child(&tab.view);
         self.tabs.borrow_mut().push(Rc::clone(&tab));
@@ -403,8 +436,27 @@ impl Window {
             self.select_tab(id);
         } else {
             self.push_tabs();
+            self.keep_session();
         }
         tab
+    }
+
+    /// A tab from the last run, holding its address until it is asked for.
+    fn add_sleeping_tab(self: &Rc<Self>, sleeper: Sleeper) {
+        let tab = self.add_tab(None, false);
+        tab.asleep.replace(Some(sleeper));
+        self.push_tabs();
+    }
+
+    /// The page a restored tab has been holding arrives the first time the
+    /// tab is selected; after that it is an ordinary tab. Says whether this
+    /// tab was one of those.
+    fn wake(&self, tab: &Tab) -> bool {
+        let Some(sleeper) = tab.asleep.borrow_mut().take() else {
+            return false;
+        };
+        tab.view.load_uri(&sleeper.url);
+        true
     }
 
     fn select_tab(self: &Rc<Self>, id: u32) {
@@ -415,14 +467,16 @@ impl Window {
             self.close_find(false);
         }
         self.selected.set(id);
+        self.keep_session();
         self.stack.set_visible_child(&tab.view);
+        let woke = self.wake(&tab);
         let title = tab.view.title().filter(|t| !t.is_empty());
         self.window
             .set_title(Some(title.as_deref().unwrap_or("Glimmerwood")));
         self.push_tabs();
         self.push_state();
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
-        if uri.is_empty() || pages::is_home(&uri) {
+        if !woke && (uri.is_empty() || pages::is_home(&uri)) {
             self.focus_address();
         } else {
             tab.view.grab_focus();
@@ -573,6 +627,7 @@ impl Window {
             Some(next) if self.selected.get() == id => self.select_tab(next),
             Some(_) => {
                 self.push_tabs();
+                self.keep_session();
                 self.companion.refresh();
             }
         }
@@ -590,6 +645,76 @@ impl Window {
         let id = self.tabs.borrow().get(n).map(|t| t.id);
         if let Some(id) = id {
             self.select_tab(id);
+        }
+    }
+
+    // --- Where the user has been -----------------------------------------------
+
+    /// Remember a page, on the way in and again when it says what it is
+    /// called. A failure page stands in for a page that never arrived, and is
+    /// nowhere the user went; the companion leaves out the rest itself.
+    fn visited(&self, tab: &Tab) {
+        if tab.failed.borrow().is_some() {
+            return;
+        }
+        let uri = tab.uri();
+        if uri.is_empty() {
+            return;
+        }
+        let title = tab
+            .view
+            .title()
+            .map(|title| title.to_string())
+            .unwrap_or_default();
+        self.companion.visited(&uri, &title);
+    }
+
+    // --- The tabs from the last run --------------------------------------------
+
+    /// The tabs as they would come back: where each one is, what it was
+    /// called, and which of them was in front.
+    fn session(&self) -> Session {
+        let tabs = self.tabs.borrow();
+        let sleepers = tabs
+            .iter()
+            .map(|tab| match tab.asleep.borrow().clone() {
+                Some(sleeper) => sleeper,
+                None => Sleeper {
+                    url: tab.uri(),
+                    title: tab
+                        .view
+                        .title()
+                        .map(|title| title.to_string())
+                        .unwrap_or_default(),
+                },
+            })
+            .collect();
+        let selected = tabs
+            .iter()
+            .position(|tab| tab.id == self.selected.get())
+            .unwrap_or(0);
+        Session {
+            tabs: sleepers,
+            selected,
+        }
+    }
+
+    /// Write down where the tabs are, so a restart doesn't cost the user
+    /// their place.
+    fn keep_session(&self) {
+        let session = self.session();
+        let key = serde_json::to_string(&session).expect("the session serialises");
+        if self.kept_session.replace(key.clone()) == key {
+            return;
+        }
+        self.companion.keep_session(&session);
+    }
+
+    /// Where the tabs were left, asleep: their titles and addresses show in
+    /// the column and nothing is loaded until one is asked for.
+    fn restore_session(self: &Rc<Self>) {
+        for sleeper in self.companion.last_session().tabs {
+            self.add_sleeping_tab(sleeper);
         }
     }
 
@@ -612,6 +737,7 @@ impl Window {
             } => {
                 self.push_state();
                 self.push_window();
+                self.push_downloads();
                 self.sent_wisp.borrow_mut().clear();
                 self.sent_ask.replace(None);
                 self.sent_care.set(None);
@@ -627,6 +753,11 @@ impl Window {
             ToCore::Navigate { input } => {
                 if let Some(tab) = tab {
                     self.navigate(&tab, &input);
+                }
+            }
+            ToCore::NavigateDotCom { input } => {
+                if let Some(tab) = tab {
+                    self.navigate_dot_com(&tab, &input);
                 }
             }
             ToCore::Back => tab.iter().for_each(|t| t.view.go_back()),
@@ -660,6 +791,11 @@ impl Window {
                     .load_uri(if samaritans { SAMARITANS } else { HELPLINES });
             }
             ToCore::OpenSettings => self.open_settings(),
+            ToCore::OpenDownload { id } => {
+                if let Some(path) = self.companion.open_download(id) {
+                    host::open_file(&path);
+                }
+            }
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
             ToCore::CloseFind => self.close_find(true),
@@ -816,9 +952,20 @@ impl Window {
     }
 
     fn navigate(&self, tab: &Tab, input: &str) {
-        let Some(target) = nav::resolve(input) else {
+        self.load(tab, nav::resolve(input));
+    }
+
+    /// The address field with Ctrl held: a bare word means the `.com` of
+    /// that name.
+    fn navigate_dot_com(&self, tab: &Tab, input: &str) {
+        self.load(tab, nav::dot_com(input));
+    }
+
+    fn load(&self, tab: &Tab, target: Option<nav::Target>) {
+        let Some(target) = target else {
             return;
         };
+        tab.asleep.take();
         tab.view.load_uri(&target.uri);
         tab.fallback
             .replace(target.fallback.is_some().then_some(target));
@@ -885,9 +1032,13 @@ impl Window {
         ));
 
         let weak = Rc::downgrade(self);
+        let weak_tab = Rc::downgrade(tab);
         view.connect_title_notify(move |view| {
             let Some(this) = weak.upgrade() else { return };
             changed(false);
+            if let Some(tab) = weak_tab.upgrade() {
+                this.visited(&tab);
+            }
             if this.selected.get() == id {
                 let title = view.title().filter(|t| !t.is_empty());
                 this.window
@@ -969,6 +1120,8 @@ impl Window {
                     tab.fallback.take();
                     if let Some(this) = weak_self.upgrade() {
                         this.draw_at_remembered_size(&tab);
+                        this.visited(&tab);
+                        this.keep_session();
                     }
                 }
                 webkit::LoadEvent::Finished
@@ -1304,34 +1457,54 @@ impl Window {
             .tabs
             .borrow()
             .iter()
-            .map(|t| TabInfo {
-                id: t.id,
-                title: t
-                    .view
-                    .title()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
-                    .or_else(|| t.view.uri().map(|u| u.to_string()))
-                    .unwrap_or_default(),
-                host: t
-                    .view
-                    .uri()
-                    .and_then(|uri| glib::Uri::parse(&uri, glib::UriFlags::NONE).ok())
-                    .and_then(|uri| uri.host())
-                    .map(|host| host.to_string())
-                    .unwrap_or_default(),
-                loading: t.view.is_loading(),
-                sound: match (t.view.is_playing_audio(), t.view.is_muted()) {
-                    (_, true) => TabSound::Muted,
-                    (true, false) => TabSound::Playing,
-                    (false, false) => TabSound::Silent,
-                },
+            .map(|t| {
+                // A sleeping tab has no page to ask: it shows what it was
+                // called and where it goes when it is woken.
+                let asleep = t.asleep.borrow().clone();
+                let uri = match &asleep {
+                    Some(sleeper) => sleeper.url.clone(),
+                    None => t.view.uri().map(|uri| uri.to_string()).unwrap_or_default(),
+                };
+                let title = match &asleep {
+                    Some(sleeper) => Some(sleeper.title.clone()),
+                    None => t.view.title().map(|title| title.to_string()),
+                };
+                TabInfo {
+                    id: t.id,
+                    title: title
+                        .filter(|title| !title.is_empty())
+                        .unwrap_or_else(|| uri.clone()),
+                    host: glib::Uri::parse(&uri, glib::UriFlags::NONE)
+                        .ok()
+                        .and_then(|uri| uri.host())
+                        .map(|host| host.to_string())
+                        .unwrap_or_default(),
+                    loading: t.view.is_loading(),
+                    sound: match (t.view.is_playing_audio(), t.view.is_muted()) {
+                        (_, true) => TabSound::Muted,
+                        (true, false) => TabSound::Playing,
+                        (false, false) => TabSound::Silent,
+                    },
+                    asleep: asleep.is_some(),
+                }
             })
             .collect();
         self.send_to_chrome(&ToChrome::Tabs {
             tabs,
             selected: self.selected.get(),
         });
+    }
+
+    /// A toolbar that has just loaded hasn't heard about the files still
+    /// on their way.
+    fn push_downloads(&self) {
+        let running = self
+            .companion
+            .downloads_showing()
+            .iter()
+            .filter(|download| download.progress == Progress::Running)
+            .count() as u32;
+        self.send_to_chrome(&ToChrome::Downloads { running });
     }
 
     fn push_icon(&self, tab: &Tab) {
