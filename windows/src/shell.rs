@@ -9,6 +9,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::error::Error;
+use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
@@ -19,15 +20,17 @@ use glimmerwood_core::downloads::Progress;
 use glimmerwood_core::failure::{self, Reason};
 use glimmerwood_core::find;
 use glimmerwood_core::host;
+use glimmerwood_core::look;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
 use glimmerwood_core::session::Session;
-use glimmerwood_core::tabs::Tabs;
+use glimmerwood_core::tabs::{COLUMN_DEFAULT, Tabs, column_width};
 use glimmerwood_core::zoom;
 use webview2_com::Microsoft::Web::WebView2::Win32::*;
 use webview2_com::{
     AcceleratorKeyPressedEventHandler, BytesReceivedChangedEventHandler,
+    CoreWebView2CustomSchemeRegistration, CoreWebView2EnvironmentOptions,
     CreateCoreWebView2ControllerCompletedHandler, CreateCoreWebView2EnvironmentCompletedHandler,
     DocumentTitleChangedEventHandler, DownloadStartingEventHandler, ExecuteScriptCompletedHandler,
     FaviconChangedEventHandler, GetFaviconCompletedHandler,
@@ -36,7 +39,11 @@ use webview2_com::{
     NewWindowRequestedEventHandler, SourceChangedEventHandler, StateChangedEventHandler,
     WebMessageReceivedEventHandler, WebResourceRequestedEventHandler,
 };
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::COLORREF;
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+use windows::Win32::Graphics::Gdi::{
+    CreateSolidBrush, DeleteObject, FillRect, HBRUSH, HDC, ScreenToClient,
+};
 use windows::Win32::System::Com::{
     COINIT_APARTMENTTHREADED, CoInitializeEx, CoTaskMemFree, IStream,
 };
@@ -45,10 +52,10 @@ use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, GetLastInputInfo, LASTINPUTINFO, VIRTUAL_KEY, VK_0, VK_1, VK_9, VK_ADD,
-    VK_CONTROL, VK_D, VK_ESCAPE, VK_F, VK_F3, VK_F4, VK_F5, VK_F6, VK_G, VK_HOME, VK_L, VK_LEFT,
-    VK_MENU, VK_NEXT, VK_NUMPAD0, VK_OEM_COMMA, VK_OEM_MINUS, VK_OEM_PLUS, VK_PRIOR, VK_R,
-    VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_T, VK_TAB, VK_W,
+    GetKeyState, GetLastInputInfo, LASTINPUTINFO, ReleaseCapture, SetCapture, VIRTUAL_KEY, VK_0,
+    VK_1, VK_9, VK_ADD, VK_CONTROL, VK_D, VK_ESCAPE, VK_F, VK_F3, VK_F4, VK_F5, VK_F6, VK_G,
+    VK_HOME, VK_L, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMPAD0, VK_OEM_COMMA, VK_OEM_MINUS, VK_OEM_PLUS,
+    VK_PRIOR, VK_R, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_T, VK_TAB, VK_W,
 };
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -65,12 +72,13 @@ const LEAST_WIDTH: i32 = 480;
 const LEAST_HEIGHT: i32 = 360;
 /// The toolbar's height until it reports its own.
 const TOOLBAR_HEIGHT: i32 = 56;
-/// The tab column's width. The GTK build lets it be dragged and remembers
-/// where; here it is the width that shows a tab's mark and nothing else.
-/// Wide enough that a tab shows its title. The GTK build opens narrow
-/// because its column can be dragged to whatever width suits and remembers
-/// it; until this one can be dragged, a strip of marks is not a tab column.
-const COLUMN_WIDTH: i32 = 180;
+/// The strip of window left between the column and the page. It belongs to
+/// no engine, which is what makes it something to take hold of: a WebView2
+/// keeps every mouse message that lands on it.
+const HANDLE_WIDTH: i32 = 6;
+/// What the page holds on to in a window too narrow for both. Past that the
+/// column gives way rather than the page.
+const LEAST_PAGE: i32 = 200;
 
 /// Where a new tab starts, and where the chrome's buttons point.
 const HOME: &str = "glimmerwood://home/";
@@ -141,6 +149,12 @@ pub struct Shell {
     tabs: RefCell<Tabs>,
     /// What the toolbar last said it needed, in the window's own pixels.
     toolbar_height: RefCell<i32>,
+    /// How wide the tab column is drawn, within what the core allows. The
+    /// width someone dragged it to last time, until they drag it again.
+    column: Cell<i32>,
+    /// While the column's edge is being dragged, the width it had when the
+    /// drag began. Nothing is kept if it ends where it started.
+    drag_from: Cell<Option<i32>>,
     /// What each tab is in the middle of loading, while it is.
     attempts: RefCell<HashMap<u32, Attempt>>,
     /// The tabs showing a failure page rather than what was asked for.
@@ -194,6 +208,8 @@ pub fn run() -> Fallible<()> {
         engines: RefCell::new(Vec::new()),
         tabs: RefCell::new(Tabs::new()),
         toolbar_height: RefCell::new(TOOLBAR_HEIGHT),
+        column: Cell::new(shape.column),
+        drag_from: Cell::new(None),
         attempts: RefCell::new(HashMap::new()),
         failures: RefCell::new(HashMap::new()),
         find_tab: Cell::new(None),
@@ -243,13 +259,14 @@ pub fn run() -> Fallible<()> {
 
 impl Shell {
     /// The toolbar across the top, the column down the left, the tab in front
-    /// filling what is left. The tabs behind it keep their size but are not
-    /// shown: a hidden engine still plays sound, which is the point.
+    /// filling what is left, with the handle's strip of bare window between
+    /// the last two. The tabs behind the one in front keep their size but are
+    /// not shown: a hidden engine still plays sound, which is the point.
     fn lay_out(&self) {
         let mut whole = RECT::default();
         let _ = unsafe { GetClientRect(self.window, &mut whole) };
         let split = (*self.toolbar_height.borrow()).min(whole.bottom);
-        let column = COLUMN_WIDTH.min(whole.right);
+        let edge = self.column_edge(whole.right);
         let _ = unsafe {
             self.toolbar.SetBounds(RECT {
                 bottom: split,
@@ -259,14 +276,14 @@ impl Shell {
         let _ = unsafe {
             self.sidebar.SetBounds(RECT {
                 top: split,
-                right: column,
+                right: edge,
                 ..whole
             })
         };
         let selected = self.tabs.borrow().selected();
         let page = RECT {
             top: split,
-            left: column,
+            left: (edge + HANDLE_WIDTH).min(whole.right),
             ..whole
         };
         for engine in self.engines.borrow().iter() {
@@ -275,6 +292,75 @@ impl Shell {
                 let _ = engine.controller.SetBounds(page);
                 let _ = engine.controller.SetIsVisible(showing);
             }
+        }
+    }
+
+    // --- The column's edge ------------------------------------------------------
+
+    /// Where the column ends in a window this wide: the width it was left
+    /// at, less whatever a narrow window cannot spare. The width itself is
+    /// untouched, so the column comes back when there is room for it again.
+    fn column_edge(&self, width: i32) -> i32 {
+        let room = width - HANDLE_WIDTH - LEAST_PAGE;
+        self.column.get().min(room.max(0))
+    }
+
+    /// Whether a place in the window is on the strip between the column and
+    /// the page. Above the split is the toolbar's, however wide the column.
+    fn on_the_edge(&self, x: i32, y: i32) -> bool {
+        let mut whole = RECT::default();
+        let _ = unsafe { GetClientRect(self.window, &mut whole) };
+        let split = (*self.toolbar_height.borrow()).min(whole.bottom);
+        let edge = self.column_edge(whole.right);
+        y >= split && x >= edge && x < edge + HANDLE_WIDTH
+    }
+
+    /// The same question about wherever the pointer is now, for the times
+    /// the message doesn't say.
+    fn pointer_on_the_edge(&self) -> bool {
+        let mut at = POINT::default();
+        if unsafe { GetCursorPos(&mut at) }.is_err() {
+            return false;
+        }
+        let _ = unsafe { ScreenToClient(self.window, &mut at) };
+        self.on_the_edge(at.x, at.y)
+    }
+
+    fn holding_the_edge(&self) -> bool {
+        self.drag_from.get().is_some()
+    }
+
+    /// Take hold of the edge. The window keeps the mouse until the button
+    /// comes up, so the pointer can wander off the strip, or out of the
+    /// window altogether, without the drag letting go.
+    fn take_the_edge(&self) {
+        self.drag_from.set(Some(self.column.get()));
+        unsafe { SetCapture(self.window) };
+    }
+
+    /// Follow the pointer. The column is laid out as the drag goes rather
+    /// than when the button comes up, and the pointer keeps its own shape
+    /// while the mouse is ours, since nothing asks us for it.
+    fn drag_the_edge(&self, x: i32) {
+        show_the_handle();
+        let width = column_width(x);
+        if width != self.column.get() {
+            self.column.set(width);
+            self.lay_out();
+        }
+    }
+
+    /// Let go, keeping the width if it moved. `release` is false when the
+    /// mouse was taken away from us rather than given back.
+    fn drop_the_edge(&self, release: bool) {
+        let Some(from) = self.drag_from.take() else {
+            return;
+        };
+        if release {
+            let _ = unsafe { ReleaseCapture() };
+        }
+        if self.column.get() != from {
+            remember_shape(self.window, self.column.get());
         }
     }
 
@@ -350,6 +436,9 @@ impl Shell {
     ) -> Fallible<()> {
         let view = unsafe { controller.CoreWebView2()? };
         watch_a_tab(&view, self, id)?;
+        // A tab is the web, but Home and Settings are pages a tab may show,
+        // and those are ours to answer. Nothing else on `glimmerwood://` is.
+        serve_our_own_files(&view, &self.environment, false)?;
         watch_the_keys(&controller, self, false)?;
         self.engines.borrow_mut().push(Engine {
             id,
@@ -1315,6 +1404,8 @@ struct Shape {
     width: i32,
     height: i32,
     maximised: bool,
+    /// How wide the tab column was dragged out to.
+    column: i32,
 }
 
 impl Default for Shape {
@@ -1323,6 +1414,7 @@ impl Default for Shape {
             width: INITIAL_WIDTH,
             height: INITIAL_HEIGHT,
             maximised: false,
+            column: COLUMN_DEFAULT,
         }
     }
 }
@@ -1358,6 +1450,7 @@ fn remembered_shape() -> Shape {
             "width" => shape.width = value.parse().unwrap_or(shape.width),
             "height" => shape.height = value.parse().unwrap_or(shape.height),
             "maximised" => shape.maximised = value == "true",
+            "column" => shape.column = column_width(value.parse().unwrap_or(shape.column)),
             _ => {}
         }
     }
@@ -1368,9 +1461,9 @@ fn remembered_shape() -> Shape {
     shape
 }
 
-/// Keep the window's size for next time. A window closed maximised opens
-/// maximised, at the size it had before it was.
-fn remember_shape(window: HWND) {
+/// Keep the window's size, and the column's width, for next time. A window
+/// closed maximised opens maximised, at the size it had before it was.
+fn remember_shape(window: HWND, column: i32) {
     let mut placement = WINDOWPLACEMENT {
         length: size_of::<WINDOWPLACEMENT>() as u32,
         ..Default::default()
@@ -1380,10 +1473,11 @@ fn remember_shape(window: HWND) {
     }
     let normal = placement.rcNormalPosition;
     let text = format!(
-        "[window]\nwidth={}\nheight={}\nmaximised={}\n",
+        "[window]\nwidth={}\nheight={}\nmaximised={}\ncolumn={}\n",
         normal.right - normal.left,
         normal.bottom - normal.top,
         placement.showCmd == SW_SHOWMAXIMIZED.0 as u32,
+        column,
     );
     let path = shape_file();
     let written = path
@@ -1391,7 +1485,7 @@ fn remember_shape(window: HWND) {
         .map_or(Ok(()), std::fs::create_dir_all)
         .and_then(|()| std::fs::write(&path, text));
     if let Err(err) = written {
-        eprintln!("glimmerwood: couldn't remember the window's size: {err}");
+        eprintln!("glimmerwood: couldn't remember how the window was left: {err}");
     }
 }
 
@@ -1403,6 +1497,12 @@ fn make_window(shape: &Shape) -> Fallible<HWND> {
             hInstance: instance.into(),
             lpszClassName: w!("Glimmerwood"),
             hCursor: LoadCursorW(None, IDC_ARROW)?,
+            // Every part of the window but the column's edge is covered by
+            // an engine; the edge is painted the colour the system gives a
+            // handle between two panes.
+            // Painted in WM_ERASEBKGND instead, so it follows the system's
+            // light and dark without the window being made again.
+            hbrBackground: HBRUSH::default(),
             ..Default::default()
         };
         RegisterClassW(&class);
@@ -1456,13 +1556,40 @@ fn complain(window: HWND, why: &str) {
     }
 }
 
+/// `glimmerwood://` is ours, and the engine only hands over requests for a
+/// scheme it has been told about before it starts. It is told two things
+/// beyond the name: that an address like `glimmerwood://home/` names a page
+/// rather than a path, so each of our pages keeps an origin of its own, and
+/// that the scheme is a secure one — the chrome is carried in the binary,
+/// and a page served from it is no less trustworthy than one over https.
+fn our_scheme() -> ICoreWebView2EnvironmentOptions {
+    let scheme = CoreWebView2CustomSchemeRegistration::new(
+        pages::SCHEME.trim_end_matches("://").to_string(),
+    );
+    // Nothing else may ask for our files: the allowed origins stay empty, so
+    // only our own pages can fetch them.
+    unsafe {
+        scheme.set_has_authority_component(true);
+        scheme.set_treat_as_secure(true);
+    }
+    let options = CoreWebView2EnvironmentOptions::default();
+    unsafe { options.set_scheme_registrations(vec![Some(scheme.into())]) };
+    options.into()
+}
+
 fn make_environment() -> Fallible<ICoreWebView2Environment> {
     let held: Rc<RefCell<Option<ICoreWebView2Environment>>> = Rc::new(RefCell::new(None));
     let out = held.clone();
+    let options = our_scheme();
     CreateCoreWebView2EnvironmentCompletedHandler::wait_for_async_operation(
         Box::new(move |handler| unsafe {
-            CreateCoreWebView2EnvironmentWithOptions(PCWSTR::null(), PCWSTR::null(), None, &handler)
-                .map_err(Into::into)
+            CreateCoreWebView2EnvironmentWithOptions(
+                PCWSTR::null(),
+                PCWSTR::null(),
+                Some(&options),
+                &handler,
+            )
+            .map_err(Into::into)
         }),
         Box::new(move |code, environment| {
             code?;
@@ -1984,6 +2111,28 @@ fn pump() {
     }
 }
 
+/// The shell, for the window proc, which is also called before there is one
+/// and after it has been let go.
+fn with_shell<T: Default>(work: impl FnOnce(&Shell) -> T) -> T {
+    SHELL.with_borrow(|held| held.as_deref().map(work).unwrap_or_default())
+}
+
+/// The pointer for a thing that moves left and right.
+fn show_the_handle() {
+    if let Ok(cursor) = unsafe { LoadCursorW(None, IDC_SIZEWE) } {
+        unsafe { SetCursor(Some(cursor)) };
+    }
+}
+
+/// Where a mouse message happened, in the window's own pixels.
+fn mouse_x(l: LPARAM) -> i32 {
+    i32::from((l.0 & 0xffff) as u16 as i16)
+}
+
+fn mouse_y(l: LPARAM) -> i32 {
+    i32::from(((l.0 >> 16) & 0xffff) as u16 as i16)
+}
+
 extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -> LRESULT {
     match message {
         WM_SIZE => {
@@ -1993,6 +2142,50 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
                 }
             });
             LRESULT(0)
+        }
+        // Over the strip between the column and the page, and only there:
+        // everywhere else in the window is a child's to answer for.
+        WM_SETCURSOR
+            if (l.0 & 0xffff) as u32 == HTCLIENT && with_shell(Shell::pointer_on_the_edge) =>
+        {
+            show_the_handle();
+            LRESULT(1)
+        }
+        WM_LBUTTONDOWN if with_shell(|shell| shell.on_the_edge(mouse_x(l), mouse_y(l))) => {
+            with_shell(Shell::take_the_edge);
+            LRESULT(0)
+        }
+        WM_MOUSEMOVE if with_shell(Shell::holding_the_edge) => {
+            with_shell(|shell| shell.drag_the_edge(mouse_x(l)));
+            LRESULT(0)
+        }
+        WM_LBUTTONUP if with_shell(Shell::holding_the_edge) => {
+            with_shell(|shell| shell.drop_the_edge(true));
+            LRESULT(0)
+        }
+        // The mouse can be taken from us — by another window, or by Windows
+        // itself when the keyboard goes elsewhere. The drag ends where it
+        // had got to.
+        WM_CAPTURECHANGED if with_shell(Shell::holding_the_edge) => {
+            with_shell(|shell| shell.drop_the_edge(false));
+            LRESULT(0)
+        }
+        // The strip between the column and the page is the only part of this
+        // window the chrome never covers, so it is the only part we paint.
+        WM_ERASEBKGND => {
+            let (r, g, b) = if crate::nook::dark() {
+                look::PAPER_DARK
+            } else {
+                look::PAPER_LIGHT
+            };
+            let brush = unsafe { CreateSolidBrush(COLORREF(u32::from_be_bytes([0, b, g, r]))) };
+            let mut whole = RECT::default();
+            unsafe {
+                let _ = GetClientRect(window, &mut whole);
+                FillRect(HDC(w.0 as *mut c_void), &whole, brush);
+                let _ = DeleteObject(brush.into());
+            }
+            LRESULT(1)
         }
         WM_TIMER => {
             if w.0 == crate::host::WAKE
@@ -2006,7 +2199,11 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
             LRESULT(0)
         }
         WM_DESTROY => {
-            remember_shape(window);
+            let column = SHELL.with_borrow(|held| {
+                held.as_ref()
+                    .map_or(COLUMN_DEFAULT, |shell| shell.column.get())
+            });
+            remember_shape(window, column);
             SHELL.with_borrow(|held| {
                 if let Some(shell) = held.as_ref() {
                     shell.keep_session();

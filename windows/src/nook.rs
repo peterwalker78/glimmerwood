@@ -10,12 +10,14 @@ use std::cell::RefCell;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::wisp::Wisp;
 use glimmerwood_raster::Raster;
+use windows::Win32::Foundation::ERROR_SUCCESS;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION,
     CreateCompatibleDC, CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, HBITMAP,
     ReleaseDC, SelectObject,
 };
+use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::w;
 
@@ -137,8 +139,22 @@ pub fn draw() {
 
 /// Windows has no one answer for this yet in Glimmerwood; the chrome follows
 /// the system and will tell us, the way the toolbar tells us its layout.
-fn dark() -> bool {
-    false
+pub fn dark() -> bool {
+    let mut light = 0u32;
+    let mut size = size_of::<u32>() as u32;
+    let read = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"),
+            w!("AppsUseLightTheme"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(std::ptr::from_mut(&mut light).cast()),
+            Some(&mut size),
+        )
+    };
+    // A machine that has never been told either way is in its light clothes.
+    read == ERROR_SUCCESS && light == 0
 }
 
 /// Put the pixels on the screen. A layered window takes the whole image at

@@ -4,6 +4,13 @@ use serde::Deserialize;
 
 use crate::oklab::Rgb;
 
+/// The chrome's paper, as `ui/chrome/chrome.css` sets it. The shells need it
+/// where they paint something themselves rather than letting a chrome page
+/// do it: the strip between the column and the page, a window's own
+/// background behind a view that hasn't loaded yet.
+pub const PAPER_LIGHT: (u8, u8, u8) = (0xec, 0xec, 0xe8);
+pub const PAPER_DARK: (u8, u8, u8) = (0x1d, 0x1e, 0x1c);
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File {
