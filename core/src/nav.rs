@@ -62,6 +62,20 @@ pub fn same_address(a: &str, b: &str) -> bool {
     trim(a).eq_ignore_ascii_case(&trim(b))
 }
 
+/// `https://www.example.org/a` → `example.org`; empty for local pages.
+pub fn host_of(uri: &str) -> String {
+    let Some((scheme, rest)) = uri.split_once("://") else {
+        return String::new();
+    };
+    if !matches!(scheme, "http" | "https") {
+        return String::new();
+    }
+    let host = rest.split(['/', '?', '#', ':']).next().unwrap_or_default();
+    host.strip_prefix("www.")
+        .unwrap_or(host)
+        .to_ascii_lowercase()
+}
+
 pub fn security(uri: &str) -> Security {
     let lower = uri.get(..8).unwrap_or(uri).to_ascii_lowercase();
     if lower.starts_with("https://") {

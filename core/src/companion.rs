@@ -21,6 +21,7 @@ use crate::feel_lab::{Lab, Step};
 use crate::home::{self, Facts, PartOfDay, Topic, Words};
 use crate::host::{Host, Window};
 use crate::nav;
+use crate::nav::host_of;
 use crate::places::{self, PlaceCard, Pool};
 use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
@@ -910,20 +911,6 @@ impl Companion {
         self.refresh();
         self.refresh_pages();
     }
-}
-
-/// `https://www.example.org/a` → `example.org`; empty for local pages.
-fn host_of(uri: &str) -> String {
-    let Some((scheme, rest)) = uri.split_once("://") else {
-        return String::new();
-    };
-    if !matches!(scheme, "http" | "https") {
-        return String::new();
-    }
-    let host = rest.split(['/', '?', '#', ':']).next().unwrap_or_default();
-    host.strip_prefix("www.")
-        .unwrap_or(host)
-        .to_ascii_lowercase()
 }
 
 fn open_store(data: &std::path::Path) -> Option<Store> {

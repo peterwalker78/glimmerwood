@@ -30,4 +30,5 @@ pub mod settings;
 pub mod store;
 pub mod sun;
 pub mod svg;
+pub mod tabs;
 pub mod wisp;
