@@ -10,7 +10,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::error::Error;
 use std::ffi::c_void;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 
 use crate::{finding, nook};
@@ -1586,22 +1586,64 @@ fn our_scheme() -> ICoreWebView2EnvironmentOptions {
 /// binary instead, which leaves a browser profile sitting in whatever folder
 /// someone unpacked the program into. It belongs with everything else
 /// Glimmerwood keeps for this user.
-fn engine_dir() -> PathBuf {
-    crate::host::data_dir().join("glimmerwood").join("engine")
+///
+/// `None` when this machine won't have it: a relative path is one the engine
+/// reads as relative to the program, which is the folder this is trying to
+/// keep clear of, and a folder that can't be made is no use either.
+fn engine_dir() -> Option<PathBuf> {
+    let dir = crate::host::data_dir().join("glimmerwood").join("engine");
+    if !dir.is_absolute() {
+        return None;
+    }
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
 }
 
 fn make_environment() -> Fallible<ICoreWebView2Environment> {
+    let ours = engine_dir();
+    match environment_keeping_its_state_in(ours.as_deref()) {
+        Ok(environment) => Ok(environment),
+        // The engine would not take the folder it was offered. Where it keeps
+        // its caches matters less than whether the browser opens at all, so it
+        // is asked again with nowhere named and fills a folder beside the
+        // binary, as it did before it was told anywhere. The alternative is to
+        // stop here and say so, which is a browser that doesn't open over a
+        // folder nobody asked about.
+        // If it won't start without one either, the folder was never the
+        // reason: what it says then is the second attempt's, which blames
+        // nothing and nowhere.
+        Err(_) if ours.is_some() => environment_keeping_its_state_in(None),
+        Err(why) => Err(why),
+    }
+}
+
+/// One attempt at an environment, keeping the engine's own state in `dir` —
+/// or wherever it chooses, when that is `None`.
+fn environment_keeping_its_state_in(dir: Option<&Path>) -> Fallible<ICoreWebView2Environment> {
     let held: Rc<RefCell<Option<ICoreWebView2Environment>>> = Rc::new(RefCell::new(None));
     let out = held.clone();
     let options = our_scheme();
-    let dir = engine_dir();
-    std::fs::create_dir_all(&dir)?;
-    let dir = HSTRING::from(dir.as_os_str());
+    let wide = dir.map(|dir| HSTRING::from(dir.as_os_str()));
+    // Whatever went wrong, it is read off a message box, so it says which
+    // folder it was about: the same words about two different folders are
+    // twice as long to work out as they need to be.
+    let about = |why: webview2_com::Error| match dir {
+        Some(dir) => missing(&format!(
+            "WebView2 would not keep its own state in {}: {why}",
+            dir.display()
+        )),
+        None => missing(&format!("WebView2 would not start: {why}")),
+    };
     CreateCoreWebView2EnvironmentCompletedHandler::wait_for_async_operation(
         Box::new(move |handler| unsafe {
+            // The name has to outlive the call, which is what `wide` being
+            // held here rather than passed along is for.
+            let named = wide
+                .as_ref()
+                .map_or_else(PCWSTR::null, |wide| PCWSTR(wide.as_ptr()));
             CreateCoreWebView2EnvironmentWithOptions(
                 PCWSTR::null(),
-                PCWSTR(dir.as_ptr()),
+                named,
                 Some(&options),
                 &handler,
             )
@@ -1612,7 +1654,8 @@ fn make_environment() -> Fallible<ICoreWebView2Environment> {
             *out.borrow_mut() = environment;
             Ok(())
         }),
-    )?;
+    )
+    .map_err(about)?;
     let taken = held.borrow_mut().take();
     taken.ok_or_else(|| missing("WebView2 is not installed on this machine"))
 }
@@ -1635,7 +1678,12 @@ fn make_controller(
             *out.borrow_mut() = controller;
             Ok(())
         }),
-    )?;
+    )
+    // Which of the engine's two steps failed is the first thing anyone wants
+    // to know, and a bare message from the system doesn't say.
+    .map_err(|why: webview2_com::Error| {
+        missing(&format!("WebView2 would not open a view: {why}"))
+    })?;
     let taken = held.borrow_mut().take();
     taken.ok_or_else(|| missing("WebView2 would not start"))
 }
