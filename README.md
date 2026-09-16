@@ -211,7 +211,9 @@ choose it under *Default Applications* in your desktop's settings.
 ### Windows and macOS
 
 Both are on the [releases page](https://github.com/peterwalker78/glimmerwood/releases/latest)
-beside the Flatpak. They are one window on one page: no tabs and no lists yet.
+beside the Flatpak. They have tabs, bookmarks, Home, Settings and the wisp
+watching over them, on the same core as the Linux build. Find in page is still
+to come on both, and macOS can't yet tell when a tab is making a sound.
 
 **Windows** — unzip `glimmerwood-windows-x64.zip` and run `Glimmerwood.exe`,
 keeping it beside `WebView2Loader.dll`. It needs the WebView2 runtime, which
@@ -324,7 +326,7 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
 - Zoom, downloads, session restore and the rest of the everyday basics.
-- **Tabs and the lists on Windows and macOS.**
+- **Find in page on Windows and macOS.**
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)

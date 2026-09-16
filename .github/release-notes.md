@@ -22,5 +22,6 @@ flag first:
 xattr -dr com.apple.quarantine /Applications/Glimmerwood.app
 ```
 
-The Windows and macOS builds are one window on one page: no tabs and no lists
-yet. Checksums for every file are in `SHA256SUMS`.
+Find in page is still to come on the Windows and macOS builds, and macOS
+can't yet tell when a tab is making a sound. Checksums for every file are in
+`SHA256SUMS`.
