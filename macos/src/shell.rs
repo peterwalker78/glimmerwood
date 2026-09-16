@@ -27,8 +27,9 @@ use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{AllocAnyThread, MainThreadOnly, Message, define_class, msg_send, sel};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventModifierFlags, NSMenu,
-    NSMenuItem, NSMenuItemValidation, NSWindow, NSWindowDelegate, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEvent, NSEventMask,
+    NSEventModifierFlags, NSEventType, NSMenu, NSMenuItem, NSMenuItemValidation, NSWindow,
+    NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSData, NSError, NSFileManager, NSInteger, NSJSONSerialization,
@@ -78,6 +79,9 @@ const SAMARITANS: &str = "https://www.samaritans.org/how-we-can-help/contact-sam
 thread_local! {
     static SHELL: RefCell<Option<Rc<Shell>>> = const { RefCell::new(None) };
     static COMPANION: RefCell<Option<Rc<Companion>>> = const { RefCell::new(None) };
+    /// The event monitor that notices a person is here, held for as long as
+    /// the app runs.
+    static WATCHING: RefCell<Option<Retained<AnyObject>>> = const { RefCell::new(None) };
     /// A window points at its delegate weakly, so this one is kept here.
     static KEEPER: RefCell<Option<Retained<Keeper>>> = const { RefCell::new(None) };
 }
@@ -230,6 +234,7 @@ pub fn run() {
     restore_the_session(&started);
     open_tab(HOME, true);
     watch_the_engines();
+    watch_for_a_person();
     lay_out();
     started.windows_changed();
 
@@ -871,6 +876,32 @@ fn push_state() {
         can_bookmark: !local && !uri.is_empty(),
         bookmarked,
     });
+}
+
+/// The companion needs to know someone is there. What it is told is that
+/// there was input, never what the input was: a monitor that sees every
+/// event in this app, and passes every one of them straight on.
+fn watch_for_a_person() {
+    let mask = NSEventMask::KeyDown
+        | NSEventMask::LeftMouseDown
+        | NSEventMask::RightMouseDown
+        | NSEventMask::OtherMouseDown
+        | NSEventMask::ScrollWheel
+        | NSEventMask::MouseMoved;
+    let noticed = RcBlock::new(|event: NonNull<NSEvent>| -> *mut NSEvent {
+        if let Some(companion) = companion() {
+            companion.input();
+            // A key press also holds the wisp's question back: it never asks
+            // anything mid-sentence.
+            let kind = unsafe { event.as_ref().r#type() };
+            if kind == NSEventType::KeyDown {
+                companion.typed();
+            }
+        }
+        event.as_ptr()
+    });
+    let monitor = unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(mask, &noticed) };
+    WATCHING.with_borrow_mut(|held| *held = monitor);
 }
 
 /// Ask the engines what they are showing, on a slow timer. The navigation

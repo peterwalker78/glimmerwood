@@ -45,9 +45,10 @@ use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, VIRTUAL_KEY, VK_0, VK_1, VK_9, VK_ADD, VK_CONTROL, VK_D, VK_ESCAPE, VK_F, VK_F3,
-    VK_F4, VK_F5, VK_F6, VK_G, VK_HOME, VK_L, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMPAD0, VK_OEM_COMMA,
-    VK_OEM_MINUS, VK_OEM_PLUS, VK_PRIOR, VK_R, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_T, VK_TAB, VK_W,
+    GetKeyState, GetLastInputInfo, LASTINPUTINFO, VIRTUAL_KEY, VK_0, VK_1, VK_9, VK_ADD,
+    VK_CONTROL, VK_D, VK_ESCAPE, VK_F, VK_F3, VK_F4, VK_F5, VK_F6, VK_G, VK_HOME, VK_L, VK_LEFT,
+    VK_MENU, VK_NEXT, VK_NUMPAD0, VK_OEM_COMMA, VK_OEM_MINUS, VK_OEM_PLUS, VK_PRIOR, VK_R,
+    VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_T, VK_TAB, VK_W,
 };
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -214,6 +215,7 @@ pub fn run() -> Fallible<()> {
     // The wisp's own window, over the toolbar's corner. It is created after
     // the engines so that it sits above them.
     nook::open(window)?;
+    unsafe { SetTimer(Some(window), PRESENCE, PRESENCE_MS, None) };
 
     SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
 
@@ -1113,6 +1115,13 @@ impl Shell {
     /// whether the key was one of them, since one that was must not reach
     /// the page as well.
     fn shortcut(self: &Rc<Self>, key: VIRTUAL_KEY, ctrl: bool, shift: bool, alt: bool) -> bool {
+        // Someone is at the keyboard, whatever the key turns out to mean. A
+        // key press also holds the wisp's question back: it never asks
+        // anything mid-sentence.
+        if let Some(companion) = companion() {
+            companion.input();
+            companion.typed();
+        }
         // Ctrl+1 to Ctrl+8 pick a tab by where it sits in the column, and
         // Ctrl+9 the last one however many there are.
         if ctrl && !shift && !alt && (VK_1.0..=VK_9.0).contains(&key.0) {
@@ -1894,6 +1903,38 @@ fn base64(bytes: &[u8]) -> String {
     out
 }
 
+/// Our own timer: the one that asks whether anyone is there.
+const PRESENCE: usize = 3;
+/// How often to ask. Often enough that the wisp wakes with you, rarely
+/// enough to cost nothing.
+const PRESENCE_MS: u32 = 2_000;
+
+thread_local! {
+    /// The tick of the last input Windows saw, so the same one isn't counted
+    /// twice.
+    static LAST_INPUT: Cell<u32> = const { Cell::new(0) };
+}
+
+/// Tell the companion someone is here, if they are. What is asked is when
+/// the system last saw any input at all, never what it was; it only counts
+/// while this window is the one in front, so typing in another app doesn't
+/// keep the wisp awake over here.
+fn notice_a_person(window: HWND) {
+    if unsafe { GetForegroundWindow() } != window {
+        return;
+    }
+    let mut last = LASTINPUTINFO {
+        cbSize: size_of::<LASTINPUTINFO>() as u32,
+        dwTime: 0,
+    };
+    if unsafe { GetLastInputInfo(&mut last) }.as_bool() && LAST_INPUT.get() != last.dwTime {
+        LAST_INPUT.set(last.dwTime);
+        if let Some(companion) = companion() {
+            companion.input();
+        }
+    }
+}
+
 /// Hand a chrome page a message. Nothing else is ever spoken to.
 fn say(controller: &ICoreWebView2Controller, message: &ToChrome) {
     let Ok(json) = serde_json::to_string(message) else {
@@ -1955,6 +1996,9 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
                 && let Some(companion) = companion()
             {
                 companion.refresh();
+            }
+            if w.0 == PRESENCE {
+                notice_a_person(window);
             }
             LRESULT(0)
         }
