@@ -21,15 +21,15 @@ use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
-use glimmerwood_core::tabs::Tabs;
+use glimmerwood_core::tabs::{COLUMN_DEFAULT, Tabs, column_width};
 use glimmerwood_core::zoom;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{AllocAnyThread, MainThreadOnly, Message, define_class, msg_send, sel};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEvent, NSEventMask,
-    NSEventModifierFlags, NSEventType, NSMenu, NSMenuItem, NSMenuItemValidation, NSWindow,
-    NSWindowDelegate, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSCursor, NSEvent,
+    NSEventMask, NSEventModifierFlags, NSEventType, NSMenu, NSMenuItem, NSMenuItemValidation,
+    NSResponder, NSView, NSWindow, NSWindowDelegate, NSWindowOrderingMode, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSData, NSError, NSFileManager, NSInteger, NSJSONSerialization,
@@ -59,12 +59,10 @@ const INITIAL_WIDTH: f64 = 1100.0;
 const INITIAL_HEIGHT: f64 = 760.0;
 /// The toolbar's height until it reports its own.
 const TOOLBAR_HEIGHT: f64 = 56.0;
-/// The tab column's width. The GTK build lets it be dragged and remembers
-/// where; here it is the width that shows a tab's mark and nothing else.
-/// Wide enough that a tab shows its title. The GTK build opens narrow
-/// because its column can be dragged to whatever width suits and remembers
-/// it; until this one can be dragged, a strip of marks is not a tab column.
-const COLUMN_WIDTH: f64 = 180.0;
+/// The grab area along the column's edge: a hairline to look at, wide
+/// enough to take hold of. How wide the column itself may be is the core's
+/// word, and the width it is left at is kept between runs.
+const GRIP_WIDTH: f64 = 6.0;
 /// How often the engines are asked what they are showing. The navigation
 /// delegate reports a load starting, committing, finishing or failing as it
 /// happens; this is left for the two things it never hears about — a page
@@ -124,6 +122,15 @@ struct NookAt {
     height: f64,
 }
 
+/// A hold on the column's edge: how far the pointer was from the edge when
+/// it took hold, so the edge doesn't jump under it, and how wide the column
+/// was then, so a press that lets go without moving changes nothing.
+#[derive(Clone, Copy)]
+struct Grab {
+    offset: f64,
+    was: f64,
+}
+
 /// The nook's corner until the toolbar reports its own.
 const INITIAL_NOOK: NookAt = NookAt {
     right: 0.0,
@@ -143,6 +150,11 @@ pub struct Shell {
     /// core's, so it is the same here as it is anywhere else.
     tabs: RefCell<Tabs>,
     toolbar_height: Cell<f64>,
+    /// How wide the tab column is, the view over its edge that sets it, and
+    /// the hold the pointer has on that edge while one is under way.
+    column: Cell<f64>,
+    grip: Retained<Grip>,
+    grab: Cell<Option<Grab>>,
     nook_at: Cell<NookAt>,
     /// Whether the find bar is open, and what was last typed into it.
     finding: Cell<bool>,
@@ -178,10 +190,19 @@ pub fn run() {
 
     let toolbar = make_webview(mtm, true);
     let sidebar = make_webview(mtm, true);
+    let grip: Retained<Grip> = unsafe {
+        msg_send![
+            Grip::alloc(mtm),
+            initWithFrame: NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(GRIP_WIDTH, 1.0))
+        ]
+    };
 
     if let Some(content) = window.contentView() {
         content.addSubview(&toolbar);
         content.addSubview(&sidebar);
+        // The column's edge goes over everything else in the window, so it
+        // is what the pointer finds along the join.
+        content.addSubview_positioned_relativeTo(&grip, NSWindowOrderingMode::Above, None);
         // The wisp is drawn over the toolbar's own corner, so its view goes
         // in front of the toolbar's.
         nook::open(
@@ -205,6 +226,9 @@ pub fn run() {
         engines: RefCell::new(Vec::new()),
         tabs: RefCell::new(Tabs::new()),
         toolbar_height: Cell::new(TOOLBAR_HEIGHT),
+        column: Cell::new(f64::from(COLUMN_DEFAULT)),
+        grip,
+        grab: Cell::new(None),
         nook_at: Cell::new(INITIAL_NOOK),
         finding: Cell::new(false),
         find_query: RefCell::new(String::new()),
@@ -215,9 +239,15 @@ pub fn run() {
     if let Some(path) = zooms_path() {
         shell.zooms.replace(zoom::Zooms::load(&path));
     }
-    // The window goes back where it was left before anything is laid out
-    // inside it.
-    match saved_frame() {
+    // The window goes back where it was left, and the column to the width
+    // it was dragged to, before anything is laid out inside it. Where that
+    // is written down is only known once the shell is held, since it is the
+    // shell that says where this machine keeps such things.
+    let saved = saved_window();
+    if let Some(column) = saved.column {
+        shell.column.set(column);
+    }
+    match saved.frame {
         Some(frame) => window.setFrame_display(frame, false),
         None => window.center(),
     }
@@ -309,8 +339,8 @@ fn lay_out() {
         };
         let whole = content.frame();
         let split = shell.toolbar_height.get().min(whole.size.height);
-        let column = COLUMN_WIDTH.min(whole.size.width);
-        let below = whole.size.height - split;
+        let column = shell.column.get().min(whole.size.width);
+        let below = (whole.size.height - split).max(0.0);
         shell.toolbar.setFrame(NSRect::new(
             NSPoint::new(0.0, whole.size.height - split),
             NSSize::new(whole.size.width, split),
@@ -328,6 +358,19 @@ fn lay_out() {
             engine.view.setFrame(page);
             engine.view.setHidden(Some(engine.id) != selected);
         }
+        // The edge between the two, over a few points of each.
+        let edge = NSRect::new(
+            NSPoint::new(column - GRIP_WIDTH / 2.0, 0.0),
+            NSSize::new(GRIP_WIDTH, below.max(1.0)),
+        );
+        if shell.grip.frame() != edge {
+            shell.grip.setFrame(edge);
+            // What the pointer is told is in the window's own points, so it
+            // is stale as soon as the edge moves.
+            if let Some(window) = shell.grip.window() {
+                window.invalidateCursorRectsForView(&shell.grip);
+            }
+        }
         // The nook is measured from the top right, so it stays in its corner
         // as the window resizes.
         let at = shell.nook_at.get();
@@ -340,6 +383,112 @@ fn lay_out() {
         ));
     });
 }
+
+// --- The column's edge -------------------------------------------------------
+
+/// Where the pointer is across the window, in the content view's own points,
+/// which is what the column's width is measured in.
+fn pointer_x(grip: &Grip, event: &NSEvent) -> Option<f64> {
+    let content = unsafe { grip.superview() }?;
+    Some(
+        content
+            .convertPoint_fromView(event.locationInWindow(), None)
+            .x,
+    )
+}
+
+/// The pointer has taken hold of the edge.
+fn take_hold(grip: &Grip, event: &NSEvent) {
+    let Some(shell) = held() else { return };
+    let Some(x) = pointer_x(grip, event) else {
+        return;
+    };
+    let was = shell.column.get();
+    shell.grab.set(Some(Grab {
+        offset: was - x,
+        was,
+    }));
+}
+
+/// The column follows the pointer while it is held, within the limits the
+/// core sets. The window is laid out at each step, so what the user sees
+/// while dragging is where they are putting the edge.
+fn drag_the_edge(grip: &Grip, event: &NSEvent) {
+    let Some(shell) = held() else { return };
+    let Some(grab) = shell.grab.get() else { return };
+    let Some(x) = pointer_x(grip, event) else {
+        return;
+    };
+    let wanted = f64::from(column_width((x + grab.offset).round() as i32));
+    if shell.column.get() != wanted {
+        shell.column.set(wanted);
+        lay_out();
+    }
+}
+
+/// The pointer has let go. A width somebody chose is written down; a press
+/// that never moved the edge chose nothing, and leaves the file as it was.
+fn let_go() {
+    let Some(shell) = held() else { return };
+    let Some(grab) = shell.grab.replace(None) else {
+        return;
+    };
+    if shell.column.get() != grab.was {
+        remember_window();
+    }
+}
+
+define_class!(
+    /// The edge between the tab column and the page: nothing is drawn into
+    /// it, and dragging it says how much of the window the column takes.
+    #[unsafe(super(NSView, NSResponder, NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "GlimmerwoodGrip"]
+    struct Grip;
+
+    unsafe impl NSObjectProtocol for Grip {}
+
+    impl Grip {
+        /// The column and the page are drawn right up to the join; this only
+        /// answers the pointer there.
+        #[unsafe(method(isOpaque))]
+        fn is_opaque(&self) -> bool {
+            false
+        }
+
+        /// The pointer says what it can do here before anything is pressed.
+        #[unsafe(method(resetCursorRects))]
+        fn reset_cursor_rects(&self) {
+            // What replaced it wants macOS 15; this one is understood as far
+            // back as the rest of the shell runs.
+            #[allow(deprecated)]
+            let cursor = NSCursor::resizeLeftRightCursor();
+            self.addCursorRect_cursor(self.bounds(), &cursor);
+        }
+
+        /// A window that wasn't in front can be dragged straight away,
+        /// rather than the first press only bringing it forward.
+        #[unsafe(method(acceptsFirstMouse:))]
+        fn accepts_first_mouse(&self, _event: Option<&NSEvent>) -> bool {
+            true
+        }
+
+        #[unsafe(method(mouseDown:))]
+        fn mouse_down(&self, event: &NSEvent) {
+            take_hold(self, event);
+        }
+
+        #[unsafe(method(mouseDragged:))]
+        fn mouse_dragged(&self, event: &NSEvent) {
+            drag_the_edge(self, event);
+        }
+
+        #[unsafe(method(mouseUp:))]
+        fn mouse_up(&self, _event: &NSEvent) {
+            let_go();
+        }
+    }
+);
 
 // --- Tabs --------------------------------------------------------------------
 
@@ -517,7 +666,13 @@ fn wake_tab(id: u32) {
 fn give_an_engine(shell: &Rc<Shell>, id: u32) -> Retained<WKWebView> {
     let view = make_webview(shell.mtm, false);
     if let Some(content) = shell.window.contentView() {
-        content.addSubview(&view);
+        // Under the column's edge, which goes on answering the pointer over
+        // the page as tabs come and go.
+        content.addSubview_positioned_relativeTo(
+            &view,
+            NSWindowOrderingMode::Below,
+            Some(&shell.grip),
+        );
     }
     let engine = Engine {
         id,
@@ -1920,7 +2075,7 @@ define_class!(
         /// tabs it holds are written down on the way out.
         #[unsafe(method(quitGlimmerwood:))]
         fn quit(&self, _sender: Option<&AnyObject>) {
-            remember_frame();
+            remember_window();
             keep_the_session();
             NSApplication::sharedApplication(self.mtm()).terminate(None);
         }
@@ -1946,8 +2101,9 @@ fn config_dir() -> Option<PathBuf> {
     Some(host::Host::config_dir(&*shell).join("glimmerwood"))
 }
 
-/// Where the window's size and place are kept.
-fn frame_path() -> Option<PathBuf> {
+/// Where the window's size and place, and how wide the tab column was left,
+/// are kept.
+fn window_path() -> Option<PathBuf> {
     Some(config_dir()?.join("window.ini"))
 }
 
@@ -1957,34 +2113,59 @@ fn zooms_path() -> Option<PathBuf> {
     Some(config_dir()?.join("zoom.toml"))
 }
 
-/// The window as it was left, if it was written down. Anything unreadable is
-/// simply a window that hasn't been opened before.
-fn saved_frame() -> Option<NSRect> {
-    let text = std::fs::read_to_string(frame_path()?).ok()?;
-    let numbers: Vec<f64> = text
-        .split_whitespace()
-        .filter_map(|word| word.parse().ok())
-        .collect();
-    let [x, y, width, height] = numbers[..] else {
-        return None;
-    };
-    (width > 0.0 && height > 0.0)
-        .then(|| NSRect::new(NSPoint::new(x, y), NSSize::new(width, height)))
+/// How the window was left, as far as it was written down.
+#[derive(Default)]
+struct Saved {
+    frame: Option<NSRect>,
+    column: Option<f64>,
 }
 
-/// Writes the window's size and place down for next time.
-fn remember_frame() {
+/// What the file says, a `key = value` to a line. Anything missing or
+/// unreadable is simply something nobody has chosen yet, so a file from
+/// before the column could be dragged gives the window back and leaves the
+/// column at its default.
+fn saved_window() -> Saved {
+    let Some(text) = window_path().and_then(|path| std::fs::read_to_string(path).ok()) else {
+        return Saved::default();
+    };
+    let mut saved = Saved::default();
+    for line in text.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let numbers: Vec<f64> = value
+            .split_whitespace()
+            .filter_map(|word| word.parse().ok())
+            .collect();
+        match (key.trim(), &numbers[..]) {
+            ("frame", &[x, y, width, height]) if width > 0.0 && height > 0.0 => {
+                saved.frame = Some(NSRect::new(NSPoint::new(x, y), NSSize::new(width, height)));
+            }
+            ("column", &[width]) => saved.column = Some(f64::from(column_width(width as i32))),
+            _ => {}
+        }
+    }
+    saved
+}
+
+/// Writes the window's size and place, and the width the column was left at,
+/// down for next time.
+fn remember_window() {
     let Some(shell) = held() else { return };
-    let Some(path) = frame_path() else { return };
+    let Some(path) = window_path() else { return };
     let frame = shell.window.frame();
-    let line = format!(
-        "frame = {} {} {} {}\n",
-        frame.origin.x, frame.origin.y, frame.size.width, frame.size.height
+    let lines = format!(
+        "frame = {} {} {} {}\ncolumn = {}\n",
+        frame.origin.x,
+        frame.origin.y,
+        frame.size.width,
+        frame.size.height,
+        column_width(shell.column.get().round() as i32),
     );
     let written = path
         .parent()
         .map_or(Ok(()), std::fs::create_dir_all)
-        .and_then(|()| std::fs::write(&path, line));
+        .and_then(|()| std::fs::write(&path, lines));
     if let Err(err) = written {
         eprintln!("glimmerwood: couldn't remember the window's size: {err}");
     }
@@ -2002,7 +2183,7 @@ define_class!(
     unsafe impl NSWindowDelegate for Keeper {
         #[unsafe(method(windowWillClose:))]
         fn will_close(&self, _notification: &NSNotification) {
-            remember_frame();
+            remember_window();
             keep_the_session();
         }
 
