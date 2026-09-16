@@ -47,6 +47,18 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.8.0" date="2026-09-16">
+      <description>
+        <p>The everyday basics, on all three systems at once: downloads, the tabs you left open, and a week of where you've been.</p>
+        <ul>
+          <li>Downloads save to your Downloads folder without overwriting what is there, with a quiet mark while one arrives and a line on Home until you open it</li>
+          <li>The tabs that were open come back asleep: a row in the column with its title, loading nothing until you ask for it</li>
+          <li>A week of pages, and no longer, kept apart from anything the wisp knows; sites on the private list are never written down</li>
+          <li>No completion as you type, and there won't be. Ctrl or Cmd with Enter turns a bare word into its .com</li>
+          <li>A way back out of a stretch you didn't mean to spend: forget the last 15 minutes, half hour, hour or two, which takes those pages, the finished downloads, and the sites out of the wisp's memory of it. How the time felt stays, because that part has to be true</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.0" date="2026-09-16">
       <description>
         <p>The macOS and Windows builds are browsers now, on the same core as the Linux one.</p>

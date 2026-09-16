@@ -310,6 +310,23 @@ can also look up and rate any site. Ratings are kept in your own
 `~/.var/app/io.github.peterwalker78.Glimmerwood/config/glimmerwood/` for the
 Flatpak), which you can edit by hand too. Changes take effect immediately.
 
+### The everyday things
+
+Downloads land in your Downloads folder with a quiet mark in the toolbar
+while they arrive. The tabs you left open come back **asleep** — a row in the
+column holding its title, loading nothing until you ask for it. Home keeps a
+week of where you've been, and no longer, with private-list sites never
+written down at all.
+
+There is **no completion as you type**, and there isn't going to be: the
+pages such a list offers hardest are the ones already visited most. Ctrl or
+Cmd with Enter turns a bare word into its `.com`.
+
+And there's a way back out of a stretch you didn't mean to spend: forget the
+last 15 minutes, half hour, hour or two. It takes those pages, the finished
+downloads, and the sites out of the wisp's memory of that stretch. How the
+time felt stays — the wisp is only worth having if that part is true.
+
 ### A few more things it notices
 
 - **Sound counts as watching.** A tab playing in front of you keeps the wisp
@@ -327,10 +344,10 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
   mid-flow and never more than twice a day.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
-- **Downloads**, with a quiet mark while one runs.
-- **Session restore**: tabs come back asleep, not loaded until you ask.
-- **Local history** and address completion, with private sites never stored.
 - **Sleeping tabs**, freeing what an hour of being unseen doesn't need.
+- **Permission requests** for camera, mic and location, quietly inline.
+  Notifications are always denied: they exist to pull you back.
+- **Full-screen video** that hides the chrome, and `file://` pages.
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
