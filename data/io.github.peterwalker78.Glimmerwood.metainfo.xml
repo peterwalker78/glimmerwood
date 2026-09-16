@@ -47,6 +47,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.9.0" date="2026-09-16">
+      <description>
+        <p>The tab column can be dragged on all three systems, and is remembered where you leave it.</p>
+        <ul>
+          <li>Drag the edge between the column and the page: narrow for marks alone, wider for titles, and it opens where you left it</li>
+          <li>How narrow and how wide it may be is decided once, so the three agree</li>
+          <li>On Windows the wisp follows the system's dark clothes, which it had been assuming the answer to</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.8.4" date="2026-09-16">
       <description>
         <p>Three things the macOS build was missing, two of which Windows was missing as well.</p>
