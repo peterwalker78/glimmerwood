@@ -26,7 +26,7 @@ modules:
         CARGO_NET_OFFLINE: 'true'
     build-commands:
       - tsc/lib/tsc -p ui
-      - cargo build --release --locked --offline
+      - cargo build --release --locked --offline -p glimmerwood
       - install -Dm755 target/release/glimmerwood /app/bin/glimmerwood
       - install -Dm644 data/io.github.peterwalker78.Glimmerwood.desktop -t /app/share/applications
       - install -Dm644 data/io.github.peterwalker78.Glimmerwood.metainfo.xml -t /app/share/metainfo
