@@ -22,9 +22,11 @@
   <header class="scene" id="scene">
     <svg id="garden" class="garden" viewBox="0 0 1200 360" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
     <div class="greeting">
-      <h1>The wisp is dozing</h1>
-      <p>It can&rsquo;t see anything from here &mdash; no history, nothing to watch. This is only a page. But it left the light on, and somewhere to go.</p>
+      <h1 id="greeting-title">The wisp is dozing</h1>
+      <p id="greeting-line">It can&rsquo;t see anything from here &mdash; no history, nothing to watch. This is only a page. But it left the light on, and somewhere to go.</p>
+      <p class="play"><button id="wake" type="button">Wake the wisp</button> <span id="caught" class="caught" aria-live="polite"></span></p>
     </div>
+    <div id="motes" class="motes" aria-hidden="true"></div>
     <svg class="dozing" viewBox="18 10 92 96" aria-label="The wisp, asleep on the bank" role="img">
       <defs>
         <radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="64" cy="70" r="46">
@@ -48,9 +50,21 @@
         <circle cx="48.13" cy="76.8" r="5.12" fill="url(#cheek)"/>
         <circle cx="79.87" cy="76.8" r="5.12" fill="url(#cheek)"/>
         <!-- Eyes closed: two soft lids, and the smallest smile. -->
-        <path d="M50.7 69.2C52.2 71.9 56.3 71.9 57.8 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
-        <path d="M70.2 69.2C71.7 71.9 75.8 71.9 77.3 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
-        <path d="M66.4 79.9C65.2 81.5 62.8 81.5 61.6 79.9" fill="none" stroke="#2b2119" stroke-opacity="0.7" stroke-width="1.9" stroke-linecap="round"/>
+        <g class="asleep">
+          <path d="M50.7 69.2C52.2 71.9 56.3 71.9 57.8 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
+          <path d="M70.2 69.2C71.7 71.9 75.8 71.9 77.3 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
+          <path d="M66.4 79.9C65.2 81.5 62.8 81.5 61.6 79.9" fill="none" stroke="#2b2119" stroke-opacity="0.7" stroke-width="1.9" stroke-linecap="round"/>
+        </g>
+        <!-- And open, for when it is awake. -->
+        <g class="awake">
+          <path d="M50 64.6C51.8 63.1 56.6 63.1 58.4 64.6" fill="none" stroke="#2b2119" stroke-opacity="0.72" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="M69.6 64.6C71.4 63.1 76.2 63.1 78 64.6" fill="none" stroke="#2b2119" stroke-opacity="0.72" stroke-width="1.9" stroke-linecap="round"/>
+          <ellipse cx="54.2" cy="69.6" rx="2.5" ry="4.2" fill="#2b2119" fill-opacity="0.88"/>
+          <ellipse cx="73.8" cy="69.6" rx="2.5" ry="4.2" fill="#2b2119" fill-opacity="0.88"/>
+          <circle cx="53.3" cy="67.9" r="1" fill="#fff" fill-opacity="0.9"/>
+          <circle cx="72.9" cy="67.9" r="1" fill="#fff" fill-opacity="0.9"/>
+          <path d="M67.3 79.4C65.7 81.6 62.3 81.6 60.7 79.4" fill="none" stroke="#2b2119" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round"/>
+        </g>
       </g>
       <g class="zzz" transform="translate(88 40)" aria-hidden="true">
         <g class="z z1"><path transform="scale(0.7)" d="M0 0H7L0 9H7"/></g>
@@ -69,8 +83,19 @@
     <section aria-labelledby="places-heading">
       <h2 id="places-heading">Good places</h2>
       <ul id="places" class="places"></ul>
-      <p id="places-note" class="note">Chosen for the hour. They change every couple of hours.</p>
+      <p id="places-note" class="note">Chosen for the hour. They change every couple of hours.
+        <button id="more-places" type="button" class="quiet">Show me another six</button>
+      </p>
       <noscript><p class="note">The places need JavaScript to choose themselves. Everything else here reads fine without it.</p></noscript>
+    </section>
+
+    <section aria-labelledby="fact-heading">
+      <h2 id="fact-heading">Worth knowing</h2>
+      <figure class="fact">
+        <blockquote id="fact-text"></blockquote>
+        <figcaption><a id="fact-source" href="#"></a></figcaption>
+      </figure>
+      <p class="note"><button id="another-fact" type="button" class="quiet">Another</button></p>
     </section>
 
     <section class="prose" aria-labelledby="phone-heading">

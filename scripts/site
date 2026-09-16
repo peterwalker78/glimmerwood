@@ -7,14 +7,14 @@ cd "$ROOT"
 OUT="$ROOT/dist/site"
 ICON="$ROOT/data/io.github.peterwalker78.Glimmerwood.svg"
 
-python3 scripts/site-places.py
+python3 scripts/site-data.py
 scripts/build-ui
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp ui/site/index.html ui/site/site.css ui/site/site.webmanifest "$OUT/"
 cp ui/home/home.css "$OUT/"
-cp ui/dist/site/site.js ui/dist/site/places.gen.js "$OUT/"
+cp ui/dist/site/site.js ui/dist/site/places.gen.js ui/dist/site/facts.gen.js "$OUT/"
 # Shared with Home, and imported beside the page just as the app bundles it.
 cp ui/dist/common/garden.js ui/dist/common/place.js "$OUT/"
 

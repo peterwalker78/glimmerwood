@@ -91,3 +91,100 @@
   70% { opacity: 0.4; }
   100% { opacity: 0; transform: translate(10px, -26px); }
 }
+
+/* --- Awake, and playing --- */
+
+.dozing .awake { display: none; }
+.dozing.playing .awake { display: inline; }
+.dozing.playing .asleep { display: none; }
+/* A wisp that is playing has stopped dreaming. */
+.dozing.playing .zzz { display: none; }
+
+.play {
+  margin: 1.1em 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+button.quiet,
+.play button {
+  padding: 7px 14px;
+  background: rgb(255 255 255 / 0.12);
+  border: 1px solid var(--scene-quiet);
+  border-radius: 9px;
+  color: var(--scene-ink);
+  font: 600 0.9rem/1 var(--sans);
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+.play button:hover { background: rgb(255 255 255 / 0.22); }
+
+button.quiet {
+  margin-left: 8px;
+  padding: 4px 10px;
+  background: var(--card);
+  border-color: var(--hairline);
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+button.quiet:hover { background: var(--card-hover); }
+
+.caught {
+  color: var(--scene-quiet);
+  font: 400 0.95rem/1.4 var(--serif);
+  font-style: italic;
+}
+
+/* The motes the wisp throws. They only exist while someone is playing. */
+.motes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mote {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #fff6d5 0%, #f4cf80 42%, rgb(244 207 128 / 0) 70%);
+  pointer-events: auto;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+
+.mote.caught {
+  pointer-events: none;
+  animation: caught 380ms ease-out forwards;
+}
+
+@keyframes caught {
+  to { transform: scale(2.4); opacity: 0; }
+}
+
+/* --- One thing worth knowing --- */
+
+.fact {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+
+.fact blockquote {
+  margin: 0;
+  max-width: 46em;
+  font: 400 1.05rem/1.6 var(--serif);
+  text-wrap: pretty;
+}
+
+.fact figcaption {
+  margin-top: 10px;
+  color: var(--quiet);
+  font-size: 0.85rem;
+}
+.fact figcaption a { color: inherit; }

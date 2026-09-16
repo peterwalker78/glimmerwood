@@ -1,0 +1,70 @@
+# What the research actually says about time online, for the welcome page.
+#
+# Every line here is a real finding with the study named, and the set is
+# deliberately mixed: the evidence on some kinds of use is strong, and on
+# screen time in general it is weak. Saying only the alarming half would be
+# the kind of thing Glimmerwood exists not to do.
+#
+#   text    one finding, in plain words
+#   source  who found it, and when
+#   url     where to read it
+
+[[facts]]
+text = "Across 70 studies and 98,299 people, short-form video use was linked to poorer attention and self-control, and to more anxiety, stress and worse sleep."
+source = "Nguyen and colleagues, Psychological Bulletin, 2025"
+url = "https://www.psypost.org/large-meta-analysis-links-tiktok-and-instagram-reels-to-poorer-cognitive-and-mental-health/"
+
+[[facts]]
+text = "19,857 people were randomly assigned six weeks away from Facebook. Their happiness, depression and anxiety measurably improved."
+source = "Allcott and colleagues, 2020"
+url = "https://web.stanford.edu/~gentzkow/research/emotional_state.pdf"
+
+[[facts]]
+text = "Across ten randomised trials, cutting social media down lowered depressive symptoms — and cutting down worked better than giving it up altogether."
+source = "May, Malouff and Meynadier, 2025"
+url = "https://pmc.ncbi.nlm.nih.gov/articles/PMC12651081/"
+
+[[facts]]
+text = "143 students held Facebook, Instagram and Snapchat to ten minutes each a day for three weeks. Loneliness and depression fell."
+source = "Hunt and colleagues, 2018"
+url = "https://doi.org/10.1521/jscp.2018.37.10.751"
+
+[[facts]]
+text = "1,095 Danes took one week off Facebook. Life satisfaction rose — most of all for the heaviest users, and for those who mostly scrolled without posting."
+source = "Tromholt, 2016"
+url = "https://doi.org/10.1089/cyber.2016.0259"
+
+[[facts]]
+text = "Of Britons who say their media use affects them badly, the most common complaint by far is simply spending more time than they meant to."
+source = "YouGov, 2026"
+url = "https://yougov.com/en-gb/articles/55124-uk-media-consumption-trends-2026-do-brits-think-social-media-and-screen-time-affects-wellbeing"
+
+[[facts]]
+text = "Among adults who use online casino or slot products, an estimated 15.8% show signs of gambling disorder."
+source = "Lancet Public Health Commission, 2024"
+url = "https://www.eurekalert.org/news-releases/1062543"
+
+[[facts]]
+text = "On trading apps with confetti, leaderboards and flashing prices, 3.75% of users met the criteria for problem gambling — the same rate as online gambling."
+source = "Financial Conduct Authority, 2022"
+url = "https://www.fca.org.uk/publications/research-articles/gaming-trading-how-trading-apps-could-be-engaging-consumers-worse"
+
+[[facts]]
+text = "Time spent listening to podcasts was not linked to wellbeing either way, for better or worse. Not everything on a screen counts the same."
+source = "a preregistered study of 306 people"
+url = "https://doi.org/10.1089/cyber.2016.0259"
+
+[[facts]]
+text = "Across 355,358 adolescents, all digital technology use together explained at most 0.4% of the difference in wellbeing. The screen is rarely the whole story."
+source = "Orben and Przybylski, Nature Human Behaviour, 2019"
+url = "https://doi.org/10.1038/s41562-018-0506-1"
+
+[[facts]]
+text = "Reviews find small, mixed or no overall effect from screen time — and that young people who are already struggling tend to use social media more, rather than the other way round."
+source = "Odgers, Nature, 2024"
+url = "https://www.nature.com/articles/d41586-024-00902-2"
+
+[[facts]]
+text = "About 1,500 young people in the UK ranked the platforms they use from best to worst for their mental health. Instagram and Snapchat came last, on body image and anxiety."
+source = "Royal Society for Public Health, 2017"
+url = "https://www.rsph.org.uk/news/instagram-ranked-worst-for-young-peoples-mental-health/"

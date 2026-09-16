@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Turn core/data/places.toml into the welcome page's copy of the pool.
+"""Carry the welcome page's data across from core/data.
 
-The page has no core to ask, so the places travel with it. Only what the
-page needs comes across: it has no dose to weigh them against.
+The page has no core to ask, so the good places and the facts travel with it.
+Only what the page needs comes across: it has no dose to weigh places against.
 """
 
 import json
@@ -56,3 +56,21 @@ export const PLACES: SitePlace[] = [
 target = root / "ui/site/places.gen.ts"
 target.write_text(out)
 print(f"site: {len(places)} places -> {target.relative_to(root)}", file=sys.stderr)
+
+facts = tomllib.loads((root / "core/data/facts.toml").read_text())["facts"]
+rows = ",\n".join("  " + json.dumps(f, ensure_ascii=False) for f in facts)
+out = f"""// Generated from core/data/facts.toml by scripts/site. Do not edit.
+
+export type Fact = {{
+  text: string;
+  source: string;
+  url: string;
+}};
+
+export const FACTS: Fact[] = [
+{rows},
+];
+"""
+target = root / "ui/site/facts.gen.ts"
+target.write_text(out)
+print(f"site: {len(facts)} facts -> {target.relative_to(root)}", file=sys.stderr)
