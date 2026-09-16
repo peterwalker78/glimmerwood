@@ -579,3 +579,23 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   .week-plants { grid-column: 2; }
   .key-note { margin-left: 0; }
 }
+
+/* Choosing how far back to forget: a line of plain words, not a form. */
+.forget-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--quiet);
+  font-size: 0.9rem;
+}
+
+.forget-since {
+  padding: 4px 8px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+}

@@ -580,15 +580,29 @@ impl Companion {
                 },
                 Err(_) => false,
             },
-            // A way out of somewhere you didn't mean to go: the pages and the
-            // finished downloads of the last hour. Never the dose — the wisp
-            // is only worth having if it can't be talked round.
-            None if action == "forget-hour" => {
+            // A way out of somewhere you didn't mean to go: the pages, the
+            // finished downloads, and the sites out of the wisp's own memory
+            // of that stretch. What it never touches is how the time felt —
+            // the wisp is only worth having if it can't be talked round.
+            Some(("forget-since", minutes)) => {
+                let Ok(minutes) = minutes.parse::<i64>() else {
+                    return false;
+                };
+                if !(1..=MOST_MINUTES_FORGOTTEN).contains(&minutes) {
+                    return false;
+                }
                 let now = self.now();
+                let ms = minutes * 60_000;
                 if let Some(history) = &self.history
-                    && let Err(err) = history.forget_since(now, HOUR_MS)
+                    && let Err(err) = history.forget_since(now, ms)
                 {
-                    eprintln!("glimmerwood: couldn't forget the last hour: {err}");
+                    eprintln!("glimmerwood: couldn't forget those pages: {err}");
+                    return false;
+                }
+                if let Some(store) = &self.store
+                    && let Err(err) = store.forget_entries_since(now, ms)
+                {
+                    eprintln!("glimmerwood: couldn't forget those sites: {err}");
                     return false;
                 }
                 self.downloads.borrow_mut().forget_finished();
@@ -1093,8 +1107,10 @@ fn open_bookmarks(data: &std::path::Path) -> Bookmarks {
 /// What Home remembers about the good places it offered.
 const OFFERED: &str = "offered:";
 
-/// An hour, for forgetting one.
-const HOUR_MS: i64 = 60 * 60 * 1000;
+/// The longest stretch that can be forgotten in one go. Beyond a couple of
+/// hours it stops being "that wasn't the afternoon I meant to have" and
+/// becomes a way to keep no history at all, which is what the week is for.
+const MOST_MINUTES_FORGOTTEN: i64 = 120;
 
 /// `en_GB.UTF-8` → `GB`: the country of the first language the user set.
 /// Every platform names its locales this way; only the asking differs.

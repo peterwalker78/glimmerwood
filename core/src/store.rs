@@ -232,6 +232,16 @@ impl Store {
     /// Everything the dose engine and garden know, gone in one action. Every
     /// table is emptied, including any added after this was written.
     #[allow(dead_code, reason = "not reachable from the interface yet")]
+    /// Take the sites out of the last `ms`, leaving how the time felt. The
+    /// dose, the day's load and the weight stay exactly as they were: this
+    /// forgets where you were, not that the hour happened.
+    pub fn forget_entries_since(&self, now: Moment, ms: i64) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "UPDATE sessions SET entry = NULL WHERE minute >= ?1",
+            params![(now.ms - ms).div_euclid(60_000)],
+        )
+    }
+
     pub fn forget_everything(&self) -> rusqlite::Result<()> {
         let tables: Vec<String> = self
             .conn
@@ -301,6 +311,53 @@ fn mode_from_key(key: &str) -> Mode {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn forgetting_an_hour_takes_the_sites_and_leaves_the_feeling() {
+        let store = Store::in_memory();
+        let now = Moment {
+            ms: 10_000 * 60_000,
+            utc_offset_s: 0,
+        };
+        let sample = |ms: i64, entry: &str| Sample {
+            at: Moment { ms, ..now },
+            dose: 0.4,
+            day_load: 0.2,
+            mode: Mode::Draining,
+            place: Some(Place::Listed {
+                entry: entry.to_owned(),
+                weight: -1.0,
+                news: false,
+            }),
+        };
+        store
+            .record(&sample(now.ms - 3 * 3_600_000, "kept.example"))
+            .unwrap();
+        store
+            .record(&sample(now.ms - 10 * 60_000, "gone.example"))
+            .unwrap();
+
+        assert_eq!(store.forget_entries_since(now, 3_600_000).unwrap(), 1);
+
+        let samples = store.samples_since(Moment { ms: 0, ..now }).unwrap();
+        let named: Vec<&str> = samples
+            .iter()
+            .filter_map(|s| match &s.place {
+                Some(Place::Listed { entry, .. }) => Some(entry.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            named,
+            vec!["kept.example"],
+            "only the older site is still named"
+        );
+        // How the time felt is untouched: both minutes are still there, both
+        // still wearing.
+        let minutes = store.minutes_since(Moment { ms: 0, ..now }).unwrap();
+        assert_eq!(minutes.len(), 2);
+        assert!(minutes.iter().all(|m| m.weight == Some(-1.0)));
+    }
     use super::*;
     use crate::reputation::Lists;
 

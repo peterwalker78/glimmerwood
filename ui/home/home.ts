@@ -250,3 +250,16 @@ if (window.wispHomeData) {
   document.body.dataset["part"] = part;
   drawGarden(garden, part, [], 1);
 }
+
+// The forget link points at whichever stretch the drop-down is showing.
+{
+  const choice = document.getElementById("forget-since");
+  const link = document.getElementById("forget");
+  if (choice instanceof HTMLSelectElement && link instanceof HTMLAnchorElement) {
+    const point = (): void => {
+      link.href = `glimmerwood://home/do/forget-since/${choice.value}`;
+    };
+    choice.addEventListener("change", point);
+    point();
+  }
+}

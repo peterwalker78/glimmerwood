@@ -86,11 +86,20 @@
       <h2 id="this-week-heading">This week</h2>
       <p class="week-note">I keep a week of these, and no more. Anything older has already gone.</p>
       <div id="days" class="days"></div>
-      <a class="forget-hour" href="glimmerwood://home/do/forget-hour">Forget the last hour</a>
-      <p class="forget-note">Sometimes an hour goes somewhere you&rsquo;d rather not meet again here. This
-        takes those pages, and any downloads that have finished, off this page. What stays with me is how
-        the time felt &mdash; restoring, ordinary or wearing &mdash; and, for a site I already know, which
-        site it was. Never the page you opened, and never what was on it.</p>
+      <p class="forget-line">
+        <label for="forget-since">Forget the last</label>
+        <select id="forget-since" class="forget-since">
+          <option value="15">15 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="60" selected>hour</option>
+          <option value="120">two hours</option>
+        </select>
+        <a id="forget" class="forget-hour" href="glimmerwood://home/do/forget-since/60">Forget</a>
+      </p>
+      <p class="forget-note">Sometimes a stretch of time goes somewhere you&rsquo;d rather not meet again
+        here. This takes those pages off this page, along with any downloads that have finished, and takes
+        the sites out of what I remember of it. What stays with me is how the time felt &mdash; restoring,
+        ordinary or wearing &mdash; and not where you were.</p>
     </section>
 
     <section id="wisp" class="diary" aria-labelledby="wisp-heading">
