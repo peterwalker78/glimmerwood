@@ -1,0 +1,621 @@
+/* Home. A garden lit for the time of day over a quiet paper page.
+   Nothing here moves on its own after the page has settled. */
+
+:root {
+  --paper: #efeee9;
+  --card: #f7f6f2;
+  --card-hover: #fbfaf7;
+  --ink: #2a2b28;
+  --quiet: #6f716b;
+  --hairline: rgb(42 43 40 / 0.1);
+  --tile: #dfe4d6;
+  --tile-ink: #4d5c43;
+  --accent: #5f7d4b;
+
+  /* The scene, set per part of the day below. */
+  --sky-top: #cfe4ee;
+  --sky-bottom: #eef2e6;
+  --far-hill: #b4c8ae;
+  --near-hill: #97b28f;
+  --ground: #6d8c58;
+  --ground-shade: #5d7a4b;
+  --scene-ink: #27352a;
+  --scene-quiet: #4f5f50;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", "P052", "Noto Serif", "DejaVu Serif", Georgia, serif;
+  --sans: system-ui, "Cantarell", "Noto Sans", sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1c1d1b;
+    --card: #242522;
+    --card-hover: #2a2b28;
+    --ink: #dcddd7;
+    --quiet: #979991;
+    --hairline: rgb(220 221 215 / 0.09);
+    --tile: #2f362b;
+    --tile-ink: #b5c7a6;
+    --accent: #a9c294;
+  }
+}
+
+body[data-part="morning"] {
+  --sky-top: #e9d3c3;
+  --sky-bottom: #d7e6e6;
+  --far-hill: #c3cfbb;
+  --near-hill: #a3b996;
+  --ground: #728f5b;
+  --ground-shade: #617d4c;
+  --scene-ink: #2f3528;
+  --scene-quiet: #55604c;
+}
+
+body[data-part="evening"] {
+  --sky-top: #3e3a5c;
+  --sky-bottom: #d8ae7e;
+  --far-hill: #6d6479;
+  --near-hill: #4f4f60;
+  --ground: #3d4a39;
+  --ground-shade: #333f30;
+  --scene-ink: #fbf1e6;
+  --scene-quiet: #ead8cb;
+}
+
+body[data-part="night"] {
+  --sky-top: #0e1322;
+  --sky-bottom: #28324b;
+  --far-hill: #232b3f;
+  --near-hill: #1a2132;
+  --ground: #1d2a23;
+  --ground-shade: #17221c;
+  --scene-ink: #e8ecf3;
+  --scene-quiet: #b5bfcf;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+}
+
+/* --- The scene --- */
+
+.scene {
+  position: relative;
+  height: clamp(250px, 44vh, 400px);
+  overflow: hidden;
+  background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+}
+
+.garden {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.greeting {
+  position: relative;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: clamp(28px, 7vh, 64px) 32px 0;
+  color: var(--scene-ink);
+}
+
+.greeting h1 {
+  margin: 0;
+  font: 400 clamp(2.1rem, 4.2vw, 3.1rem)/1.1 var(--serif);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.greeting p {
+  margin: 0.55em 0 0;
+  max-width: 34em;
+  color: var(--scene-quiet);
+  font: 400 clamp(1.05rem, 1.7vw, 1.2rem)/1.45 var(--serif);
+  font-style: italic;
+  text-wrap: pretty;
+}
+
+/* --- The wisp introducing itself --- */
+
+.scene.has-about {
+  height: auto;
+  min-height: clamp(250px, 44vh, 400px);
+  padding-bottom: 88px;
+}
+
+.about {
+  position: relative;
+  max-width: 820px;
+  margin: 22px auto 0;
+  padding: 0 32px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.about[hidden] { display: none; }
+
+.bubble {
+  position: relative;
+  flex: 0 1 560px;
+  padding: 20px 24px 14px;
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.16);
+}
+/* The tail, reaching down toward the wisp. */
+.bubble::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: var(--tail, 26px);
+  border-style: solid;
+  border-width: 9px 0 9px 20px;
+  border-color: transparent transparent transparent var(--card);
+}
+.bubble h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font: 400 1.4rem/1.2 var(--serif);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.bubble p {
+  margin: 0 0 0.75em;
+  font: 400 1rem/1.55 var(--serif);
+  text-wrap: pretty;
+}
+.bubble .got-it { display: block; width: fit-content; margin: 2px -12px 0 auto; }
+
+.about-wisp { flex: none; width: 88px; height: 92px; }
+.about-moss ellipse { fill: #7fa05f; }
+
+@media (max-width: 700px) {
+  .about { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .bubble { flex: none; }
+  .bubble::after { right: 44px; bottom: -16px; border-width: 18px 9px 0 9px; border-color: var(--card) transparent transparent transparent; transform: none; }
+  .about-wisp { margin-right: 20px; }
+}
+
+/* --- The page below --- */
+
+.page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  color: var(--quiet);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+a { color: inherit; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+
+/* The explanation: a note from the wisp, until "Got it". */
+.explain {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+.explain[hidden] { display: none; }
+.explain::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 40%, #fff6dc, #f3c978 55%, rgb(243 201 120 / 0) 72%);
+  box-shadow: 0 0 14px 4px rgb(243 201 120 / 0.45);
+}
+.explain p {
+  flex: 1;
+  margin: 0;
+  max-width: 60ch;
+  font: 400 1.02rem/1.55 var(--serif);
+}
+.got-it {
+  flex: none;
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.got-it:hover { background: var(--hairline); }
+
+/* Good places */
+.places {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.place a {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  column-gap: 12px;
+  align-items: start;
+  height: 100%;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: background 120ms ease-out, transform 120ms ease-out;
+}
+.place a:hover { background: var(--card-hover); transform: translateY(-1px); }
+.place .tile { grid-row: span 3; }
+.place .name { font-weight: 600; }
+.place .line { color: var(--quiet); font-size: 0.9rem; line-height: 1.4; }
+.place .yours {
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--tile);
+  color: var(--tile-ink);
+  font: 600 1.05rem/1 var(--serif);
+}
+
+/* Bookmarks */
+.bookmarks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bookmark {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+}
+.bookmark:hover { background: var(--card); }
+.bookmark > a:first-child {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  text-decoration: none;
+}
+.bookmark .tile { width: 30px; height: 30px; border-radius: 8px; font-size: 0.9rem; }
+.bookmark .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bookmark .host { flex: none; color: var(--quiet); font-size: 0.85rem; }
+.bookmark .forget {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  border-radius: 7px;
+  color: var(--quiet);
+  text-decoration: none;
+  opacity: 0;
+}
+.bookmark:hover .forget, .bookmark .forget:focus-visible { opacity: 1; }
+.bookmark .forget:hover { background: var(--hairline); color: var(--ink); }
+
+.empty { margin: 0; color: var(--quiet); }
+.empty[hidden] { display: none; }
+
+/* Downloads. A line each while they matter, and gone once they don't: there
+   is nowhere here to manage them. */
+.downloads {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.download {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  border-radius: 10px;
+}
+.download:hover { background: var(--card); }
+.download .name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.download .filling {
+  flex: none;
+  width: 64px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.download .filling i { display: block; height: 100%; background: var(--quiet); }
+.download .state { flex: none; color: var(--quiet); font-size: 0.85rem; }
+.download .show {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.download .show:hover { background: var(--hairline); }
+
+/* This week: somewhere to find Tuesday's page again, a day at a time. */
+.week-note { margin: -6px 0 16px; color: var(--quiet); font-size: 0.85rem; }
+.days { display: flex; flex-direction: column; gap: 20px; }
+.day-name { margin: 0 0 6px; font: 400 1.05rem/1.3 var(--serif); }
+.visits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.visit { border-radius: 10px; }
+.visit:hover { background: var(--card); }
+.visit a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  text-decoration: none;
+}
+.visit .tile { width: 30px; height: 30px; border-radius: 8px; font-size: 0.9rem; }
+.visit .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.visit .host { flex: none; color: var(--quiet); font-size: 0.85rem; }
+
+/* Forgetting a stretch: two small controls on a line of plain words, set
+   off from the week above them, with the note at the measure it reads at. */
+.forget {
+  margin: 24px 0 0;
+  padding-top: 18px;
+  /* The rule runs the width of the week above it; the note below keeps to a
+     measure that reads. */
+  border-top: 1px solid var(--hairline);
+}
+
+.forget-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  color: var(--quiet);
+  font-size: 0.9rem;
+}
+
+.forget-since {
+  appearance: none;
+  padding: 5px 28px 5px 10px;
+  background: var(--card)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8d87' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.forget-since:hover { background-color: var(--card-hover); }
+
+.forget-do {
+  padding: 5px 12px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.forget-do:hover { background: var(--card-hover); }
+
+.forget-note {
+  margin: 10px 0 0;
+  max-width: 78ch;
+  color: var(--quiet);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.made-here {
+  color: var(--quiet);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.made-here p { margin: 0 0 6px; }
+.made-here a { padding: 2px 6px; }
+
+/* Settle in once, then stay still. */
+@media (prefers-reduced-motion: no-preference) {
+  .greeting, .about, .page { animation: arrive 420ms ease-out both; }
+  .page { animation-delay: 60ms; }
+}
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+@media (max-width: 560px) {
+  .greeting, .about, .page { padding-left: 18px; padding-right: 18px; }
+  .explain { flex-wrap: wrap; }
+}
+
+/* --- The wisp's days --- */
+
+.diary { display: flex; flex-direction: column; gap: 26px; scroll-margin-top: 18px; }
+.diary h2 { margin-bottom: -8px; }
+.diary h3 {
+  margin: 0 0 10px;
+  font: 400 1.12rem/1.3 var(--serif);
+}
+.diary h4 {
+  margin: 0 0 6px;
+  color: var(--quiet);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.diary-part[hidden], .moved > div[hidden] { display: none; }
+
+:root {
+  --restoring: #86a86b;
+  --everyday: #cfcdc3;
+  --wearing: #8e9fb2;
+  --line: #5d6058;
+  /* The wisp's own colours, at its four reference points (core/data/wisp.toml). */
+  --phase-rested: #f2c063;
+  --phase-engaged: #e6d39c;
+  --phase-clouded: #8e9fb2;
+  --phase-drained: #b8743a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --restoring: #7f9d66;
+    --everyday: #4a4b46;
+    --wearing: #6f8196;
+    --line: #c9cbc3;
+  }
+}
+
+/* Today's line */
+.today { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--sans); }
+.today .band-0 { fill: var(--card); }
+.today .band-1 { fill: transparent; }
+.today .band-label, .today .tick-label, .today .night-label { fill: var(--quiet); font-size: 11px; }
+.today .night { fill: var(--hairline); }
+.today .later { fill: var(--paper); opacity: 0.55; }
+.today .tick { stroke: var(--hairline); }
+.today .line { fill: none; stroke: var(--line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.today .line.gap { stroke-width: 1.3; stroke-dasharray: 1 4; opacity: 0.7; }
+.today .now { stroke: var(--paper); stroke-width: 1.5; }
+.today .now-glow { opacity: 0.35; }
+.phase-rested { fill: var(--phase-rested); background: var(--phase-rested); }
+.phase-engaged { fill: var(--phase-engaged); background: var(--phase-engaged); }
+.phase-clouded { fill: var(--phase-clouded); background: var(--phase-clouded); }
+.phase-drained { fill: var(--phase-drained); background: var(--phase-drained); }
+
+/* The last seven days */
+.week {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.day { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.day .well {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 92px;
+  border-bottom: 1px solid var(--hairline);
+}
+.day.unknown .well { border-bottom-style: dashed; }
+.day.unknown .day-label { opacity: 0.5; }
+.stack {
+  display: flex;
+  flex-direction: column;
+  width: min(34px, 70%);
+  border-radius: 6px 6px 2px 2px;
+  overflow: hidden;
+}
+.stack .part { display: block; min-height: 1px; }
+.part.restoring { background: var(--restoring); }
+.part.everyday { background: var(--everyday); }
+.part.wearing { background: var(--wearing); }
+.day .peak { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 6px 1px rgb(242 192 99 / 0.25); }
+.day .peak.none { visibility: hidden; }
+.day-label { color: var(--quiet); font-size: 0.8rem; }
+.day:last-child .day-label { color: var(--ink); font-weight: 600; }
+.day-plant { height: 16px; }
+
+.plant { display: block; width: 16px; height: 16px; }
+.plant.moss circle { fill: #7fa05f; }
+.plant.fern path { fill: none; stroke: #5f8c4e; stroke-width: 1.3; stroke-linecap: round; }
+.plant.flower .stem { fill: none; stroke: #6a8f59; stroke-width: 1.2; }
+.plant.flower .petal { fill: #c9b3e3; }
+.plant.flower .heart { fill: #e0a94f; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 12px 0 0;
+  color: var(--quiet);
+  font-size: 0.8rem;
+}
+.key::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.key.restoring::before { background: var(--restoring); }
+.key.everyday::before { background: var(--everyday); }
+.key.wearing::before { background: var(--wearing); }
+.key-note { margin-left: auto; }
+
+/* What moved it */
+.moved { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 32px; }
+.sites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.site { display: flex; align-items: center; gap: 10px; }
+.site-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bars { display: inline-flex; gap: 2px; }
+.bars i { display: block; width: 5px; height: 11px; border-radius: 1px; background: var(--hairline); }
+.bars i.on { background: var(--quiet); }
+
+/* Earlier weeks */
+.earlier { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.week-row { display: grid; grid-template-columns: 9.5em 1fr 7.5em; align-items: center; gap: 12px; }
+.week-label { color: var(--quiet); font-size: 0.85rem; white-space: nowrap; }
+.track { height: 12px; }
+.stack.across { flex-direction: row; height: 100%; border-radius: 3px; }
+.week-plants { display: flex; gap: 1px; }
+
+@media (max-width: 560px) {
+  .week-row { grid-template-columns: 7em 1fr; }
+  .week-plants { grid-column: 2; }
+  .key-note { margin-left: 0; }
+}

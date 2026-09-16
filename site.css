@@ -1,0 +1,299 @@
+/* The welcome page: the same garden and the same paper as Home, with a wisp
+   that is asleep because there is nothing here for it to see. Loaded after
+   home.css, which it leans on for the scene, the cards and the colours.
+   The one thing that moves is the wisp: it breathes, and lets off the
+   occasional z. A sleeping thing that is perfectly still reads as dead. */
+
+.dozing {
+  position: absolute;
+  right: clamp(20px, 10vw, 140px);
+  bottom: 0;
+  width: 96px;
+  height: 100px;
+}
+
+.note {
+  margin: 12px 0 0;
+  color: var(--quiet);
+  font-size: 0.85rem;
+}
+
+/* The wisp's own voice, in the serif the greeting uses. */
+.prose p {
+  margin: 0 0 0.85em;
+  max-width: 36em;
+  font: 400 1.05rem/1.6 var(--serif);
+  text-wrap: pretty;
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose .how { margin-bottom: 0.4em; }
+.prose .how b { font-weight: 600; }
+
+.get {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 10px 18px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--accent);
+  font: 600 0.95rem/1 var(--sans);
+  text-decoration: none;
+  transition: background 120ms ease-out;
+}
+.get:hover { background: var(--card-hover); }
+
+.made-here { margin-top: 10px; }
+
+/* Room for the home-screen inset on a phone, once it opens on its own. */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .page { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 560px) {
+  .dozing { width: 78px; height: 82px; right: 16px; }
+}
+
+/* --- Readable at any size ---
+   Home is read sitting at a desk with the page a foot away; this one is read
+   at arm's length, on a phone, often outdoors. It starts a size up. Only this
+   page loads these rules, so Home keeps its own measure. */
+
+html,
+body {
+  font-size: 16px;
+}
+
+h2 {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.note,
+.made-here,
+.fact figcaption {
+  font-size: 0.9rem;
+}
+
+/* --- Asleep --- */
+
+.zzz .z path {
+  fill: none;
+  stroke: var(--scene-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Still by default, so a page that never gets the chance to animate still
+   reads right, and so does one asked to hold still. */
+.zzz .z { opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .breath {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: breath 4.6s ease-in-out infinite;
+  }
+  .zzz .z { animation: drift 4.6s ease-in-out infinite; }
+  .z1 { animation-delay: 0s; }
+  .z2 { animation-delay: 1.53s; }
+  .z3 { animation-delay: 3.06s; }
+}
+
+@keyframes breath {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.04); }
+}
+
+@keyframes drift {
+  0% { opacity: 0; transform: translate(0, 0); }
+  18% { opacity: 0.75; }
+  70% { opacity: 0.4; }
+  100% { opacity: 0; transform: translate(10px, -26px); }
+}
+
+/* --- Awake, and playing --- */
+
+.dozing .awake { display: none; }
+.dozing.playing .awake { display: inline; }
+.dozing.playing .asleep { display: none; }
+/* A wisp that is playing has stopped dreaming. */
+.dozing.playing .zzz { display: none; }
+
+.play {
+  margin: 1.1em 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+button.quiet,
+.play button {
+  padding: 7px 14px;
+  background: rgb(255 255 255 / 0.12);
+  border: 1px solid var(--scene-quiet);
+  border-radius: 9px;
+  color: var(--scene-ink);
+  font: 600 0.9rem/1 var(--sans);
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+.play button:hover { background: rgb(255 255 255 / 0.22); }
+
+button.quiet {
+  margin-left: 8px;
+  padding: 6px 12px;
+  background: var(--card);
+  border-color: var(--hairline);
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+button.quiet:hover { background: var(--card-hover); }
+
+.caught {
+  color: var(--scene-quiet);
+  font: 400 0.95rem/1.4 var(--serif);
+  font-style: italic;
+}
+
+/* The motes the wisp throws. They only exist while someone is playing. */
+.motes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mote {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #fff6d5 0%, #f4cf80 42%, rgb(244 207 128 / 0) 70%);
+  pointer-events: auto;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+
+.mote.caught {
+  pointer-events: none;
+  animation: caught 380ms ease-out forwards;
+}
+
+@keyframes caught {
+  to { transform: scale(2.4); opacity: 0; }
+}
+
+/* --- One thing worth knowing --- */
+
+.fact {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+
+.fact blockquote {
+  margin: 0;
+  max-width: 46em;
+  font: 400 1.05rem/1.6 var(--serif);
+  text-wrap: pretty;
+}
+
+.fact figcaption {
+  margin-top: 10px;
+  color: var(--quiet);
+  font-size: 0.85rem;
+}
+.fact figcaption a { color: inherit; }
+
+/* --- On a phone ---
+   Which is who this page is for. Everything small enough to squint at on a
+   desktop is too small held at arm's length, and anything meant to be tapped
+   needs to be big enough for a thumb. */
+
+@media (max-width: 900px) {
+  /* The quiet section labels, which were the smallest thing on the page. */
+  h2 {
+    font-size: 0.86rem;
+    letter-spacing: 0.07em;
+  }
+
+  .note,
+  .made-here,
+  .fact figcaption {
+    font-size: 0.95rem;
+  }
+
+  .place .line { font-size: 1rem; }
+  .place a { padding: 16px; }
+
+  .fact blockquote { font-size: 1.1rem; }
+  .prose p { font-size: 1.1rem; }
+
+  .greeting p { font-size: clamp(1.1rem, 4.4vw, 1.3rem); }
+
+  /* Room for a thumb: nothing tappable under 44px tall. */
+  .play button,
+  button.quiet,
+  .get {
+    min-height: 44px;
+    padding-inline: 18px;
+    font-size: 1rem;
+  }
+
+  button.quiet {
+    display: inline-flex;
+    align-items: center;
+    margin: 10px 0 0;
+  }
+
+  /* The places note and its button stack rather than squeeze. */
+  #places-note {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .play {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+
+  .made-here { line-height: 1.6; }
+  .made-here a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}
+
+/* --- At a desk ---
+   The rules above stop at 900px. A wide window was giving the page a squat
+   band of ground under the greeting, three edges down the right of one
+   column, and cards too narrow for the line under their name. */
+
+@media (min-width: 901px) {
+  /* Room for the garden: the scene crops to fill, so a short one keeps
+     nothing but foreground. */
+  .scene { height: clamp(380px, 52vh, 520px); }
+
+  /* One measure for everything. The prose was already reading at 36em
+     inside a column half again as wide, so the paragraphs, the cards and
+     the fact all ended in a different place. */
+  .page,
+  .greeting { max-width: 680px; }
+  .prose p,
+  .fact blockquote { max-width: none; }
+
+  /* Two across rather than three, which is what it takes for a place to
+     keep its line on one row. */
+  .places { grid-template-columns: repeat(2, 1fr); }
+
+  /* Sitting under the thing it acts on, at the edge everything else keeps. */
+  button.quiet { margin-left: 0; }
+}
