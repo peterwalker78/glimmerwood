@@ -15,23 +15,26 @@ use std::rc::{Rc, Weak};
 use crate::{finding, nook};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::downloads::Progress;
 use glimmerwood_core::failure::{self, Reason};
 use glimmerwood_core::find;
 use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
+use glimmerwood_core::session::Session;
 use glimmerwood_core::tabs::Tabs;
 use glimmerwood_core::zoom;
 use webview2_com::Microsoft::Web::WebView2::Win32::*;
 use webview2_com::{
-    AcceleratorKeyPressedEventHandler, CreateCoreWebView2ControllerCompletedHandler,
-    CreateCoreWebView2EnvironmentCompletedHandler, DocumentTitleChangedEventHandler,
-    ExecuteScriptCompletedHandler, FaviconChangedEventHandler, GetFaviconCompletedHandler,
+    AcceleratorKeyPressedEventHandler, BytesReceivedChangedEventHandler,
+    CreateCoreWebView2ControllerCompletedHandler, CreateCoreWebView2EnvironmentCompletedHandler,
+    DocumentTitleChangedEventHandler, DownloadStartingEventHandler, ExecuteScriptCompletedHandler,
+    FaviconChangedEventHandler, GetFaviconCompletedHandler,
     IsDocumentPlayingAudioChangedEventHandler, IsMutedChangedEventHandler,
     NavigationCompletedEventHandler, NavigationStartingEventHandler,
-    NewWindowRequestedEventHandler, SourceChangedEventHandler, WebMessageReceivedEventHandler,
-    WebResourceRequestedEventHandler,
+    NewWindowRequestedEventHandler, SourceChangedEventHandler, StateChangedEventHandler,
+    WebMessageReceivedEventHandler, WebResourceRequestedEventHandler,
 };
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::System::Com::{
@@ -75,6 +78,9 @@ const HOME_ACTIONS: &str = "glimmerwood://home/do/";
 const SETTINGS_ACTIONS: &str = "glimmerwood://settings/do/";
 const HELPLINES: &str = "https://findahelpline.com/";
 const SAMARITANS: &str = "https://www.samaritans.org/how-we-can-help/contact-samaritan/";
+
+/// What an engine says it is showing before it has been anywhere.
+const NOWHERE: &str = "about:blank";
 
 /// Tabs reachable with Ctrl+number; Ctrl+9 is always the last tab.
 const NUMBERED_TABS: u16 = 8;
@@ -209,19 +215,22 @@ pub fn run() -> Fallible<()> {
     // the engines so that it sits above them.
     nook::open(window)?;
 
+    SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
+
+    // The companion decides how the time is going. It is the same one the
+    // Linux build uses; this only tells it what is on screen. It also keeps
+    // what was open last time, so it is asked before there are any tabs.
+    let started = Companion::new(shell.clone() as Rc<dyn host::Host>, None);
+    COMPANION.with_borrow_mut(|held| *held = Some(started.clone()));
+
+    shell.restore(&started.last_session());
     shell.open_tab(HOME, true)?;
     shell.lay_out();
     unsafe {
         toolbar_view.Navigate(w!("glimmerwood://chrome/toolbar.html"))?;
         sidebar_view.Navigate(w!("glimmerwood://chrome/sidebar.html"))?;
     }
-    SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
-
-    // The companion decides how the time is going. It is the same one the
-    // Linux build uses; this only tells it what is on screen.
-    let started = Companion::new(shell as Rc<dyn host::Host>, None);
     started.windows_changed();
-    COMPANION.with_borrow_mut(|held| *held = Some(started));
 
     pump();
     Ok(())
@@ -290,8 +299,20 @@ impl Shell {
         }
         match self.engine(id) {
             Some(view) => unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default(),
-            None => String::new(),
+            // A tab restored from last time has no engine to ask: it is
+            // holding the address it was left at.
+            None => self.held_uri(id),
         }
+    }
+
+    /// What a tab says about itself, which is all there is to go on before
+    /// it has an engine.
+    fn held_uri(&self, id: u32) -> String {
+        self.tabs
+            .borrow()
+            .facts(id)
+            .map(|facts| facts.uri.clone())
+            .unwrap_or_default()
     }
 
     /// Whether a failure page is what a tab is showing. Time on one is time
@@ -303,8 +324,26 @@ impl Shell {
     /// A new tab showing `uri`, with an engine of its own.
     fn open_tab(self: &Rc<Self>, uri: &str, select: bool) -> Fallible<u32> {
         let controller = make_controller(&self.environment, self.window)?;
-        let view = unsafe { controller.CoreWebView2()? };
         let id = self.tabs.borrow_mut().open(select);
+        self.wire_up(id, controller, uri)?;
+        self.lay_out();
+        self.push_tabs();
+        if select {
+            self.push_state();
+        }
+        self.keep_session();
+        Ok(id)
+    }
+
+    /// An engine put behind a tab and sent where the tab belongs: a new
+    /// tab's, or the one a restored tab has been doing without.
+    fn wire_up(
+        self: &Rc<Self>,
+        id: u32,
+        controller: ICoreWebView2Controller,
+        uri: &str,
+    ) -> Fallible<()> {
+        let view = unsafe { controller.CoreWebView2()? };
         watch_a_tab(&view, self, id)?;
         watch_the_keys(&controller, self, false)?;
         self.engines.borrow_mut().push(Engine {
@@ -314,12 +353,55 @@ impl Shell {
         });
         let target = HSTRING::from(uri);
         let _ = unsafe { view.Navigate(PCWSTR(target.as_ptr())) };
-        self.lay_out();
-        self.push_tabs();
-        if select {
-            self.push_state();
+        Ok(())
+    }
+
+    /// The tabs that were open last time, as rows in the column and nothing
+    /// else. None of them is loaded and none of them has an engine: a
+    /// window that reloads everything has decided for you that you are going
+    /// back to all of it.
+    fn restore(self: &Rc<Self>, session: &Session) {
+        for sleeper in &session.tabs {
+            self.tabs
+                .borrow_mut()
+                .open_asleep(&sleeper.url, &sleeper.title);
         }
-        Ok(id)
+    }
+
+    /// A restored tab has been asked for. It gets its engine now, and goes
+    /// to the address it has been holding.
+    fn wake_tab(self: &Rc<Self>, id: u32) {
+        let uri = self.held_uri(id);
+        let woken = make_controller(&self.environment, self.window)
+            .and_then(|controller| self.wire_up(id, controller, &uri));
+        if let Err(err) = woken {
+            eprintln!("glimmerwood: couldn't open the tab waiting at {uri}: {err}");
+        }
+    }
+
+    /// Write down what is open, so a restart doesn't cost anyone their
+    /// place. Home and anything that isn't a page are dropped for us.
+    fn keep_session(&self) {
+        let Some(companion) = companion() else { return };
+        let session = self.tabs.borrow().session();
+        companion.keep_session(&session);
+    }
+
+    /// Write a page down as somewhere that was visited. A failure page is
+    /// nowhere anyone went; the private list, Glimmerwood's own pages and a
+    /// second look within the minute are the core's to turn away.
+    fn remember(&self, id: u32) {
+        let Some(companion) = companion() else { return };
+        if self.failed(id) {
+            return;
+        }
+        let Some(facts) = self.tabs.borrow().facts(id).cloned() else {
+            return;
+        };
+        if facts.uri.is_empty() {
+            return;
+        }
+        companion.visited(&facts.uri, &facts.title);
     }
 
     fn select_tab(self: &Rc<Self>, id: u32) {
@@ -329,6 +411,10 @@ impl Shell {
         // A search belongs to the page it was made on, so it ends here
         // rather than following the reader to another tab.
         self.close_find(false);
+        // Asking for a tab restored from last time is what loads it.
+        if self.tabs.borrow_mut().wake(id) {
+            self.wake_tab(id);
+        }
         self.lay_out();
         self.push_tabs();
         self.push_state();
@@ -336,20 +422,26 @@ impl Shell {
         if let Some(companion) = companion() {
             companion.refresh();
         }
+        self.keep_session();
     }
 
     /// Closes a tab and hands the window to whichever takes its place. The
     /// last tab closing closes the window, as it does everywhere else.
     fn close_tab(self: &Rc<Self>, id: u32) {
+        if self.tabs.borrow().facts(id).is_none() {
+            return;
+        }
         let index = {
             let engines = self.engines.borrow();
             engines.iter().position(|engine| engine.id == id)
         };
-        let Some(index) = index else { return };
-        let engine = self.engines.borrow_mut().remove(index);
-        unsafe {
-            let _ = engine.controller.SetIsVisible(false);
-            let _ = engine.controller.Close();
+        // A tab still asleep has none to close.
+        if let Some(index) = index {
+            let engine = self.engines.borrow_mut().remove(index);
+            unsafe {
+                let _ = engine.controller.SetIsVisible(false);
+                let _ = engine.controller.Close();
+            }
         }
         self.attempts.borrow_mut().remove(&id);
         self.failures.borrow_mut().remove(&id);
@@ -360,11 +452,15 @@ impl Shell {
         }
         let was_selected = self.tabs.borrow().selected() == Some(id);
         let next = self.tabs.borrow_mut().close(id);
+        self.keep_session();
         match next {
             None => unsafe {
                 let _ = PostMessageW(Some(self.window), WM_CLOSE, WPARAM(0), LPARAM(0));
             },
-            Some(_) if was_selected => {
+            Some(next) if was_selected => {
+                if self.tabs.borrow_mut().wake(next) {
+                    self.wake_tab(next);
+                }
                 self.lay_out();
                 self.push_tabs();
                 self.push_state();
@@ -396,9 +492,18 @@ impl Shell {
             },
             Err(_) => (false, false),
         };
+        let fresh = uri == NOWHERE;
+        let mut moved = false;
         let changed = self.tabs.borrow_mut().update(id, |facts| {
-            facts.uri = uri;
-            facts.title = title;
+            // An engine that has just been made says `about:blank` and has
+            // no title until the load it was given commits. A tab handed one
+            // — a restored tab being opened — is still what it was in the
+            // column, and in the session, until then.
+            if !(fresh && !facts.uri.is_empty()) {
+                moved = facts.uri != uri;
+                facts.uri = uri;
+                facts.title = title;
+            }
             facts.playing = playing;
             facts.muted = muted;
             if let Some(loading) = loading {
@@ -407,6 +512,9 @@ impl Shell {
         });
         if changed {
             self.push_tabs();
+        }
+        if moved {
+            self.keep_session();
         }
         if self.tabs.borrow().selected() == Some(id) {
             self.push_state();
@@ -582,11 +690,27 @@ impl Shell {
         let Some(id) = self.tabs.borrow().selected() else {
             return;
         };
-        let Some(view) = self.engine(id) else { return };
+        // A tab still asleep has the name and the address it was left with,
+        // and nothing behind them to go back through.
+        let view = self.engine(id);
         let uri = self.uri_of(id);
-        let title = unsafe { taken_string(|out| view.DocumentTitle(out)) }.unwrap_or_default();
-        let can_go_back = unsafe { taken_bool(|out| view.CanGoBack(out)) };
-        let can_go_forward = unsafe { taken_bool(|out| view.CanGoForward(out)) };
+        let title = match &view {
+            Some(view) => {
+                unsafe { taken_string(|out| view.DocumentTitle(out)) }.unwrap_or_default()
+            }
+            None => self
+                .tabs
+                .borrow()
+                .facts(id)
+                .map(|facts| facts.title.clone())
+                .unwrap_or_default(),
+        };
+        let can_go_back = view
+            .as_ref()
+            .is_some_and(|view| unsafe { taken_bool(|out| view.CanGoBack(out)) });
+        let can_go_forward = view
+            .as_ref()
+            .is_some_and(|view| unsafe { taken_bool(|out| view.CanGoForward(out)) });
         let loading = self
             .tabs
             .borrow()
@@ -623,14 +747,17 @@ impl Shell {
         let _ = unsafe { SetWindowTextW(self.window, PCWSTR(text.as_ptr())) };
     }
 
-    fn navigate(&self, input: &str) {
+    /// Go where the address field meant, if it meant anywhere. What it
+    /// meant is the core's to decide: Enter resolves it, and Ctrl+Enter
+    /// turns a bare word into the `.com` of that name.
+    fn navigate(&self, target: Option<nav::Target>) {
         let Some(id) = self.tabs.borrow().selected() else {
             return;
         };
         let Some(view) = self.engine(id) else {
             return;
         };
-        let Some(target) = nav::resolve(input) else {
+        let Some(target) = target else {
             return;
         };
         let uri = HSTRING::from(target.uri.clone());
@@ -883,6 +1010,7 @@ impl Shell {
     fn navigation_ended(&self, id: u32, args: &ICoreWebView2NavigationCompletedEventArgs) {
         if unsafe { taken_bool(|out| args.IsSuccess(out)) } {
             self.attempts.borrow_mut().remove(&id);
+            self.remember(id);
             return;
         }
         let mut status = COREWEBVIEW2_WEB_ERROR_STATUS::default();
@@ -1038,7 +1166,8 @@ impl Shell {
     fn heard(self: &Rc<Self>, message: ToCore) {
         let view = self.selected_view().ok_or(());
         match message {
-            ToCore::Navigate { input } => self.navigate(&input),
+            ToCore::Navigate { input } => self.navigate(nav::resolve(&input)),
+            ToCore::NavigateDotCom { input } => self.navigate(nav::dot_com(&input)),
             ToCore::Back => {
                 if let Ok(view) = view {
                     let _ = unsafe { view.GoBack() };
@@ -1079,6 +1208,14 @@ impl Shell {
                 }
             }
             ToCore::ToggleBookmark => self.toggle_bookmark(),
+            ToCore::OpenDownload { id } => {
+                if let Some(companion) = companion()
+                    && let Some(path) = companion.open_download(id)
+                    && !host::Host::open_file(self.as_ref(), &path)
+                {
+                    eprintln!("glimmerwood: nothing on this machine would open {path}");
+                }
+            }
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
             ToCore::CloseFind => self.close_find(true),
@@ -1439,9 +1576,14 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
     }));
     unsafe { webview.add_SourceChanged(&changed, &mut token)? };
 
-    let named = told(shell);
+    let weak: Weak<Shell> = Rc::downgrade(shell);
     let titled = DocumentTitleChangedEventHandler::create(Box::new(move |_, _| {
-        named();
+        if let Some(shell) = weak.upgrade() {
+            shell.refresh_tab(id, None);
+            // The page named itself after it arrived, and the name is what
+            // makes it findable again.
+            shell.remember(id);
+        }
         Ok(())
     }));
     unsafe { webview.add_DocumentTitleChanged(&titled, &mut token)? };
@@ -1510,6 +1652,22 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
         unsafe { audio.add_IsMutedChanged(&muted, &mut token)? };
     }
 
+    // A file arriving. WebView2's own dialog and its downloads bar are
+    // turned off: the toolbar's mark and a line on Home are what say so
+    // here, and there is no window of downloads to open.
+    if let Ok(downloads) = webview.cast::<ICoreWebView2_4>() {
+        let starting = DownloadStartingEventHandler::create(Box::new(move |_, args| {
+            let Some(args) = args else { return Ok(()) };
+            unsafe { args.SetHandled(true)? };
+            // Where it goes is the engine's to choose: the folder this
+            // machine already downloads into, not one of our invention.
+            let operation = unsafe { args.DownloadOperation()? };
+            watch_a_download(&operation);
+            Ok(())
+        }));
+        unsafe { downloads.add_DownloadStarting(&starting, &mut token)? };
+    }
+
     // A page asking for a window of its own gets a tab, in the background,
     // the way the Linux build has always handled it.
     let weak: Weak<Shell> = Rc::downgrade(shell);
@@ -1526,6 +1684,80 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
     }));
     unsafe { webview.add_NewWindowRequested(&asked, &mut token)? };
     Ok(())
+}
+
+/// Tell the companion about a file from the moment it starts arriving to
+/// the moment it stops, however it stops. The handlers are hung on the
+/// download itself and hear from it directly, so a tab closed mid-download
+/// doesn't take the report with it.
+fn watch_a_download(operation: &ICoreWebView2DownloadOperation) {
+    let Some(started) = companion() else { return };
+    let path = unsafe { taken_string(|out| operation.ResultFilePath(out)) }.unwrap_or_default();
+    let id = started.download_started(&file_name(&path), &path);
+    let mut token = 0i64;
+
+    let received = BytesReceivedChangedEventHandler::create(Box::new(move |sender, _| {
+        if let (Some(companion), Some(operation)) = (companion(), sender) {
+            companion.download_progressed(id, fraction_of(&operation));
+        }
+        Ok(())
+    }));
+    let _ = unsafe { operation.add_BytesReceivedChanged(&received, &mut token) };
+
+    let changed = StateChangedEventHandler::create(Box::new(move |sender, _| {
+        let (Some(companion), Some(operation)) = (companion(), sender) else {
+            return Ok(());
+        };
+        let mut state = COREWEBVIEW2_DOWNLOAD_STATE::default();
+        if unsafe { operation.State(&mut state) }.is_err() {
+            return Ok(());
+        }
+        match state {
+            COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED => {
+                let path = unsafe { taken_string(|out| operation.ResultFilePath(out)) }
+                    .unwrap_or_default();
+                companion.download_finished(id, Progress::Saved, Some(&path));
+            }
+            COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED => {
+                let mut why = COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON::default();
+                let _ = unsafe { operation.InterruptReason(&mut why) };
+                match why {
+                    // Paused is not over. Nothing here can pause a download,
+                    // but the engine can be asked to by other means.
+                    COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_PAUSED => {}
+                    COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_CANCELED
+                    | COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_USER_SHUTDOWN => {
+                        companion.download_finished(id, Progress::Stopped, None);
+                    }
+                    _ => companion.download_finished(id, Progress::Failed, None),
+                }
+            }
+            // Still arriving, or arriving again after a pause.
+            _ => {}
+        }
+        Ok(())
+    }));
+    let _ = unsafe { operation.add_StateChanged(&changed, &mut token) };
+}
+
+/// How far along a download is, or nothing at all when the size it is
+/// heading for was never given.
+fn fraction_of(operation: &ICoreWebView2DownloadOperation) -> Option<f64> {
+    let mut total = 0i64;
+    let mut received = 0i64;
+    unsafe {
+        operation.TotalBytesToReceive(&mut total).ok()?;
+        operation.BytesReceived(&mut received).ok()?;
+    }
+    (total > 0).then(|| (received as f64 / total as f64).clamp(0.0, 1.0))
+}
+
+/// The last part of a path, which is what a file is called.
+fn file_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_owned())
 }
 
 /// The window's shortcuts on one engine. WebView2 hands the page every key
@@ -1725,6 +1957,11 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
         }
         WM_DESTROY => {
             remember_shape(window);
+            SHELL.with_borrow(|held| {
+                if let Some(shell) = held.as_ref() {
+                    shell.keep_session();
+                }
+            });
             COMPANION.with_borrow_mut(|held| *held = None);
             SHELL.with_borrow_mut(|held| *held = None);
             unsafe { PostQuitMessage(0) };
@@ -1746,12 +1983,14 @@ impl host::Window for Shell {
     }
 
     /// Nothing while a failure page stands in for the page in front: time
-    /// spent on one is time spent on no site at all.
+    /// spent on one is time spent on no site at all. A tab restored from
+    /// last time and not yet opened is nowhere either.
     fn attended_uri(&self) -> String {
         let tabs = self.tabs.borrow();
         match tabs.selected() {
             Some(id) if !self.failed(id) => tabs
                 .facts(id)
+                .filter(|facts| !facts.asleep)
                 .map(|facts| facts.uri.clone())
                 .unwrap_or_default(),
             _ => String::new(),
@@ -1759,18 +1998,25 @@ impl host::Window for Shell {
     }
 
     /// Every tab but the one being looked at. They weigh nothing, but the
-    /// dose engine still wants to know they are open.
+    /// dose engine still wants to know they are open — and a tab that has
+    /// never loaded is not somewhere anyone is.
     fn other_tabs(&self, in_front: bool) -> Vec<String> {
         let tabs = self.tabs.borrow();
         let attended = if in_front { tabs.selected() } else { None };
-        tabs.other_uris(attended)
+        tabs.ids()
+            .into_iter()
+            .filter(|id| Some(*id) != attended)
+            .filter_map(|id| tabs.facts(id))
+            .filter(|facts| !facts.asleep && !facts.uri.is_empty())
+            .map(|facts| facts.uri.clone())
+            .collect()
     }
 
     fn sound_on_screen(&self) -> bool {
         self.tabs
             .borrow()
             .selected_facts()
-            .is_some_and(|facts| facts.playing && !facts.muted)
+            .is_some_and(|facts| !facts.asleep && facts.playing && !facts.muted)
     }
 
     fn send_to_chrome(&self, message: &ToChrome) {

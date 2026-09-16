@@ -12,10 +12,10 @@ use windows::Win32::Globalization::GetUserDefaultLocaleName;
 use windows::Win32::System::Time::{GetTimeZoneInformation, TIME_ZONE_INFORMATION};
 use windows::Win32::UI::Shell::{
     FOLDERID_LocalAppData, FOLDERID_Profile, FOLDERID_RoamingAppData, KF_FLAG_DEFAULT,
-    SHGetKnownFolderPath,
+    SHGetKnownFolderPath, ShellExecuteW,
 };
-use windows::Win32::UI::WindowsAndMessaging::{KillTimer, SetTimer};
-use windows::core::{GUID, PWSTR};
+use windows::Win32::UI::WindowsAndMessaging::{KillTimer, SW_SHOWNORMAL, SetTimer};
+use windows::core::{GUID, HSTRING, PCWSTR, PWSTR, w};
 
 use crate::shell::Shell;
 
@@ -23,6 +23,25 @@ use crate::shell::Shell;
 pub const WAKE: usize = 2;
 
 impl host::Host for Shell {
+    /// Hand a file to whatever Windows opens that kind of file with. Only
+    /// ever a download that has finished, and never a page.
+    fn open_file(&self, path: &str) -> bool {
+        let file = HSTRING::from(path);
+        let opened = unsafe {
+            ShellExecuteW(
+                Some(self.window()),
+                w!("open"),
+                PCWSTR(file.as_ptr()),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        // It answers with an error code below 33, and something of no
+        // meaning above it, rather than saying plainly whether it worked.
+        opened.0 as usize > 32
+    }
+
     fn windows(&self) -> Vec<Rc<dyn host::Window>> {
         match crate::shell::held() {
             Some(shell) => vec![shell as Rc<dyn host::Window>],
