@@ -8,32 +8,29 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::rc::{Rc, Weak};
-use std::time::Duration;
+use std::rc::Rc;
 
-use gtk::{gio, glib, prelude::*};
-
-use crate::clock;
-use crate::window::Window;
-use glimmerwood_core::asking::{self, Asker};
-use glimmerwood_core::attention::{self, Signals};
-use glimmerwood_core::bookmarks::Bookmarks;
-use glimmerwood_core::diary;
-use glimmerwood_core::dose::{
+use crate::asking::{self, Asker};
+use crate::attention::{self, Signals};
+use crate::bookmarks::Bookmarks;
+use crate::diary;
+use crate::dose::{
     self, Activity, Engine, FactorKind, Mode, Moment, Phase, Place, Rates, Snapshot, Trend,
 };
-use glimmerwood_core::feel_lab::{Lab, Step};
-use glimmerwood_core::home::{self, Facts, PartOfDay, Topic, Words};
-use glimmerwood_core::places::{self, PlaceCard, Pool};
-use glimmerwood_core::protocol::{
+use crate::feel_lab::{Lab, Step};
+use crate::home::{self, Facts, PartOfDay, Topic, Words};
+use crate::host::{Host, Window};
+use crate::nav;
+use crate::places::{self, PlaceCard, Pool};
+use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
     HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
     WispTrend,
 };
-use glimmerwood_core::ratings::{self, Action};
-use glimmerwood_core::reputation::{self, List, Lists};
-use glimmerwood_core::settings::{self, Settings};
-use glimmerwood_core::store::{GardenDay, Sample, Store};
+use crate::ratings::{self, Action};
+use crate::reputation::{self, List, Lists};
+use crate::settings::{self, Settings};
+use crate::store::{GardenDay, Sample, Store};
 
 /// How often a moving wisp is refreshed while someone is there to see it,
 /// and while they aren't. The wisp eases between updates on its own, and
@@ -54,9 +51,8 @@ pub struct Companion {
     seed: Lists,
     lists: RefCell<Lists>,
     store: Option<Store>,
-    windows: RefCell<Vec<Weak<Window>>>,
+    host: Rc<dyn Host>,
     last_input: Cell<Option<Moment>>,
-    wake: RefCell<Option<glib::SourceId>>,
     last_recorded_minute: Cell<i64>,
     last_sent: RefCell<String>,
     /// Set when playing a scripted day instead of watching the user.
@@ -73,7 +69,6 @@ pub struct Companion {
     home_memory: RefCell<HashMap<String, i64>>,
     /// Topics already noted as met, so refreshes don't write them again.
     met: RefCell<HashSet<Topic>>,
-    _user_lists_monitor: RefCell<Option<gio::FileMonitor>>,
     settings: RefCell<Settings>,
     /// The wisp's questions about sites it hasn't met.
     asker: RefCell<Asker>,
@@ -93,18 +88,22 @@ pub struct Companion {
 type PlacesKey = (i64, PartOfDay, Vec<String>);
 
 impl Companion {
-    pub fn new(lab: Option<Lab>) -> Rc<Companion> {
+    pub fn new(host: Rc<dyn Host>, lab: Option<Lab>) -> Rc<Companion> {
         let mut rates = Rates::bundled();
-        let now = clock::now();
+        let now = host.now();
         // A lab day is make-believe: it never touches the real history.
         let lab_mode = lab.is_some();
-        let settings = settings::load(&rates, &settings_path());
+        let settings = settings::load(&rates, &settings_path(&host));
         // The lab's script is written for the usual night.
         if !lab_mode && let Err(err) = rates.set_night(&settings.night_starts, &settings.night_ends)
         {
             eprintln!("glimmerwood: keeping the usual night: {err}");
         }
-        let store = if lab_mode { None } else { open_store() };
+        let store = if lab_mode {
+            None
+        } else {
+            open_store(&host.data_dir())
+        };
         let engine = match store.as_ref().and_then(|s| s.latest().ok().flatten()) {
             Some(sample) => Engine::resume(
                 rates,
@@ -122,15 +121,14 @@ impl Companion {
             eprintln!("glimmerwood: couldn't prune old history: {err}");
         }
         let seed = Lists::bundled();
-        let lists = load_user_lists(&seed).unwrap_or_else(|| seed.clone());
-        let this = Rc::new(Companion {
+        let lists = load_user_lists(&seed, &user_lists_path(&host)).unwrap_or_else(|| seed.clone());
+        Rc::new(Companion {
             engine: RefCell::new(engine),
             seed,
             lists: RefCell::new(lists),
             store,
-            windows: RefCell::new(Vec::new()),
+            host: host.clone(),
             last_input: Cell::new(None),
-            wake: RefCell::new(None),
             last_recorded_minute: Cell::new(i64::MIN),
             last_sent: RefCell::new(String::new()),
             lab: RefCell::new(lab),
@@ -142,26 +140,23 @@ impl Companion {
             bookmarks: if lab_mode {
                 Bookmarks::in_memory()
             } else {
-                open_bookmarks()
+                open_bookmarks(&host.data_dir())
             },
             home_memory: RefCell::new(HashMap::new()),
             met: RefCell::new(HashSet::new()),
-            _user_lists_monitor: RefCell::new(None),
             settings: RefCell::new(settings),
             asker: RefCell::new(Asker::default()),
             last_typed: Cell::new(None),
             lookup: RefCell::new(String::new()),
             pool: Pool::bundled(),
             picked: RefCell::new(None),
-            country: locale_country(),
+            country: host.locale_country(),
             care_closed: Cell::new(false),
-        });
-        this.watch_user_lists();
-        this
+        })
     }
 
-    pub fn add_window(self: &Rc<Self>, window: &Rc<Window>) {
-        self.windows.borrow_mut().push(Rc::downgrade(window));
+    /// A window has opened or closed; the host knows which are live.
+    pub fn windows_changed(self: &Rc<Self>) {
         self.refresh();
     }
 
@@ -185,7 +180,7 @@ impl Companion {
         if self.lab.borrow().is_some() {
             return;
         }
-        let now = clock::now();
+        let now = self.host.now();
         self.last_input.set(Some(now));
         let renew = match self.engine.borrow().activity() {
             Activity::Away => true,
@@ -199,18 +194,14 @@ impl Companion {
     /// A key was pressed: the wisp doesn't ask anything mid-sentence.
     pub fn typed(&self) {
         if self.lab.borrow().is_none() {
-            self.last_typed.set(Some(clock::now()));
+            self.last_typed.set(Some(self.host.now()));
         }
     }
 
     /// Re-read every window's situation and bring the engine up to date.
     pub fn refresh(self: &Rc<Self>) {
-        let now = clock::now();
-        let windows: Vec<Rc<Window>> = {
-            let mut list = self.windows.borrow_mut();
-            list.retain(|w| w.strong_count() > 0);
-            list.iter().filter_map(Weak::upgrade).collect()
-        };
+        let now = self.host.now();
+        let windows = self.host.windows();
         if self.lab.borrow().is_some() {
             self.refresh_lab(now, &windows);
             return;
@@ -259,7 +250,7 @@ impl Companion {
 
     // --- Asking about places the wisp hasn't met ---------------------------
 
-    fn ask(&self, now: Moment, windows: &[Rc<Window>]) {
+    fn ask(&self, now: Moment, windows: &[Rc<dyn Window>]) {
         let front = windows.iter().find(|w| w.in_front());
         let site = {
             let engine = self.engine.borrow();
@@ -298,7 +289,7 @@ impl Companion {
 
     /// The window in front shows the open question; every other window
     /// shows none.
-    fn push_question(&self, windows: &[Rc<Window>]) {
+    fn push_question(&self, windows: &[Rc<dyn Window>]) {
         let question = self.asker.borrow().question().map(str::to_owned);
         let front = windows.iter().find(|w| w.in_front());
         for window in windows {
@@ -310,17 +301,13 @@ impl Companion {
         }
     }
 
-    fn live_windows(&self) -> Vec<Rc<Window>> {
-        self.windows
-            .borrow()
-            .iter()
-            .filter_map(Weak::upgrade)
-            .collect()
+    fn live_windows(&self) -> Vec<Rc<dyn Window>> {
+        self.host.windows()
     }
 
     /// On a care site, the window in front quietly offers someone to talk
     /// to, until the note is closed or the user leaves the site.
-    fn push_care(&self, windows: &[Rc<Window>], care: bool) {
+    fn push_care(&self, windows: &[Rc<dyn Window>], care: bool) {
         let present = matches!(self.engine.borrow().activity(), Activity::Present { .. });
         if !care {
             self.care_closed.set(false);
@@ -355,7 +342,7 @@ impl Companion {
     /// Put `site` on the list for `rating` in the user's own file, or take it
     /// out of the file to go back to Glimmerwood's rating (`None`).
     pub fn rate_site(self: &Rc<Self>, site: &str, rating: Option<Rating>) {
-        let path = user_lists_path();
+        let path = user_lists_path(&self.host);
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         let written = reputation::set_user_entry(&text, site, rating.map(ratings::list_of))
             .and_then(|text| {
@@ -387,7 +374,7 @@ impl Companion {
 
     /// Everything the Settings page shows, right now.
     pub fn settings_data(&self) -> SettingsData {
-        let path = user_lists_path();
+        let path = user_lists_path(&self.host);
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         let (entries, problem) = match reputation::user_entries(&text)
             .and_then(|entries| self.seed.with_user(&text).map(|_| entries))
@@ -426,7 +413,7 @@ impl Companion {
                 String::new()
             },
             ratings: entries.iter().map(|(site, _)| rated(site)).collect(),
-            ratings_file: tidy_path(&path),
+            ratings_file: tidy_path(&path, &self.host.home_dir()),
             ratings_problem: problem,
             ask: settings.ask_about_new_places,
             night_starts: settings.night_starts.clone(),
@@ -439,8 +426,7 @@ impl Companion {
     /// A control on the Settings page, as the link it followed, without
     /// `glimmerwood://settings/do/`.
     pub fn settings_action(self: &Rc<Self>, action: &str) {
-        let unescape =
-            |text: &str| glib::Uri::unescape_string(text, None::<&str>).map(|t| t.to_string());
+        let unescape = |text: &str| Some(nav::unescape(text));
         let Some(action) = Action::parse(action, unescape) else {
             eprintln!("glimmerwood: Settings asked for something unknown: {action}");
             return;
@@ -463,7 +449,7 @@ impl Companion {
                 let moved = moved.and_then(|()| {
                     self.engine
                         .borrow_mut()
-                        .set_night(clock::now(), &starts, &ends)
+                        .set_night(self.host.now(), &starts, &ends)
                 });
                 match moved {
                     Ok(()) => {
@@ -478,7 +464,7 @@ impl Companion {
     }
 
     fn save_settings(&self) {
-        if let Err(err) = settings::save(&self.settings.borrow(), &settings_path()) {
+        if let Err(err) = settings::save(&self.settings.borrow(), &settings_path(&self.host)) {
             eprintln!("glimmerwood: couldn't save the settings: {err}");
         }
     }
@@ -571,7 +557,7 @@ impl Companion {
     /// Returns whether `url` is bookmarked now.
     pub fn toggle_bookmark(&self, url: &str, title: &str) -> bool {
         self.bookmarks
-            .toggle(url, title, clock::now())
+            .toggle(url, title, self.host.now())
             .unwrap_or_else(|err| {
                 eprintln!("glimmerwood: couldn't change the bookmark: {err}");
                 false
@@ -678,7 +664,7 @@ impl Companion {
         let greeting = home::greet(&self.words, rates, &facts);
         let part = self.words.part_of_day(now);
         let seed = self.home_value("seed").unwrap_or_else(|| {
-            let seed = i64::from(glib::random_int());
+            let seed = i64::from(self.host.noise());
             self.set_home_value("seed", seed);
             seed
         });
@@ -802,7 +788,7 @@ impl Companion {
     }
 
     /// Play the scripted day up to the lab clock instead of reading windows.
-    fn refresh_lab(self: &Rc<Self>, real_now: Moment, windows: &[Rc<Window>]) {
+    fn refresh_lab(self: &Rc<Self>, real_now: Moment, windows: &[Rc<dyn Window>]) {
         let (lab_now, next_line) = {
             let mut lab = self.lab.borrow_mut();
             let lab = lab.as_mut().expect("checked by the caller");
@@ -824,9 +810,6 @@ impl Companion {
             self.lab_title.replace(clock);
         }
 
-        if let Some(id) = self.wake.take() {
-            id.remove();
-        }
         let lab = self.lab.borrow();
         let lab = lab.as_ref().expect("checked by the caller");
         let engine = self.engine.borrow();
@@ -835,17 +818,10 @@ impl Companion {
             next = next.min(line.ms);
         }
         let delay = lab.real_delay(lab_now, next).clamp(20, PRESENT_REFRESH_MS);
-        let weak = Rc::downgrade(self);
-        let id = glib::timeout_add_local_once(Duration::from_millis(delay as u64), move || {
-            if let Some(this) = weak.upgrade() {
-                this.wake.take();
-                this.refresh();
-            }
-        });
-        self.wake.replace(Some(id));
+        self.host.wake_in(delay as u64);
     }
 
-    fn push(&self, now: Moment, windows: &[Rc<Window>], care: bool) {
+    fn push(&self, now: Moment, windows: &[Rc<dyn Window>], care: bool) {
         let front = windows.iter().find(|w| w.in_front());
         let site = front
             .map(|w| host_of(&w.attended_uri()))
@@ -899,9 +875,6 @@ impl Companion {
     }
 
     fn schedule(self: &Rc<Self>, now: Moment) {
-        if let Some(id) = self.wake.take() {
-            id.remove();
-        }
         let engine = self.engine.borrow();
         let mut next = engine.next_change().ms;
         if engine.trend() != Trend::Steady {
@@ -919,44 +892,18 @@ impl Companion {
         }
         // Keep the minute-by-minute history going.
         next = next.min((now.ms.div_euclid(60_000) + 1) * 60_000);
-        let delay = Duration::from_millis((next - now.ms).clamp(20, 60_000) as u64);
-        let weak = Rc::downgrade(self);
-        let id = glib::timeout_add_local_once(delay, move || {
-            if let Some(this) = weak.upgrade() {
-                this.wake.take();
-                this.refresh();
-            }
-        });
-        self.wake.replace(Some(id));
+        self.host.wake_in((next - now.ms).clamp(20, 60_000) as u64);
     }
 
-    fn watch_user_lists(self: &Rc<Self>) {
-        let file = gio::File::for_path(user_lists_path());
-        let monitor =
-            match file.monitor_file(gio::FileMonitorFlags::NONE, None::<&gio::Cancellable>) {
-                Ok(monitor) => monitor,
-                Err(err) => {
-                    eprintln!("glimmerwood: can't watch your reputation list for changes: {err}");
-                    return;
-                }
-            };
-        let weak = Rc::downgrade(self);
-        monitor.connect_changed(move |_, _, _, event| {
-            use gio::FileMonitorEvent as E;
-            if !matches!(
-                event,
-                E::ChangesDoneHint | E::Created | E::Deleted | E::MovedIn
-            ) {
-                return;
-            }
-            let Some(this) = weak.upgrade() else { return };
-            let lists = load_user_lists(&this.seed).unwrap_or_else(|| this.seed.clone());
-            this.lists.replace(lists);
-            this.picked.take();
-            this.refresh();
-            this.refresh_pages();
-        });
-        self._user_lists_monitor.replace(Some(monitor));
+    /// The user's own list file has changed underneath us. Whoever is
+    /// watching it says so; the companion does not watch files itself.
+    pub fn user_lists_changed(self: &Rc<Self>) {
+        let path = user_lists_path(&self.host);
+        let lists = load_user_lists(&self.seed, &path).unwrap_or_else(|| self.seed.clone());
+        self.lists.replace(lists);
+        self.picked.take();
+        self.refresh();
+        self.refresh_pages();
     }
 }
 
@@ -974,8 +921,8 @@ fn host_of(uri: &str) -> String {
         .to_ascii_lowercase()
 }
 
-fn open_store() -> Option<Store> {
-    let dir = glib::user_data_dir().join("glimmerwood");
+fn open_store(data: &std::path::Path) -> Option<Store> {
+    let dir = data.join("glimmerwood");
     if let Err(err) = std::fs::create_dir_all(&dir) {
         eprintln!("glimmerwood: can't create {}: {err}", dir.display());
         return None;
@@ -989,8 +936,8 @@ fn open_store() -> Option<Store> {
     }
 }
 
-fn open_bookmarks() -> Bookmarks {
-    let dir = glib::user_data_dir().join("glimmerwood");
+fn open_bookmarks(data: &std::path::Path) -> Bookmarks {
+    let dir = data.join("glimmerwood");
     let opened = std::fs::create_dir_all(&dir)
         .map_err(|err| err.to_string())
         .and_then(|()| Bookmarks::open(&dir.join("bookmarks.sqlite")).map_err(|e| e.to_string()));
@@ -1004,8 +951,9 @@ fn open_bookmarks() -> Bookmarks {
 const OFFERED: &str = "offered:";
 
 /// `en_GB.UTF-8` → `GB`: the country of the first language the user set.
-fn locale_country() -> Option<String> {
-    glib::language_names().iter().find_map(|name| {
+/// Every platform names its locales this way; only the asking differs.
+pub fn country_from_locales(names: &[String]) -> Option<String> {
+    names.iter().find_map(|name| {
         let (_, rest) = name.split_once('_')?;
         let country: String = rest
             .chars()
@@ -1016,9 +964,8 @@ fn locale_country() -> Option<String> {
 }
 
 /// A path with the home directory written as `~`.
-fn tidy_path(path: &std::path::Path) -> String {
-    let home = glib::home_dir();
-    match path.strip_prefix(&home) {
+fn tidy_path(path: &std::path::Path, home: &std::path::Path) -> String {
+    match path.strip_prefix(home) {
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.display().to_string(),
     }
@@ -1042,23 +989,20 @@ fn clock_label(time: &str) -> String {
     }
 }
 
-fn settings_path() -> PathBuf {
-    glib::user_config_dir()
-        .join("glimmerwood")
-        .join("settings.toml")
+fn settings_path(host: &Rc<dyn Host>) -> PathBuf {
+    host.config_dir().join("glimmerwood").join("settings.toml")
 }
 
-fn user_lists_path() -> PathBuf {
-    glib::user_config_dir()
+fn user_lists_path(host: &Rc<dyn Host>) -> PathBuf {
+    host.config_dir()
         .join("glimmerwood")
         .join("reputation.toml")
 }
 
 /// The seed with the user's changes applied, or `None` to use the seed
 /// alone (no file yet, or one with a mistake, which is reported).
-fn load_user_lists(seed: &Lists) -> Option<Lists> {
-    let path = user_lists_path();
-    let text = std::fs::read_to_string(&path).ok()?;
+fn load_user_lists(seed: &Lists, path: &std::path::Path) -> Option<Lists> {
+    let text = std::fs::read_to_string(path).ok()?;
     match seed.with_user(&text) {
         Ok(lists) => Some(lists),
         Err(err) => {

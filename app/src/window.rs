@@ -7,10 +7,11 @@ use gtk::{gdk, gio, glib, prelude::*};
 use webkit::prelude::*;
 
 use crate::clock;
-use crate::companion::Companion;
 use crate::failure::{self, Reason};
+use crate::host::GtkHost;
 use crate::wisp_view::WispView;
 use crate::{chrome, prefs, tabs};
+use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{
@@ -111,7 +112,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(app: &gtk::Application, companion: &Rc<Companion>) -> Rc<Self> {
+    pub fn new(app: &gtk::Application, companion: &Rc<Companion>, host: &Rc<GtkHost>) -> Rc<Self> {
         // The tab column and the page side by side, below the toolbar. The
         // toolbar floats over the top so the wisp's caption can open over the
         // page; the column's edge is a native handle the user drags.
@@ -215,7 +216,7 @@ impl Window {
         this.window.connect_destroy(move |_| {
             let _ = &owner;
         });
-        companion.add_window(&this);
+        host.add_window(&this);
         this
     }
 

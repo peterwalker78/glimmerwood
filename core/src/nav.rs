@@ -132,6 +132,33 @@ fn encode_query(input: &str) -> String {
     out
 }
 
+/// Percent-decoding, for text that arrived inside an address.
+pub fn unescape(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let digit = |b: u8| (b as char).to_digit(16);
+        match (bytes[i], bytes.get(i + 1), bytes.get(i + 2)) {
+            (b'%', Some(&high), Some(&low)) => match (digit(high), digit(low)) {
+                (Some(high), Some(low)) => {
+                    out.push((high * 16 + low) as u8);
+                    i += 3;
+                }
+                _ => {
+                    out.push(bytes[i]);
+                    i += 1;
+                }
+            },
+            _ => {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,5 +244,14 @@ mod tests {
         assert_eq!(security("HTTP://example.org"), Security::NotSecure);
         assert_eq!(security("about:blank"), Security::Local);
         assert_eq!(security(""), Security::Local);
+    }
+
+    #[test]
+    fn percent_signs_come_back_as_what_they_stood_for() {
+        assert_eq!(unescape("a%20b"), "a b");
+        assert_eq!(unescape("caf%C3%A9"), "café");
+        assert_eq!(unescape("100%"), "100%");
+        assert_eq!(unescape("%zz"), "%zz");
+        assert_eq!(unescape("plain"), "plain");
     }
 }

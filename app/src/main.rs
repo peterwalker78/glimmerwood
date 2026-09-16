@@ -1,13 +1,14 @@
 mod chrome;
 mod clock;
-mod companion;
 mod failure;
+mod host;
 mod prefs;
 mod scheme;
 mod tabs;
 mod window;
 mod wisp_view;
 
+use glimmerwood_core::companion::Companion;
 use glimmerwood_core::feel_lab;
 
 use std::cell::OnceCell;
@@ -43,11 +44,14 @@ fn main() -> glib::ExitCode {
         .flags(flags)
         .build();
 
-    let companion: Rc<OnceCell<Rc<companion::Companion>>> = Rc::default();
+    let host = host::GtkHost::new();
+    let companion: Rc<OnceCell<Rc<Companion>>> = Rc::default();
 
     app.connect_startup(glib::clone!(
         #[strong]
         companion,
+        #[strong]
+        host,
         move |app| {
             scheme::register();
             if let Some(session) = webkit::NetworkSession::default() {
@@ -61,16 +65,20 @@ fn main() -> glib::ExitCode {
             }
             follow_system_colour_scheme();
             window::install_accels(app);
-            let _ = companion.set(companion::Companion::new(lab.borrow_mut().take()));
+            let started = Companion::new(host.clone(), lab.borrow_mut().take());
+            host.attach(&started);
+            let _ = companion.set(started);
         }
     ));
 
     app.connect_activate(glib::clone!(
         #[strong]
         companion,
+        #[strong]
+        host,
         move |app| {
             let companion = companion.get().expect("set at startup");
-            window::Window::new(app, companion).present();
+            window::Window::new(app, companion, &host).present();
         }
     ));
 
@@ -78,7 +86,7 @@ fn main() -> glib::ExitCode {
     // GApplication's "open" would turn a bare `example.org` into a file path.
     app.connect_command_line(move |app, command_line| {
         let companion = companion.get().expect("set at startup");
-        let window = window::Window::new(app, companion);
+        let window = window::Window::new(app, companion, &host);
         let args = command_line.arguments();
         for (i, arg) in args.iter().skip(1).enumerate() {
             window.open(&arg.to_string_lossy(), i > 0);
