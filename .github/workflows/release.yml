@@ -72,15 +72,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
       - uses: actions/download-artifact@v4
         with:
           name: chrome
           path: ui/dist
-      - run: cargo build --locked --release -p glimmerwood-macos
+      # Both architectures, so the download runs on an Intel Mac as well.
+      - run: cargo build --locked --release --target aarch64-apple-darwin -p glimmerwood-macos
+      - run: cargo build --locked --release --target x86_64-apple-darwin -p glimmerwood-macos
       - name: Make it an app
         run: |
-          scripts/macos-app target/release/glimmerwood Glimmerwood.app
-          zip -qry glimmerwood-macos.zip Glimmerwood.app
+          mkdir -p target/universal
+          lipo -create -output target/universal/glimmerwood \
+            target/aarch64-apple-darwin/release/glimmerwood \
+            target/x86_64-apple-darwin/release/glimmerwood
+          scripts/macos-app target/universal/glimmerwood Glimmerwood.app
+          ditto -c -k --keepParent Glimmerwood.app glimmerwood-macos.zip
       - uses: actions/upload-artifact@v4
         with:
           name: glimmerwood-macos
@@ -92,6 +100,8 @@ jobs:
     needs: [linux, windows, macos]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      # Before the artifacts: a checkout tidies away anything untracked.
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: glimmerwood-*
@@ -102,4 +112,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: built/*
+          body_path: .github/release-notes.md
           generate_release_notes: true

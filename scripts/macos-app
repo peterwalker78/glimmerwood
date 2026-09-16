@@ -5,6 +5,9 @@
 set -euo pipefail
 binary=$1
 app=$2
+# The crate is where the version lives; $VERSION overrides it for a one-off.
+version=${VERSION:-$(sed -n '0,/^version = /s/^version = "\(.*\)"/\1/p' \
+  "$(dirname "$0")/../macos/Cargo.toml")}
 
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/Glimmerwood"
@@ -20,8 +23,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Glimmerwood</string>
   <key>CFBundleIdentifier</key><string>io.github.peterwalker78.Glimmerwood</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>${VERSION:-0.4.0}</string>
-  <key>CFBundleVersion</key><string>${VERSION:-0.4.0}</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${version}</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict>
