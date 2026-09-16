@@ -11,6 +11,9 @@ mod files {
 }
 
 #[cfg(windows)]
+mod finding;
+
+#[cfg(windows)]
 mod host;
 
 #[cfg(windows)]

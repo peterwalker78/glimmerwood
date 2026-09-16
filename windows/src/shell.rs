@@ -6,26 +6,28 @@
 //! the tabs are the web, and there is one engine per tab whether or not it
 //! is the one on screen.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
-use crate::nook;
+use crate::{finding, nook};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::failure::{self, Reason};
+use glimmerwood_core::find;
 use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
 use glimmerwood_core::tabs::Tabs;
+use glimmerwood_core::zoom;
 use webview2_com::Microsoft::Web::WebView2::Win32::*;
 use webview2_com::{
     AcceleratorKeyPressedEventHandler, CreateCoreWebView2ControllerCompletedHandler,
     CreateCoreWebView2EnvironmentCompletedHandler, DocumentTitleChangedEventHandler,
-    FaviconChangedEventHandler, GetFaviconCompletedHandler,
+    ExecuteScriptCompletedHandler, FaviconChangedEventHandler, GetFaviconCompletedHandler,
     IsDocumentPlayingAudioChangedEventHandler, IsMutedChangedEventHandler,
     NavigationCompletedEventHandler, NavigationStartingEventHandler,
     NewWindowRequestedEventHandler, SourceChangedEventHandler, WebMessageReceivedEventHandler,
@@ -40,9 +42,9 @@ use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, VIRTUAL_KEY, VK_1, VK_9, VK_CONTROL, VK_D, VK_F4, VK_F5, VK_F6, VK_HOME, VK_L,
-    VK_LEFT, VK_MENU, VK_NEXT, VK_OEM_COMMA, VK_PRIOR, VK_R, VK_RIGHT, VK_SHIFT, VK_T, VK_TAB,
-    VK_W,
+    GetKeyState, VIRTUAL_KEY, VK_0, VK_1, VK_9, VK_ADD, VK_CONTROL, VK_D, VK_ESCAPE, VK_F, VK_F3,
+    VK_F4, VK_F5, VK_F6, VK_G, VK_HOME, VK_L, VK_LEFT, VK_MENU, VK_NEXT, VK_NUMPAD0, VK_OEM_COMMA,
+    VK_OEM_MINUS, VK_OEM_PLUS, VK_PRIOR, VK_R, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_T, VK_TAB, VK_W,
 };
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -133,6 +135,15 @@ pub struct Shell {
     attempts: RefCell<HashMap<u32, Attempt>>,
     /// The tabs showing a failure page rather than what was asked for.
     failures: RefCell<HashMap<u32, Standing>>,
+    /// The tab the find bar is open on, if it is open. Only one tab is
+    /// searched at a time: moving to another closes the bar.
+    find_tab: Cell<Option<u32>>,
+    /// What the bar last searched for, so Ctrl+G has something to move on
+    /// from and the count can say which search it answers.
+    find_query: RefCell<String>,
+    /// How large each site is drawn. The level belongs to the site, so every
+    /// tab showing it is drawn the same.
+    zooms: RefCell<zoom::Zooms>,
 }
 
 pub fn run() -> Fallible<()> {
@@ -175,6 +186,9 @@ pub fn run() -> Fallible<()> {
         toolbar_height: RefCell::new(TOOLBAR_HEIGHT),
         attempts: RefCell::new(HashMap::new()),
         failures: RefCell::new(HashMap::new()),
+        find_tab: Cell::new(None),
+        find_query: RefCell::new(String::new()),
+        zooms: RefCell::new(zoom::Zooms::load(&zoom_file())),
     });
 
     let toolbar_view = unsafe { shell.toolbar.CoreWebView2()? };
@@ -188,8 +202,8 @@ pub fn run() -> Fallible<()> {
     }
     // The window's shortcuts work wherever the keyboard is, which includes
     // the chrome's own two engines.
-    watch_the_keys(&shell.toolbar, &shell)?;
-    watch_the_keys(&shell.sidebar, &shell)?;
+    watch_the_keys(&shell.toolbar, &shell, true)?;
+    watch_the_keys(&shell.sidebar, &shell, false)?;
 
     // The wisp's own window, over the toolbar's corner. It is created after
     // the engines so that it sits above them.
@@ -292,7 +306,7 @@ impl Shell {
         let view = unsafe { controller.CoreWebView2()? };
         let id = self.tabs.borrow_mut().open(select);
         watch_a_tab(&view, self, id)?;
-        watch_the_keys(&controller, self)?;
+        watch_the_keys(&controller, self, false)?;
         self.engines.borrow_mut().push(Engine {
             id,
             controller,
@@ -312,6 +326,9 @@ impl Shell {
         if !self.tabs.borrow_mut().select(id) {
             return;
         }
+        // A search belongs to the page it was made on, so it ends here
+        // rather than following the reader to another tab.
+        self.close_find(false);
         self.lay_out();
         self.push_tabs();
         self.push_state();
@@ -336,6 +353,11 @@ impl Shell {
         }
         self.attempts.borrow_mut().remove(&id);
         self.failures.borrow_mut().remove(&id);
+        // The bar has nothing left to search if it was this tab it was open
+        // on; there is no page to take the marks off any more either.
+        if self.find_tab.get() == Some(id) {
+            self.close_find(false);
+        }
         let was_selected = self.tabs.borrow().selected() == Some(id);
         let next = self.tabs.borrow_mut().close(id);
         match next {
@@ -404,15 +426,23 @@ impl Shell {
             self.tell_the_chrome(&ToChrome::FocusAddress);
             return;
         }
-        let controller = self
-            .engines
+        self.focus_page(id);
+    }
+
+    /// The keyboard to the page itself, whatever page it is.
+    fn focus_page(&self, id: u32) {
+        if let Some(controller) = self.controller(id) {
+            let _ = unsafe { controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC) };
+        }
+    }
+
+    /// A tab's controller, which is what holds the bounds and the zoom.
+    fn controller(&self, id: u32) -> Option<ICoreWebView2Controller> {
+        self.engines
             .borrow()
             .iter()
             .find(|engine| engine.id == id)
-            .map(|engine| engine.controller.clone());
-        if let Some(controller) = controller {
-            let _ = unsafe { controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC) };
-        }
+            .map(|engine| engine.controller.clone())
     }
 
     /// Every tab's icon, for a column that has only just been drawn.
@@ -634,6 +664,144 @@ impl Shell {
         }
     }
 
+    // --- Find in page ----------------------------------------------------------
+
+    /// Ctrl+F. The bar belongs to the tab in front, and searching starts
+    /// once something has been typed into it.
+    fn open_find(&self) {
+        let Some(id) = self.tabs.borrow().selected() else {
+            return;
+        };
+        self.find_tab.set(Some(id));
+        let _ = unsafe {
+            self.toolbar
+                .MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC)
+        };
+        self.tell_the_chrome(&ToChrome::Find { open: true });
+    }
+
+    /// Search the page on screen from the top, ignoring case and wrapping
+    /// round at the end. An empty query clears what the last one marked.
+    fn find(self: &Rc<Self>, query: String) {
+        let Some(id) = self.find_tab.get() else {
+            return;
+        };
+        self.find_query.replace(query.clone());
+        if query.is_empty() {
+            self.run_in_page(id, &finding::close(), None);
+            self.tell_the_chrome(&ToChrome::Found {
+                query,
+                summary: String::new(),
+            });
+            return;
+        }
+        self.run_in_page(id, &finding::search(&query), Some(query));
+    }
+
+    /// Ctrl+G and Enter in the find bar. With the bar closed, it opens.
+    fn find_next(self: &Rc<Self>, backwards: bool) {
+        let open = self.find_tab.get();
+        if open.is_none() || self.find_query.borrow().is_empty() {
+            self.open_find();
+            return;
+        }
+        if let Some(id) = open {
+            self.run_in_page(id, &finding::step(backwards), None);
+        }
+    }
+
+    /// Clear the marks and close the bar. `to_page`: the reader closed it,
+    /// so the keyboard goes back to the page.
+    fn close_find(&self, to_page: bool) {
+        let Some(id) = self.find_tab.take() else {
+            return;
+        };
+        self.find_query.borrow_mut().clear();
+        if let Some(view) = self.engine(id) {
+            let script = HSTRING::from(finding::close());
+            let _ = unsafe { view.ExecuteScript(PCWSTR(script.as_ptr()), None) };
+        }
+        if to_page {
+            self.focus_page(id);
+        }
+        self.tell_the_chrome(&ToChrome::Find { open: false });
+    }
+
+    /// Run a piece of the find script in a tab. `answer` is the query the
+    /// bar is waiting to hear a count for, when it is waiting for one.
+    fn run_in_page(self: &Rc<Self>, id: u32, script: &str, answer: Option<String>) {
+        let Some(view) = self.engine(id) else { return };
+        let text = HSTRING::from(script);
+        let weak: Weak<Shell> = Rc::downgrade(self);
+        let counted = ExecuteScriptCompletedHandler::create(Box::new(move |code, result| {
+            let (Some(shell), Some(query)) = (weak.upgrade(), answer) else {
+                return Ok(());
+            };
+            // The bar may have closed, or moved to another tab, while the
+            // page was being searched.
+            if shell.find_tab.get() != Some(id) {
+                return Ok(());
+            }
+            // The script hands the count back as JSON; anything else means
+            // it couldn't run, which reads the same as nothing found.
+            let matches = code
+                .is_ok()
+                .then(|| serde_json::from_str::<Option<u32>>(&result).ok())
+                .flatten()
+                .flatten();
+            shell.tell_the_chrome(&ToChrome::Found {
+                query,
+                summary: find::summary(matches),
+            });
+            Ok(())
+        }));
+        let _ = unsafe { view.ExecuteScript(PCWSTR(text.as_ptr()), &counted) };
+    }
+
+    // --- How large a site is drawn ---------------------------------------------
+
+    /// A step larger, a step smaller, or back to plain. The level belongs to
+    /// the site, so every tab showing it follows.
+    fn zoom(&self, by: isize) {
+        let Some(id) = self.tabs.borrow().selected() else {
+            return;
+        };
+        let uri = self.uri_of(id);
+        {
+            let mut zooms = self.zooms.borrow_mut();
+            if by == 0 {
+                zooms.reset(&uri);
+            } else {
+                zooms.step(&uri, by);
+            }
+        }
+        let host = nav::host_of(&uri);
+        for other in self.tabs.borrow().ids() {
+            if nav::host_of(&self.uri_of(other)) == host {
+                self.draw_at_remembered_size(other);
+            }
+        }
+        let path = zoom_file();
+        let written = path
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .map_err(|err| err.to_string())
+            .and_then(|()| self.zooms.borrow().save(&path));
+        if let Err(err) = written {
+            eprintln!("glimmerwood: couldn't remember how large {host} is drawn: {err}");
+        }
+    }
+
+    /// Draw a tab at whatever its site is remembered at. WebView2 zooms on
+    /// Ctrl+scroll by itself, so this is also what puts our own level back
+    /// once the tab has gone somewhere new.
+    fn draw_at_remembered_size(&self, id: u32) {
+        let level = self.zooms.borrow().of(&self.uri_of(id));
+        if let Some(controller) = self.controller(id) {
+            let _ = unsafe { controller.SetZoomFactor(level) };
+        }
+    }
+
     // --- Navigation ------------------------------------------------------------
 
     /// A navigation a tab is about to make. Home's and Settings' buttons are
@@ -647,14 +815,24 @@ impl Shell {
         }
         // A failure page's own load is the one load that leaves the failure
         // standing; any other is a fresh attempt at something.
-        {
+        let standing_in = {
             let mut failures = self.failures.borrow_mut();
             match failures.get_mut(&id) {
-                Some(standing) if standing.pending => standing.pending = false,
+                Some(standing) if standing.pending => {
+                    standing.pending = false;
+                    true
+                }
                 _ => {
                     failures.remove(&id);
+                    false
                 }
             }
+        };
+        // The page is moving on, and a search made on the last one no longer
+        // means anything. The failure page going up in place of a page that
+        // wouldn't open is not the reader going anywhere.
+        if !standing_in && self.find_tab.get() == Some(id) {
+            self.close_find(false);
         }
         // A fallback belongs to one attempt at one address. Anywhere else,
         // a redirect included, is not that attempt any more.
@@ -839,6 +1017,19 @@ impl Shell {
             (VK_OEM_COMMA, true, false, false) => self.heard(ToCore::OpenSettings),
             (VK_TAB, true, false, false) | (VK_NEXT, true, false, false) => self.step_tab(1),
             (VK_TAB, true, true, false) | (VK_PRIOR, true, false, false) => self.step_tab(-1),
+            (VK_F, true, false, false) => self.open_find(),
+            (VK_G, true, false, false) | (VK_F3, false, false, false) => self.find_next(false),
+            (VK_G, true, true, false) | (VK_F3, false, true, false) => self.find_next(true),
+            // Escape is the page's own key while there is no find bar to
+            // close with it.
+            (VK_ESCAPE, false, false, false) if self.find_tab.get().is_some() => {
+                self.close_find(true)
+            }
+            // Ctrl+plus is Ctrl+Shift+equals on most keyboards, so the shift
+            // makes no difference here.
+            (VK_OEM_PLUS, true, _, false) | (VK_ADD, true, _, false) => self.zoom(1),
+            (VK_OEM_MINUS, true, false, false) | (VK_SUBTRACT, true, false, false) => self.zoom(-1),
+            (VK_0, true, false, false) | (VK_NUMPAD0, true, false, false) => self.zoom(0),
             _ => return false,
         }
         true
@@ -888,6 +1079,9 @@ impl Shell {
                 }
             }
             ToCore::ToggleBookmark => self.toggle_bookmark(),
+            ToCore::Find { query } => self.find(query),
+            ToCore::FindNext { backwards } => self.find_next(backwards),
+            ToCore::CloseFind => self.close_find(true),
             ToCore::ShowWisp => self.show_wisp(),
             ToCore::OpenSettings => self.open_settings(),
             ToCore::FindSupport { samaritans } => {
@@ -957,8 +1151,8 @@ impl Shell {
                 self.push_tabs();
                 self.push_icons();
             }
-            // Find in page is the one thing WebView2 has no API for, so it
-            // is not here yet; everything else the chrome can ask for is.
+            // The window buttons the chrome draws while the window floats
+            // are the toolbar's own work; nothing else is left.
             _ => {}
         }
     }
@@ -986,6 +1180,14 @@ fn shape_file() -> PathBuf {
     crate::host::config_dir()
         .join("glimmerwood")
         .join("window.ini")
+}
+
+/// Beside it again, and about how large each site is drawn. It is the same
+/// file, in the same words, that the Linux build keeps.
+fn zoom_file() -> PathBuf {
+    crate::host::config_dir()
+        .join("glimmerwood")
+        .join("zoom.toml")
 }
 
 /// The size the window was last left at. No file, or one that says nothing
@@ -1266,6 +1468,9 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
             return Ok(());
         };
         shell.refresh_tab(id, Some(false));
+        // Where the tab has arrived is what says how large it is drawn, and
+        // the engine's own Ctrl+scroll may have moved it since.
+        shell.draw_at_remembered_size(id);
         if let Some(args) = args {
             shell.navigation_ended(id, &args);
         }
@@ -1325,8 +1530,13 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
 
 /// The window's shortcuts on one engine. WebView2 hands the page every key
 /// it is sent, so the ones the window answers have to be taken out of the
-/// stream before the page sees them.
-fn watch_the_keys(controller: &ICoreWebView2Controller, shell: &Rc<Shell>) -> Fallible<()> {
+/// stream before the page sees them. `toolbar` says whether this is the
+/// engine the address and find fields are in, which answers one key itself.
+fn watch_the_keys(
+    controller: &ICoreWebView2Controller,
+    shell: &Rc<Shell>,
+    toolbar: bool,
+) -> Fallible<()> {
     let weak: Weak<Shell> = Rc::downgrade(shell);
     let pressed = AcceleratorKeyPressedEventHandler::create(Box::new(move |_, args| {
         let Some(args) = args else { return Ok(()) };
@@ -1340,6 +1550,12 @@ fn watch_the_keys(controller: &ICoreWebView2Controller, shell: &Rc<Shell>) -> Fa
         }
         let mut key = 0u32;
         unsafe { args.VirtualKey(&mut key)? };
+        // Escape means whichever field the caret is in: it leaves the
+        // address field, and it closes the find bar. The toolbar knows
+        // which, so it is left to say.
+        if toolbar && key == VK_ESCAPE.0 as u32 {
+            return Ok(());
+        }
         let Some(shell) = weak.upgrade() else {
             return Ok(());
         };
