@@ -127,9 +127,10 @@ Glimmerwood is private by design, not by promise.
 - **The history is an ordinary one, and it only keeps a week.** Addresses and
   titles, on your computer, so you can find Tuesday's page again; after seven
   days they're deleted. Nothing is ever uploaded.
-- **Private sites stay private.** On adult sites the wisp closes its eyes and
-  turns away, nothing about those visits is named, and they never reach the
-  history at all.
+- **On *certain* sites, the wisp closes its eyes and turns away.** Nothing
+  about those visits is named, and they never reach the history. A tab you
+  leave open is still restored like any other, so close it if you'd rather it
+  didn't come back.
 - **Trackers are blocked** before they can load, and every site is asked for a
   secure connection first.
 
