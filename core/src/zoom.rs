@@ -207,7 +207,13 @@ mod tests {
         zooms.step("https://a.example/", 1);
         zooms.step("https://b.example/", -2);
         let again = Zooms::parse(&zooms.to_text());
-        assert_eq!(again.of("https://a.example/"), zooms.of("https://a.example/"));
-        assert_eq!(again.of("https://b.example/"), zooms.of("https://b.example/"));
+        assert_eq!(
+            again.of("https://a.example/"),
+            zooms.of("https://a.example/")
+        );
+        assert_eq!(
+            again.of("https://b.example/"),
+            zooms.of("https://b.example/")
+        );
     }
 }

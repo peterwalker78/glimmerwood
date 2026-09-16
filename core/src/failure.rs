@@ -100,7 +100,11 @@ mod tests {
 
     #[test]
     fn a_silent_server_is_named_rather_than_blamed_on_a_cancellation() {
-        let page = fill(TEMPLATE, "http://calm.neverssl.com/online", &Reason::NoAnswer);
+        let page = fill(
+            TEMPLATE,
+            "http://calm.neverssl.com/online",
+            &Reason::NoAnswer,
+        );
         assert!(page.contains("calm.neverssl.com didn’t answer"), "{page}");
         assert!(!page.to_lowercase().contains("cancel"), "{page}");
     }

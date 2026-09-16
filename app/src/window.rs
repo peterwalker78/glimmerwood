@@ -36,11 +36,11 @@ pub fn install_accels(app: &gtk::Application) {
     app.set_accels_for_action("win.home", &["<Alt>Home"]);
     app.set_accels_for_action("win.find", &["<Control>f"]);
     app.set_accels_for_action("win.settings", &["<Control>comma"]);
-    app.set_accels_for_action("win.zoom-in", &["<Control>plus", "<Control>equal", "<Control>KP_Add"]);
     app.set_accels_for_action(
-        "win.zoom-out",
-        &["<Control>minus", "<Control>KP_Subtract"],
+        "win.zoom-in",
+        &["<Control>plus", "<Control>equal", "<Control>KP_Add"],
     );
+    app.set_accels_for_action("win.zoom-out", &["<Control>minus", "<Control>KP_Subtract"]);
     app.set_accels_for_action("win.zoom-plain", &["<Control>0", "<Control>KP_0"]);
     app.set_accels_for_action("win.find-next", &["<Control>g", "F3"]);
     app.set_accels_for_action("win.find-previous", &["<Control><Shift>g", "<Shift>F3"]);
