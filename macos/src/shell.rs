@@ -61,7 +61,10 @@ const INITIAL_HEIGHT: f64 = 760.0;
 const TOOLBAR_HEIGHT: f64 = 56.0;
 /// The tab column's width. The GTK build lets it be dragged and remembers
 /// where; here it is the width that shows a tab's mark and nothing else.
-const COLUMN_WIDTH: f64 = 48.0;
+/// Wide enough that a tab shows its title. The GTK build opens narrow
+/// because its column can be dragged to whatever width suits and remembers
+/// it; until this one can be dragged, a strip of marks is not a tab column.
+const COLUMN_WIDTH: f64 = 180.0;
 /// How often the engines are asked what they are showing. The navigation
 /// delegate reports a load starting, committing, finishing or failing as it
 /// happens; this is left for the two things it never hears about — a page
@@ -653,6 +656,18 @@ fn refresh_tabs() {
                 moved = true;
             }
         }
+        // Glimmerwood's own pages wear the wisp; anything else keeps the
+        // letter the column draws from its site.
+        let mark = pages::is_local_page(&uri).then(wisp_icon);
+        if shell
+            .tabs
+            .borrow()
+            .facts(id)
+            .map(|facts| facts.icon.clone())
+            != Some(mark.clone())
+        {
+            set_icon(id, mark);
+        }
     }
     if changed {
         push_tabs();
@@ -720,6 +735,75 @@ pub(crate) fn hovering_wisp(open: bool) {
 /// The wisp was clicked.
 pub(crate) fn wisp_clicked() {
     show_wisp();
+}
+
+/// Glimmerwood's own mark, for the tabs showing Home or Settings. WebKit
+/// offers no way to ask a site for its icon, so every other tab keeps the
+/// letter the column draws for it.
+fn wisp_icon() -> String {
+    thread_local! {
+        static ICON: String = match file("home/wisp.svg") {
+            Some(svg) => format!(
+                "data:image/svg+xml;base64,{}",
+                base64_of(svg),
+            ),
+            None => String::new(),
+        };
+    }
+    ICON.with(Clone::clone)
+}
+
+/// Enough base64 for one small file.
+fn base64_of(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let mut three = [0u8; 3];
+        three[..chunk.len()].copy_from_slice(chunk);
+        let bits = u32::from_be_bytes([0, three[0], three[1], three[2]]);
+        for place in 0..4 {
+            if place <= chunk.len() {
+                out.push(ALPHABET[(bits >> (18 - 6 * place) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Every mark again, for a column that has just come back.
+fn send_the_icons() {
+    let Some(shell) = held() else { return };
+    let marks: Vec<(u32, Option<String>)> = shell
+        .tabs
+        .borrow()
+        .ids()
+        .into_iter()
+        .map(|id| {
+            let icon = shell
+                .tabs
+                .borrow()
+                .facts(id)
+                .and_then(|facts| facts.icon.clone());
+            (id, icon)
+        })
+        .collect();
+    for (id, icon) in marks {
+        tell_the_column(&ToChrome::TabIcon { id, icon });
+    }
+}
+
+/// The mark a tab wears, told to the column when it changes.
+fn set_icon(id: u32, icon: Option<String>) {
+    let Some(shell) = held() else { return };
+    let changed = shell
+        .tabs
+        .borrow_mut()
+        .update(id, |facts| facts.icon = icon.clone());
+    if changed {
+        tell_the_column(&ToChrome::TabIcon { id, icon });
+    }
 }
 
 /// The wisp's history on Home: the tab in front if that is where it is, else
@@ -1037,7 +1121,10 @@ fn heard(message: ToCore) {
         }
         ToCore::Ready {
             view: ChromeView::Sidebar,
-        } => push_tabs(),
+        } => {
+            push_tabs();
+            send_the_icons();
+        }
         // What is left belongs to a window that floats, which this shell
         // doesn't have: the title bar is the system's.
         _ => {}

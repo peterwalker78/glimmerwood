@@ -67,7 +67,10 @@ const LEAST_HEIGHT: i32 = 360;
 const TOOLBAR_HEIGHT: i32 = 56;
 /// The tab column's width. The GTK build lets it be dragged and remembers
 /// where; here it is the width that shows a tab's mark and nothing else.
-const COLUMN_WIDTH: i32 = 48;
+/// Wide enough that a tab shows its title. The GTK build opens narrow
+/// because its column can be dragged to whatever width suits and remembers
+/// it; until this one can be dragged, a strip of marks is not a tab column.
+const COLUMN_WIDTH: i32 = 180;
 
 /// Where a new tab starts, and where the chrome's buttons point.
 const HOME: &str = "glimmerwood://home/";
