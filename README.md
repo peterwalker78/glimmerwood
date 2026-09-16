@@ -11,6 +11,7 @@ who notices how your time online really feels, so you can spend more of it on th
 things that leave you better off.
 
 [**Download for Linux**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
+[Windows and macOS](#windows-and-macos) ·
 [Meet the wisp](#meet-the-wisp) ·
 [On your phone](#and-on-your-phone) ·
 [How it works](#how-it-works-in-plain-words) ·
@@ -207,6 +208,25 @@ choose it under *Default Applications* in your desktop's settings.
 > web, and it's growing quickly. If something doesn't work, please
 > [open an issue](https://github.com/peterwalker78/glimmerwood/issues).
 
+### Windows and macOS
+
+Both are on the [releases page](https://github.com/peterwalker78/glimmerwood/releases/latest)
+beside the Flatpak. They are one window on one page: no tabs and no lists yet.
+
+**Windows** — unzip `glimmerwood-windows-x64.zip` and run `Glimmerwood.exe`,
+keeping it beside `WebView2Loader.dll`. It needs the WebView2 runtime, which
+Windows 11 and current Windows 10 already have; if a machine hasn't got it, the
+app says so. Unsigned, so SmartScreen warns once: *More info*, then *Run anyway*.
+
+**macOS** — unzip `glimmerwood-macos.zip` and drag **Glimmerwood** to
+Applications. macOS 11 or later, Apple silicon or Intel. Unsigned, so Gatekeeper
+refuses a double-click: right-click the app and choose **Open**, or clear the
+flag first.
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Glimmerwood.app
+```
+
 
 <br>
 
@@ -304,7 +324,7 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
 - Zoom, downloads, session restore and the rest of the everyday basics.
-- **Windows and macOS**, on the same core as the Linux build.
+- **Tabs and the lists on Windows and macOS.**
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
