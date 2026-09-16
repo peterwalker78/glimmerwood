@@ -22,6 +22,14 @@ fn path() -> PathBuf {
         .join("window.ini")
 }
 
+/// Where the per-site drawing sizes are kept: beside the reputation
+/// overrides, in the same plain form, so it can be edited by hand.
+pub fn zooms_path() -> PathBuf {
+    glib::user_config_dir()
+        .join("glimmerwood")
+        .join("zoom.toml")
+}
+
 pub fn tab_column_width() -> i32 {
     let file = glib::KeyFile::new();
     file.load_from_file(path(), glib::KeyFileFlags::NONE)

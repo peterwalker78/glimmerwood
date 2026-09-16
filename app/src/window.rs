@@ -15,7 +15,7 @@ use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore};
-use glimmerwood_core::{find, nav};
+use glimmerwood_core::{find, nav, zoom};
 
 /// The toolbar's height until it reports its own.
 const INITIAL_TOOLBAR_HEIGHT: i32 = 65;
@@ -36,6 +36,12 @@ pub fn install_accels(app: &gtk::Application) {
     app.set_accels_for_action("win.home", &["<Alt>Home"]);
     app.set_accels_for_action("win.find", &["<Control>f"]);
     app.set_accels_for_action("win.settings", &["<Control>comma"]);
+    app.set_accels_for_action("win.zoom-in", &["<Control>plus", "<Control>equal", "<Control>KP_Add"]);
+    app.set_accels_for_action(
+        "win.zoom-out",
+        &["<Control>minus", "<Control>KP_Subtract"],
+    );
+    app.set_accels_for_action("win.zoom-plain", &["<Control>0", "<Control>KP_0"]);
     app.set_accels_for_action("win.find-next", &["<Control>g", "F3"]);
     app.set_accels_for_action("win.find-previous", &["<Control><Shift>g", "<Shift>F3"]);
     app.set_accels_for_action("win.next-tab", &["<Control>Tab", "<Control>Page_Down"]);
@@ -100,6 +106,8 @@ pub struct Window {
     sent_ask: RefCell<Option<Option<String>>>,
     /// Whether the note offering someone to talk to was last sent open.
     sent_care: Cell<Option<(bool, bool)>>,
+    /// How large each site is drawn, kept between runs.
+    zooms: RefCell<zoom::Zooms>,
     /// The find bar is open, and what it last searched for.
     finding: Cell<bool>,
     find_query: RefCell<String>,
@@ -155,6 +163,7 @@ impl Window {
             sent_wisp: RefCell::new(String::new()),
             sent_ask: RefCell::new(None),
             sent_care: Cell::new(None),
+            zooms: RefCell::new(zoom::Zooms::load(&prefs::zooms_path())),
             finding: Cell::new(false),
             find_query: RefCell::new(String::new()),
             find_pending: Cell::new(0),
@@ -703,6 +712,41 @@ impl Window {
         }
     }
 
+    // --- How large a site is drawn --------------------------------------------
+
+    /// A step larger, a step smaller, or back to plain. The level belongs to
+    /// the site, so every tab showing it follows.
+    fn zoom(self: &Rc<Self>, by: isize) {
+        let Some(tab) = self.selected_tab() else {
+            return;
+        };
+        let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
+        {
+            let mut zooms = self.zooms.borrow_mut();
+            if by == 0 {
+                zooms.reset(&uri);
+            } else {
+                zooms.step(&uri, by);
+            }
+        }
+        let host = nav::host_of(&uri);
+        for tab in self.tabs.borrow().iter() {
+            let showing = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
+            if nav::host_of(&showing) == host {
+                self.draw_at_remembered_size(tab);
+            }
+        }
+        let saved = self.zooms.borrow().save(&prefs::zooms_path());
+        if let Err(err) = saved {
+            eprintln!("glimmerwood: couldn't remember how large {host} is drawn: {err}");
+        }
+    }
+
+    fn draw_at_remembered_size(&self, tab: &Tab) {
+        let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
+        tab.view.set_zoom_level(self.zooms.borrow().of(&uri));
+    }
+
     // --- Find in page ---------------------------------------------------------
 
     fn open_find(&self) {
@@ -923,6 +967,9 @@ impl Window {
             match event {
                 webkit::LoadEvent::Committed => {
                     tab.fallback.take();
+                    if let Some(this) = weak_self.upgrade() {
+                        this.draw_at_remembered_size(&tab);
+                    }
                 }
                 webkit::LoadEvent::Finished
                     if tab.view.uri().is_some_and(|uri| pages::is_local_page(&uri)) =>
@@ -1005,7 +1052,7 @@ impl Window {
                     tab.failed.replace(Some(failing_uri.to_owned()));
                     tab.failure_pending.set(true);
                     view.load_alternate_html(
-                        &failure::page(failing_uri, &Reason::of(error)),
+                        &failure::page(failing_uri, &failure::reason_of(error)),
                         failing_uri,
                         None,
                     );
@@ -1228,6 +1275,9 @@ impl Window {
         add("home", Box::new(|w| w.go_home()));
         add("find", Box::new(|w| w.open_find()));
         add("settings", Box::new(|w| w.open_settings()));
+        add("zoom-in", Box::new(|w| w.zoom(1)));
+        add("zoom-out", Box::new(|w| w.zoom(-1)));
+        add("zoom-plain", Box::new(|w| w.zoom(0)));
         add("find-next", Box::new(|w| w.find_next(false)));
         add("find-previous", Box::new(|w| w.find_next(true)));
         add("next-tab", Box::new(|w| w.step_tab(1)));
