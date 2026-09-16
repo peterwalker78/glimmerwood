@@ -126,10 +126,10 @@ impl SvgCanvas {
                 let (fx, fy) = self.at(inner.0, inner.1);
                 let (cx, cy) = self.at(outer.0, outer.1);
                 let r = outer.2 * self.scale_of();
-                let _ = write!(
+                let _ = writeln!(
                     self.defs,
                     "<radialGradient id=\"{id}\" gradientUnits=\"userSpaceOnUse\" \
-                     cx=\"{}\" cy=\"{}\" r=\"{}\" fx=\"{}\" fy=\"{}\">{}</radialGradient>\n",
+                     cx=\"{}\" cy=\"{}\" r=\"{}\" fx=\"{}\" fy=\"{}\">{}</radialGradient>",
                     round(cx),
                     round(cy),
                     round(r),
@@ -143,10 +143,10 @@ impl SvgCanvas {
                 let id = self.id();
                 let (x1, y1) = self.at(from.0, from.1);
                 let (x2, y2) = self.at(to.0, to.1);
-                let _ = write!(
+                let _ = writeln!(
                     self.defs,
                     "<linearGradient id=\"{id}\" gradientUnits=\"userSpaceOnUse\" \
-                     x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\">{}</linearGradient>\n",
+                     x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\">{}</linearGradient>",
                     round(x1),
                     round(y1),
                     round(x2),
@@ -329,7 +329,7 @@ impl Canvas for SvgCanvas {
         let path = std::mem::take(&mut self.path);
         let ink = self.ink();
         let blend = self.blend();
-        let _ = write!(self.body, "<path d=\"{path}\" fill=\"{ink}\"{blend}/>\n");
+        let _ = writeln!(self.body, "<path d=\"{path}\" fill=\"{ink}\"{blend}/>");
     }
 
     fn stroke(&mut self) {
@@ -345,9 +345,9 @@ impl Canvas for SvgCanvas {
         } else {
             ""
         };
-        let _ = write!(
+        let _ = writeln!(
             self.body,
-            "<path d=\"{path}\" fill=\"none\" stroke=\"{ink}\" stroke-width=\"{width}\"{ends}{blend}/>\n",
+            "<path d=\"{path}\" fill=\"none\" stroke=\"{ink}\" stroke-width=\"{width}\"{ends}{blend}/>",
         );
     }
 
@@ -357,9 +357,9 @@ impl Canvas for SvgCanvas {
         }
         let path = std::mem::take(&mut self.path);
         let id = self.id();
-        let _ = write!(
+        let _ = writeln!(
             self.defs,
-            "<clipPath id=\"{id}\"><path d=\"{path}\"/></clipPath>\n"
+            "<clipPath id=\"{id}\"><path d=\"{path}\"/></clipPath>"
         );
         let _ = write!(self.body, "<g clip-path=\"url(#{id})\">");
         self.state.groups += 1;
