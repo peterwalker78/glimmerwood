@@ -22,6 +22,6 @@ flag first:
 xattr -dr com.apple.quarantine /Applications/Glimmerwood.app
 ```
 
-Find in page is still to come on the Windows and macOS builds, and macOS
-can't yet tell when a tab is making a sound. Checksums for every file are in
-`SHA256SUMS`.
+On macOS, WebKit reports a page's sound only through a private property, so a
+tab playing there doesn't keep the wisp awake as it does elsewhere. Checksums
+for every file are in `SHA256SUMS`.

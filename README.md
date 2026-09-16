@@ -6,12 +6,12 @@
 
 ### The web browser that's on your side.
 
-A quiet browser for Linux, and home to the wisp: a small living companion
-who notices how your time online really feels, so you can spend more of it on the
-things that leave you better off.
+A quiet browser for Linux, macOS and Windows, and home to the wisp: a small
+living companion who notices how your time online really feels, so you can
+spend more of it on the things that leave you better off.
 
-[**Download for Linux**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
-[Windows and macOS](#windows-and-macos) ·
+[**Download**](https://github.com/peterwalker78/glimmerwood/releases/latest) ·
+[Getting it](#start-today) ·
 [Meet the wisp](#meet-the-wisp) ·
 [On your phone](#and-on-your-phone) ·
 [How it works](#how-it-works-in-plain-words) ·
@@ -211,9 +211,11 @@ choose it under *Default Applications* in your desktop's settings.
 ### Windows and macOS
 
 Both are on the [releases page](https://github.com/peterwalker78/glimmerwood/releases/latest)
-beside the Flatpak. They have tabs, bookmarks, Home, Settings and the wisp
-watching over them, on the same core as the Linux build. Find in page is still
-to come on both, and macOS can't yet tell when a tab is making a sound.
+beside the Flatpak, on the same core as the Linux build: tabs, bookmarks, find
+in page, zoom, Home, Settings, the keyboard, and the wisp in its nook watching
+over them. One difference worth knowing: on macOS, WebKit reports a page's
+sound only through a private property, so a tab playing quietly there doesn't
+keep the wisp awake the way it does elsewhere.
 
 **Windows** — unzip `glimmerwood-windows-x64.zip` and run `Glimmerwood.exe`,
 keeping it beside `WebView2Loader.dll`. It needs the WebView2 runtime, which
@@ -325,8 +327,10 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
   mid-flow and never more than twice a day.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
-- Zoom, downloads, session restore and the rest of the everyday basics.
-- **Find in page on Windows and macOS.**
+- **Downloads**, with a quiet mark while one runs.
+- **Session restore**: tabs come back asleep, not loaded until you ask.
+- **Local history** and address completion, with private sites never stored.
+- **Sleeping tabs**, freeing what an hour of being unseen doesn't need.
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
@@ -336,18 +340,19 @@ and say why.
 
 ## For developers
 
-Glimmerwood is written in Rust, on GTK 4 and WebKitGTK 6.0. The wisp itself is
-drawn natively rather than in a web page, so the whole browser idles at around
-one percent of a CPU core with the wisp breathing. The toolbar and Home are
-small TypeScript pages compiled by the native TypeScript 7 compiler, so
-there's no Node in the build.
+Glimmerwood is written in Rust, on the engine each system already has: GTK 4
+and WebKitGTK 6.0 on Linux, WebKit on macOS, the Edge WebView2 runtime on
+Windows. Nothing is bundled anywhere. The wisp itself is drawn natively rather
+than in a web page, so the whole browser idles at around one percent of a CPU
+core with the wisp breathing. The toolbar and Home are small TypeScript pages
+compiled by the native TypeScript 7 compiler, so there's no Node in the build.
 
 The workspace splits the browser from the machine it runs on. `core/` is the
-dose model, the lists, the garden, the diary, the protocol and the whole of
-the wisp's drawing, with no window toolkit anywhere in its dependencies;
-`app/` is the GTK build on top of it. `raster/` draws the wisp into pixels for
-platforms without cairo, and `windows/` and `macos/` are shells being built on
-the same core.
+dose model, the lists, the garden, the diary, the tabs, the protocol and the
+whole of the wisp's drawing, with no window toolkit anywhere in its
+dependencies; `app/`, `macos/` and `windows/` are the three shells on top of
+it, each holding only what its own system does differently. `raster/` draws
+the wisp into pixels where there is no cairo.
 
 Requirements: Rust (stable), GTK 4.20 or later, WebKitGTK 6.0,
 `glib-compile-resources`, SQLite, and `curl` to fetch the compiler.
