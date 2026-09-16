@@ -14,9 +14,7 @@ use crate::{chrome, prefs, tabs};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::pages;
-use glimmerwood_core::protocol::{
-    ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode, WispTrend,
-};
+use glimmerwood_core::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore};
 use glimmerwood_core::{find, nav};
 
 /// The toolbar's height until it reports its own.
@@ -322,19 +320,14 @@ impl Window {
         } = message
             && let Some(wisp) = self.wisp.borrow().as_ref()
         {
-            let mode = match mode {
-                WispMode::Away => Mode::Away,
-                WispMode::Draining => Mode::Draining,
-                WispMode::Resting => Mode::Resting,
-                WispMode::Nourishing => Mode::Nourishing,
-                WispMode::Holding => Mode::Holding,
-            };
-            let trend = match trend {
-                WispTrend::Rising => Trend::Rising,
-                WispTrend::Falling => Trend::Falling,
-                WispTrend::Steady => Trend::Steady,
-            };
-            wisp.update(*dose, mode, trend, *private, *night, *welcome);
+            wisp.update(
+                *dose,
+                Mode::from(*mode),
+                Trend::from(*trend),
+                *private,
+                *night,
+                *welcome,
+            );
         }
         // The native wisp takes every change of dose; the chrome only shows
         // words, so it hears about the rest.

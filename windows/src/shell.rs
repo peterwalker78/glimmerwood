@@ -9,6 +9,9 @@ use std::error::Error;
 use std::rc::{Rc, Weak};
 
 use crate::nook;
+use glimmerwood_core::companion::Companion;
+use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{Security, ToChrome, ToCore};
@@ -28,7 +31,7 @@ use windows::Win32::UI::HiDpi::{
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::BOOL;
-use windows::core::{HSTRING, PCWSTR, PWSTR, w};
+use windows::core::{HSTRING, Interface, PCWSTR, PWSTR, w};
 
 type Fallible<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -40,9 +43,19 @@ const TOOLBAR_HEIGHT: i32 = 56;
 
 thread_local! {
     static SHELL: RefCell<Option<Rc<Shell>>> = const { RefCell::new(None) };
+    static COMPANION: RefCell<Option<Rc<Companion>>> = const { RefCell::new(None) };
 }
 
-struct Shell {
+/// The shell, for the few places that need it from outside.
+pub fn held() -> Option<Rc<Shell>> {
+    SHELL.with_borrow(|held| held.clone())
+}
+
+fn companion() -> Option<Rc<Companion>> {
+    COMPANION.with_borrow(|held| held.clone())
+}
+
+pub struct Shell {
     window: HWND,
     toolbar: ICoreWebView2Controller,
     page: ICoreWebView2Controller,
@@ -97,7 +110,13 @@ pub fn run() -> Fallible<()> {
         toolbar_view.Navigate(w!("glimmerwood://chrome/toolbar.html"))?;
         page_view.Navigate(w!("glimmerwood://home/"))?;
     }
-    SHELL.with_borrow_mut(|held| *held = Some(shell));
+    SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
+
+    // The companion decides how the time is going. It is the same one the
+    // Linux build uses; this only tells it what is on screen.
+    let started = Companion::new(shell as Rc<dyn host::Host>, None);
+    started.windows_changed();
+    COMPANION.with_borrow_mut(|held| *held = Some(started));
 
     pump();
     Ok(())
@@ -175,7 +194,6 @@ impl Shell {
     fn heard(&self, message: ToCore) {
         let view = unsafe { self.page.CoreWebView2() };
         match message {
-            ToCore::Ready { .. } => self.push_state(),
             ToCore::Navigate { input } => self.navigate(&input),
             ToCore::Back => {
                 if let Ok(view) = view {
@@ -238,8 +256,29 @@ impl Shell {
             ToCore::CloseWindow => unsafe {
                 let _ = PostMessageW(Some(self.window), WM_CLOSE, WPARAM(0), LPARAM(0));
             },
-            // The rest belong to tabs, the wisp and the lists, which this
-            // shell has yet to grow.
+            ToCore::RateSite { site, rating } => {
+                if let Some(companion) = companion() {
+                    companion.rate_site(&site, Some(rating));
+                }
+            }
+            ToCore::NotNow { site } => {
+                if let Some(companion) = companion() {
+                    companion.not_now(&site);
+                }
+            }
+            ToCore::CloseCare => {
+                if let Some(companion) = companion() {
+                    companion.close_care();
+                }
+            }
+            ToCore::Ready { .. } => {
+                self.push_state();
+                if let Some(companion) = companion() {
+                    companion.chrome_ready();
+                }
+            }
+            // The rest belong to tabs and the lists, which this shell has yet
+            // to grow.
             _ => {}
         }
     }
@@ -501,11 +540,100 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
             });
             LRESULT(0)
         }
+        WM_TIMER => {
+            if w.0 == crate::host::WAKE
+                && let Some(companion) = companion()
+            {
+                companion.refresh();
+            }
+            LRESULT(0)
+        }
         WM_DESTROY => {
+            COMPANION.with_borrow_mut(|held| *held = None);
             SHELL.with_borrow_mut(|held| *held = None);
             unsafe { PostQuitMessage(0) };
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(window, message, w, l) },
+    }
+}
+
+impl Shell {
+    pub fn window(&self) -> HWND {
+        self.window
+    }
+}
+
+impl host::Window for Shell {
+    fn in_front(&self) -> bool {
+        unsafe { GetForegroundWindow() == self.window && IsWindowVisible(self.window).as_bool() }
+    }
+
+    fn attended_uri(&self) -> String {
+        let Ok(view) = (unsafe { self.page.CoreWebView2() }) else {
+            return String::new();
+        };
+        unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default()
+    }
+
+    fn other_tabs(&self, _in_front: bool) -> Vec<String> {
+        // One page at a time, until this shell grows tabs.
+        Vec::new()
+    }
+
+    fn sound_on_screen(&self) -> bool {
+        let Ok(view) = (unsafe { self.page.CoreWebView2() }) else {
+            return false;
+        };
+        // Whether a page is making a noise arrived in a later WebView2.
+        let Ok(view) = view.cast::<ICoreWebView2_8>() else {
+            return false;
+        };
+        let playing = unsafe { taken_bool(|out| view.IsDocumentPlayingAudio(out)) };
+        let muted = unsafe { taken_bool(|out| view.IsMuted(out)) };
+        playing && !muted
+    }
+
+    fn send_to_chrome(&self, message: &ToChrome) {
+        // The wisp is drawn here, not in the chrome, so it takes every change
+        // of dose; the chrome only shows words.
+        if let ToChrome::Wisp {
+            dose,
+            mode,
+            trend,
+            night,
+            private,
+            welcome,
+            ..
+        } = message
+        {
+            nook::update(
+                *dose,
+                Mode::from(*mode),
+                Trend::from(*trend),
+                *private,
+                *night,
+                *welcome,
+            );
+        }
+        self.tell_the_chrome(message);
+    }
+
+    fn refresh_pages(&self) {
+        // Home and Settings are not served here yet, so there is nothing
+        // showing that could have gone stale.
+    }
+
+    fn ask(&self, site: Option<String>) {
+        self.tell_the_chrome(&ToChrome::Ask { site });
+    }
+
+    fn care(&self, open: bool, samaritans: bool) {
+        self.tell_the_chrome(&ToChrome::Care { open, samaritans });
+    }
+
+    fn set_title(&self, title: &str) {
+        let text = HSTRING::from(title);
+        let _ = unsafe { SetWindowTextW(self.window, PCWSTR(text.as_ptr())) };
     }
 }

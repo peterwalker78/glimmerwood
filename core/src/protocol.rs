@@ -732,3 +732,27 @@ mod tests {
         assert!(json.contains(r#""security":"not_secure""#), "{json}");
     }
 }
+
+/// The wisp's mood, as the chrome is told it, back into what the engine
+/// calls it. Every platform that draws the wisp itself needs this.
+impl From<WispMode> for crate::dose::Mode {
+    fn from(mode: WispMode) -> Self {
+        match mode {
+            WispMode::Away => crate::dose::Mode::Away,
+            WispMode::Draining => crate::dose::Mode::Draining,
+            WispMode::Resting => crate::dose::Mode::Resting,
+            WispMode::Nourishing => crate::dose::Mode::Nourishing,
+            WispMode::Holding => crate::dose::Mode::Holding,
+        }
+    }
+}
+
+impl From<WispTrend> for crate::dose::Trend {
+    fn from(trend: WispTrend) -> Self {
+        match trend {
+            WispTrend::Rising => crate::dose::Trend::Rising,
+            WispTrend::Falling => crate::dose::Trend::Falling,
+            WispTrend::Steady => crate::dose::Trend::Steady,
+        }
+    }
+}

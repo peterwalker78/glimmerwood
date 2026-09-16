@@ -98,10 +98,7 @@ pub fn move_to(at: RECT) {
     draw();
 }
 
-/// How the wisp is doing. Nothing calls this yet: the companion that works
-/// out the dose still lives in the GTK app, and until it moves the wisp here
-/// only dozes.
-#[expect(dead_code, reason = "waiting on the companion to be shared")]
+/// How the wisp is doing, as the companion sees it.
 pub fn update(dose: f64, mode: Mode, trend: Trend, private: bool, night: bool, welcome: bool) {
     let moved = NOOK.with_borrow_mut(|held| {
         held.as_mut()
