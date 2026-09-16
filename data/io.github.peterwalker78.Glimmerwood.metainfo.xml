@@ -47,6 +47,14 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.8.1" date="2026-09-16">
+      <description>
+        <p>The Windows build gets what 0.8.0 gave the other two.</p>
+        <ul>
+          <li>Downloads, a week of pages, and the tabs you left open coming back asleep, on Windows as well</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.8.0" date="2026-09-16">
       <description>
         <p>The everyday basics, on all three systems at once: downloads, the tabs you left open, and a week of where you've been.</p>
