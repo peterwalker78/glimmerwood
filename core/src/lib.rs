@@ -26,4 +26,5 @@ pub mod reputation;
 pub mod settings;
 pub mod store;
 pub mod sun;
+pub mod svg;
 pub mod wisp;

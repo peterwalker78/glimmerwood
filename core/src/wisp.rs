@@ -1025,3 +1025,76 @@ fn draw_particles(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::svg::SvgCanvas;
+
+    const NOOK: (f64, f64) = (152.0, 56.0);
+    /// Long enough for everything that eases to have arrived.
+    const FRAMES: usize = 400;
+
+    /// The wisp in one of its moods, drawn as SVG. Every moment it depends on
+    /// is handed in, so the same call always draws the same thing.
+    fn render(dose: f64, mode: Mode, trend: Trend, night: bool, dark: bool) -> String {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        wisp.update(dose, mode, trend, false, night, false);
+        let mut drawn = String::new();
+        for frame in 0..FRAMES {
+            let mut canvas = SvgCanvas::new(NOOK.0, NOOK.1);
+            wisp.draw(frame as f64 * 16.0, true, dark, &mut canvas);
+            drawn = canvas.finish();
+        }
+        drawn
+    }
+
+    /// The wisp has no tests of its own beyond this: it is a drawing, and what
+    /// matters is that it keeps looking like itself. Each of these is a mood
+    /// rendered on a canvas that shares nothing with cairo, kept beside the
+    /// code. Run with `GLIMMERWOOD_BLESS=1` to write them down again after a
+    /// change, and look at what moved before committing it.
+    #[test]
+    fn the_wisp_still_looks_like_itself() {
+        let moods: [(&str, f64, Mode, Trend, bool, bool); 6] = [
+            (
+                "rested",
+                0.05,
+                Mode::Nourishing,
+                Trend::Falling,
+                false,
+                false,
+            ),
+            ("everyday", 0.35, Mode::Holding, Trend::Steady, false, false),
+            ("clouded", 0.62, Mode::Draining, Trend::Rising, false, false),
+            ("drained", 0.92, Mode::Draining, Trend::Rising, false, false),
+            ("night", 0.4, Mode::Resting, Trend::Falling, true, false),
+            ("away-dark", 0.3, Mode::Away, Trend::Steady, false, true),
+        ];
+
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/wisp/");
+        let bless = std::env::var_os("GLIMMERWOOD_BLESS").is_some();
+        for (name, dose, mode, trend, night, dark) in moods {
+            let drawn = render(dose, mode, trend, night, dark);
+            let path = format!("{dir}{name}.svg");
+            if bless {
+                std::fs::write(&path, &drawn).expect("write the wisp's picture");
+                continue;
+            }
+            let kept = std::fs::read_to_string(&path)
+                .unwrap_or_else(|_| panic!("{name}.svg is missing; run with GLIMMERWOOD_BLESS=1"));
+            assert_eq!(
+                kept, drawn,
+                "the wisp draws {name} differently now; \
+                 look at it, and if it is right run with GLIMMERWOOD_BLESS=1"
+            );
+        }
+    }
+
+    #[test]
+    fn a_wisp_that_is_told_nothing_new_asks_for_no_redraw() {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        assert!(wisp.update(0.5, Mode::Draining, Trend::Rising, false, false, false));
+        assert!(!wisp.update(0.5, Mode::Draining, Trend::Rising, false, false, false));
+    }
+}
