@@ -19,6 +19,7 @@ pub mod home;
 pub mod look;
 pub mod nav;
 pub mod oklab;
+pub mod pages;
 pub mod places;
 pub mod protocol;
 pub mod ratings;

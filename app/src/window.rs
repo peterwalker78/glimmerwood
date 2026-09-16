@@ -10,8 +10,9 @@ use crate::clock;
 use crate::companion::Companion;
 use crate::failure::{self, Reason};
 use crate::wisp_view::WispView;
-use crate::{chrome, prefs, scheme, tabs};
+use crate::{chrome, prefs, tabs};
 use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{
     ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore, WispMode, WispTrend,
 };
@@ -418,7 +419,7 @@ impl Window {
         self.push_tabs();
         self.push_state();
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
-        if uri.is_empty() || scheme::is_home(&uri) {
+        if uri.is_empty() || pages::is_home(&uri) {
             self.focus_address();
         } else {
             tab.view.grab_focus();
@@ -439,7 +440,7 @@ impl Window {
     /// The wisp's history on Home: the tab on screen if it's
     /// Home, else the window's first Home tab, else a new one.
     fn show_wisp(self: &Rc<Self>) {
-        let is_home = |tab: &Tab| tab.view.uri().is_some_and(|uri| scheme::is_home(&uri));
+        let is_home = |tab: &Tab| tab.view.uri().is_some_and(|uri| pages::is_home(&uri));
         let existing = self
             .selected_tab()
             .filter(|tab| is_home(tab))
@@ -474,7 +475,7 @@ impl Window {
             .tabs
             .borrow()
             .iter()
-            .find(|tab| tab.view.uri().is_some_and(|uri| scheme::is_settings(&uri)))
+            .find(|tab| tab.view.uri().is_some_and(|uri| pages::is_settings(&uri)))
             .cloned();
         let tab = match existing {
             Some(tab) => {
@@ -505,11 +506,11 @@ impl Window {
     /// load finished.
     fn push_page(&self, tab: &Tab) {
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
-        let (json, page, global) = if scheme::is_home(&uri) {
+        let (json, page, global) = if pages::is_home(&uri) {
             let data = self.companion.home_data(clock::now());
             let json = serde_json::to_string(&data).expect("home data serialises");
             (json, "home", "wispHome")
-        } else if scheme::is_settings(&uri) {
+        } else if pages::is_settings(&uri) {
             let data = self.companion.settings_data();
             let json = serde_json::to_string(&data).expect("settings data serialises");
             (json, "settings", "wispSettings")
@@ -620,7 +621,7 @@ impl Window {
                     self.send_to_chrome(&ToChrome::Caption { open: true });
                 }
                 let uri = self.selected_uri();
-                if uri.is_empty() || scheme::is_home(&uri) {
+                if uri.is_empty() || pages::is_home(&uri) {
                     self.focus_address();
                 }
             }
@@ -865,7 +866,7 @@ impl Window {
         let icon_changed = move |view: &webkit::WebView| {
             if let (Some(this), Some(tab)) = (weak.upgrade(), weak_tab.upgrade()) {
                 // Home and Settings have no favicon; they wear the wisp.
-                let icon = if view.uri().is_some_and(|uri| scheme::is_local_page(&uri)) {
+                let icon = if view.uri().is_some_and(|uri| pages::is_local_page(&uri)) {
                     Some(home_icon())
                 } else {
                     view.favicon().map(|icon| data_url(&icon))
@@ -934,10 +935,7 @@ impl Window {
                     tab.fallback.take();
                 }
                 webkit::LoadEvent::Finished
-                    if tab
-                        .view
-                        .uri()
-                        .is_some_and(|uri| scheme::is_local_page(&uri)) =>
+                    if tab.view.uri().is_some_and(|uri| pages::is_local_page(&uri)) =>
                 {
                     if let Some(this) = weak_self.upgrade() {
                         this.push_page(&tab);
@@ -1046,7 +1044,7 @@ impl Window {
                 if let Some(action) = target.strip_prefix(HOME_ACTIONS) {
                     decision.ignore();
                     if let Some(this) = weak.upgrade()
-                        && scheme::is_home(&showing)
+                        && pages::is_home(&showing)
                         && this.companion.home_action(action)
                     {
                         this.companion.refresh_pages();
@@ -1056,7 +1054,7 @@ impl Window {
                 if let Some(action) = target.strip_prefix(SETTINGS_ACTIONS) {
                     decision.ignore();
                     if let Some(this) = weak.upgrade()
-                        && scheme::is_settings(&showing)
+                        && pages::is_settings(&showing)
                     {
                         this.companion.settings_action(action);
                     }
@@ -1363,7 +1361,7 @@ impl Window {
             can_bookmark,
             bookmarked: can_bookmark && self.companion.is_bookmarked(&uri),
             // Home and a blank tab leave the field empty, ready to type in.
-            uri: if uri == "about:blank" || scheme::is_local_page(&uri) {
+            uri: if uri == "about:blank" || pages::is_local_page(&uri) {
                 String::new()
             } else {
                 uri
