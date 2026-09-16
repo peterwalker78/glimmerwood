@@ -66,8 +66,10 @@ impl History {
         }
         let host = nav::host_of(url);
         let recent = at.ms - 60_000;
-        self.conn
-            .execute("DELETE FROM visits WHERE url = ?1 AND at >= ?2", params![url, recent])?;
+        self.conn.execute(
+            "DELETE FROM visits WHERE url = ?1 AND at >= ?2",
+            params![url, recent],
+        )?;
         self.conn.execute(
             "INSERT INTO visits (at, url, title, host) VALUES (?1, ?2, ?3, ?4)",
             params![at.ms, url, title, host],
@@ -157,7 +159,9 @@ mod tests {
     #[test]
     fn glimmerwoods_own_pages_are_not_places_you_went() {
         let history = History::in_memory();
-        history.record(at(1), "glimmerwood://home/", "Home").unwrap();
+        history
+            .record(at(1), "glimmerwood://home/", "Home")
+            .unwrap();
         history.record(at(2), "", "").unwrap();
         history.record(at(3), "about:blank", "").unwrap();
         assert!(history.is_empty());
@@ -166,7 +170,9 @@ mod tests {
     #[test]
     fn returning_within_the_minute_replaces_rather_than_repeats() {
         let history = History::in_memory();
-        history.record(at(0), "https://example.org/", "One").unwrap();
+        history
+            .record(at(0), "https://example.org/", "One")
+            .unwrap();
         history
             .record(at(30_000), "https://example.org/", "One again")
             .unwrap();
@@ -178,7 +184,9 @@ mod tests {
     #[test]
     fn coming_back_later_is_its_own_visit() {
         let history = History::in_memory();
-        history.record(at(0), "https://example.org/", "One").unwrap();
+        history
+            .record(at(0), "https://example.org/", "One")
+            .unwrap();
         history
             .record(at(120_000), "https://example.org/", "One")
             .unwrap();
@@ -216,7 +224,11 @@ mod tests {
         let history = History::in_memory();
         let now = at(10 * DAY_MS);
         history
-            .record(at(now.ms - 3 * 60 * 60 * 1000), "https://kept.example/", "Kept")
+            .record(
+                at(now.ms - 3 * 60 * 60 * 1000),
+                "https://kept.example/",
+                "Kept",
+            )
             .unwrap();
         history
             .record(at(now.ms - 10 * 60 * 1000), "https://gone.example/", "Gone")
@@ -230,8 +242,12 @@ mod tests {
     #[test]
     fn newest_comes_first() {
         let history = History::in_memory();
-        history.record(at(1_000), "https://one.example/", "One").unwrap();
-        history.record(at(2_000), "https://two.example/", "Two").unwrap();
+        history
+            .record(at(1_000), "https://one.example/", "One")
+            .unwrap();
+        history
+            .record(at(2_000), "https://two.example/", "Two")
+            .unwrap();
         let visits = history.since(0).unwrap();
         assert_eq!(visits[0].host, "two.example");
     }

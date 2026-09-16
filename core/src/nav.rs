@@ -209,7 +209,10 @@ mod tests {
 
     #[test]
     fn ctrl_enter_leaves_a_real_address_alone() {
-        assert_eq!(dot_com("example.org").expect("an address").uri, "https://example.org");
+        assert_eq!(
+            dot_com("example.org").expect("an address").uri,
+            "https://example.org"
+        );
         assert_eq!(
             dot_com("https://example.org/a").expect("an address").uri,
             "https://example.org/a"
@@ -219,7 +222,10 @@ mod tests {
     #[test]
     fn ctrl_enter_on_a_search_searches() {
         let target = dot_com("how deep is the sea").expect("a search");
-        assert_eq!(target.uri, resolve("how deep is the sea").expect("a search").uri);
+        assert_eq!(
+            target.uri,
+            resolve("how deep is the sea").expect("a search").uri
+        );
         assert!(!target.uri.starts_with("https://how"), "{}", target.uri);
     }
 

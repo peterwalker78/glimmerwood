@@ -17,12 +17,15 @@ use crate::diary;
 use crate::dose::{
     self, Activity, Engine, FactorKind, Mode, Moment, Phase, Place, Rates, Snapshot, Trend,
 };
+use crate::downloads::{Download, Downloads, Progress};
 use crate::feel_lab::{Lab, Step};
+use crate::history::History;
 use crate::home::{self, Facts, PartOfDay, Topic, Words};
 use crate::host::{Host, Window};
 use crate::nav;
 use crate::nav::host_of;
 use crate::places::{self, PlaceCard, Pool};
+use crate::protocol::Page;
 use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
     HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
@@ -30,11 +33,8 @@ use crate::protocol::{
 };
 use crate::ratings::{self, Action};
 use crate::reputation::{self, List, Lists};
-use crate::settings::{self, Settings};
-use crate::downloads::{Download, Downloads, Progress};
-use crate::history::History;
-use crate::protocol::Page;
 use crate::session::Session;
+use crate::settings::{self, Settings};
 use crate::store::{GardenDay, Sample, Store};
 
 /// How often a moving wisp is refreshed while someone is there to see it,
@@ -633,7 +633,10 @@ impl Companion {
 
     /// Where the open tabs are kept, for the shell that writes them.
     pub fn session_path(&self) -> PathBuf {
-        self.host.data_dir().join("glimmerwood").join("session.json")
+        self.host
+            .data_dir()
+            .join("glimmerwood")
+            .join("session.json")
     }
 
     pub fn last_session(&self) -> Session {

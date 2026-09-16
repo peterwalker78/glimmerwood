@@ -110,10 +110,7 @@ impl Tabs {
                 title: tab.facts.label(),
             })
             .collect();
-        let selected = self
-            .selected
-            .and_then(|id| self.index_of(id))
-            .unwrap_or(0);
+        let selected = self.selected.and_then(|id| self.index_of(id)).unwrap_or(0);
         crate::session::Session { tabs, selected }.worth_restoring()
     }
 
