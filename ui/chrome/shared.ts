@@ -5,10 +5,8 @@ import type { ToChrome, ToCore } from "../protocol.gen.js";
 
 declare global {
   interface Window {
-    // Whichever engine the chrome is running in. WebKit hands messages to a
-    // named handler; WebView2 has one channel per page.
+    // WebKit hands the chrome's messages to a named handler.
     webkit?: { messageHandlers: { wisp: { postMessage(message: ToCore): void } } };
-    chrome?: { webview?: { postMessage(message: ToCore): void } };
     // Not `wisp`: the wisp button's id would shadow it until the page loads.
     wispChrome: { receive(message: ToChrome): void };
   }
@@ -21,12 +19,7 @@ export function element<T extends HTMLElement>(id: string, kind: new () => T): T
 }
 
 export function send(message: ToCore): void {
-  const webkit = window.webkit?.messageHandlers?.wisp;
-  if (webkit) {
-    webkit.postMessage(message);
-    return;
-  }
-  window.chrome?.webview?.postMessage(message);
+  window.webkit?.messageHandlers?.wisp?.postMessage(message);
 }
 
 export function receive(handler: (message: ToChrome) => void): void {

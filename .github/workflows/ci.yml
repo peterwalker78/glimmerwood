@@ -10,17 +10,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # The core has no platform in it, and neither has the surface Windows and
-  # macOS will draw the wisp on. This is what says so: both build and run
-  # their tests on all three, with no GTK or WebKit anywhere in sight, and
-  # the wisp has to come out identical on each.
+  # The core has no platform in it, and neither has the rasteriser. This is
+  # what says so: both build and run their tests with no GTK or WebKit
+  # anywhere in sight.
   core:
-    name: core on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    name: the core
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -31,7 +26,7 @@ jobs:
       - run: cargo clippy --locked -p glimmerwood-core -p glimmerwood-raster --all-targets -- -D warnings
 
   # The GTK build, on the toolchain it is developed against.
-  linux:
+  app:
     name: the GTK app
     runs-on: ubuntu-latest
     container: fedora:44
@@ -46,65 +41,4 @@ jobs:
       # There is no distrobox here, so this runs where it stands.
       - name: Check
         run: scripts/check
-      # The pinned tsc is a Linux binary, so the chrome is built once here and
-      # the other platforms are handed the result.
-      - uses: actions/upload-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
 
-  # Windows has no WebKit of any kind, so its shell is WebView2 over the same
-  # core. This builds it for real: type-checking would miss the linking.
-  windows:
-    name: the Windows shell
-    runs-on: windows-latest
-    needs: linux
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-      - uses: actions/download-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
-      - run: cargo build --locked --release -p glimmerwood-windows
-      - run: cargo clippy --locked -p glimmerwood-windows -- -D warnings
-      - name: Gather it up
-        shell: bash
-        run: |
-          mkdir -p out
-          cp target/release/glimmerwood.exe out/
-          cp target/release/WebView2Loader.dll out/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: glimmerwood-windows-x64
-          path: out
-
-  # macOS has WebKit itself, the same family as the WebKitGTK the Linux build
-  # uses, so the page is rendered by the same lineage on both.
-  macos:
-    name: the macOS shell
-    runs-on: macos-latest
-    needs: linux
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-      - uses: actions/download-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
-      - run: cargo build --locked --release -p glimmerwood-macos
-      - run: cargo clippy --locked -p glimmerwood-macos -- -D warnings
-      - name: Make it an app
-        run: |
-          scripts/macos-app target/release/glimmerwood out/Glimmerwood.app
-          test -f out/Glimmerwood.app/Contents/Resources/Glimmerwood.icns
-      - uses: actions/upload-artifact@v4
-        with:
-          name: glimmerwood-macos
-          path: out

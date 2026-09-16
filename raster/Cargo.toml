@@ -8,8 +8,7 @@ publish = false
 
 [dependencies]
 glimmerwood-core = { path = "../core" }
-# One software rasteriser, in Rust, rather than Direct2D on Windows and Core
-# Graphics on macOS: two platform graphics stacks, two piles of unsafe, and
-# nowhere to test either of them. The wisp is 152x56 and asks for 2-6 frames a
-# second, so a CPU is more than enough to draw it.
+# A software rasteriser, in Rust, so the wisp can be drawn and compared
+# anywhere without a toolkit under it. The wisp is 152x56 and asks for 2-6
+# frames a second, so a CPU is more than enough to draw it.
 tiny-skia = "0.12"

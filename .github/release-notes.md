@@ -8,20 +8,7 @@ curl -LO https://github.com/peterwalker78/glimmerwood/releases/latest/download/g
 flatpak install --user glimmerwood-x86_64.flatpak
 ```
 
-**Windows** — unzip `glimmerwood-windows-x64.zip` and run `Glimmerwood.exe`,
-keeping it beside `WebView2Loader.dll`. It needs the WebView2 runtime, which
-Windows 11 and current Windows 10 already have; if a machine hasn't got it, the
-app says so. Unsigned, so SmartScreen warns once: *More info*, then *Run anyway*.
+The Windows and macOS builds are withdrawn: see
+[`docs/ports/`](https://github.com/peterwalker78/glimmerwood/tree/main/docs/ports).
 
-**macOS** — unzip `glimmerwood-macos.zip` and drag **Glimmerwood** to
-Applications. macOS 11 or later, Apple silicon or Intel. Unsigned, so Gatekeeper
-refuses a double-click. Right-click the app and choose **Open**, or clear the
-flag first:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/Glimmerwood.app
-```
-
-On macOS, WebKit reports a page's sound only through a private property, so a
-tab playing there doesn't keep the wisp awake as it does elsewhere. Checksums
-for every file are in `SHA256SUMS`.
+Checksums for every file are in `SHA256SUMS`.

@@ -6,7 +6,7 @@
 
 ### The web browser that's on your side.
 
-A quiet browser for Linux, macOS and Windows, and home to the wisp: a small
+A quiet browser for Linux, and home to the wisp: a small
 living companion who notices how your time online really feels, so you can
 spend more of it on the things that leave you better off.
 
@@ -210,26 +210,9 @@ choose it under *Default Applications* in your desktop's settings.
 
 ### Windows and macOS
 
-Both are on the [releases page](https://github.com/peterwalker78/glimmerwood/releases/latest)
-beside the Flatpak, on the same core as the Linux build: tabs, bookmarks, find
-in page, zoom, Home, Settings, the keyboard, and the wisp in its nook watching
-over them. One difference worth knowing: on macOS, WebKit reports a page's
-sound only through a private property, so a tab playing quietly there doesn't
-keep the wisp awake the way it does elsewhere.
-
-**Windows** — unzip `glimmerwood-windows-x64.zip` and run `Glimmerwood.exe`,
-keeping it beside `WebView2Loader.dll`. It needs the WebView2 runtime, which
-Windows 11 and current Windows 10 already have; if a machine hasn't got it, the
-app says so. Unsigned, so SmartScreen warns once: *More info*, then *Run anyway*.
-
-**macOS** — unzip `glimmerwood-macos.zip` and drag **Glimmerwood** to
-Applications. macOS 11 or later, Apple silicon or Intel. Unsigned, so Gatekeeper
-refuses a double-click: right-click the app and choose **Open**, or clear the
-flag first.
-
-```sh
-xattr -dr com.apple.quarantine /Applications/Glimmerwood.app
-```
+Glimmerwood is a Linux browser. Shells for both were built and then withdrawn
+after 0.9.2; what was learned doing it, and what it would take to pick either
+up again, is in [`docs/ports/`](docs/ports).
 
 
 <br>
@@ -357,9 +340,8 @@ and say why.
 
 ## For developers
 
-Glimmerwood is written in Rust, on the engine each system already has: GTK 4
-and WebKitGTK 6.0 on Linux, WebKit on macOS, the Edge WebView2 runtime on
-Windows. Nothing is bundled anywhere. The wisp itself is drawn natively rather
+Glimmerwood is written in Rust, on the engine the system already has: GTK 4 and
+WebKitGTK 6.0. Nothing is bundled. The wisp itself is drawn natively rather
 than in a web page, so the whole browser idles at around one percent of a CPU
 core with the wisp breathing. The toolbar and Home are small TypeScript pages
 compiled by the native TypeScript 7 compiler, so there's no Node in the build.
@@ -367,9 +349,9 @@ compiled by the native TypeScript 7 compiler, so there's no Node in the build.
 The workspace splits the browser from the machine it runs on. `core/` is the
 dose model, the lists, the garden, the diary, the tabs, the protocol and the
 whole of the wisp's drawing, with no window toolkit anywhere in its
-dependencies; `app/`, `macos/` and `windows/` are the three shells on top of
-it, each holding only what its own system does differently. `raster/` draws
-the wisp into pixels where there is no cairo.
+dependencies; `app/` is the GTK shell on top of it, holding only what the
+window toolkit does. `raster/` draws the wisp into pixels with no toolkit under
+it, which is what the tests hold its face to.
 
 Requirements: Rust (stable), GTK 4.20 or later, WebKitGTK 6.0,
 `glib-compile-resources`, SQLite, and `curl` to fetch the compiler.

@@ -1,11 +1,10 @@
 //! The wisp, drawn into a buffer of pixels.
 //!
-//! GTK lends the wisp cairo. Windows and macOS each have a drawing library of
-//! their own, but using them would mean writing the wisp's surface twice more,
-//! in two piles of unsafe platform code, with nowhere to run either of them
-//! until the shell around them exists. So instead both are handed the same
-//! software rasteriser, which is plain Rust, draws the same thing everywhere,
-//! and can be looked at on any machine — including this one.
+//! GTK lends the wisp cairo, and the welcome page gets it as SVG. This is the
+//! third surface behind the same `Canvas`: plain Rust, no toolkit, drawing
+//! into a buffer of pixels that can be compared byte for byte. That is what
+//! the mood tests hold the drawing to, so a change to the wisp's face has to
+//! look the same through every surface it goes out on.
 //!
 //! The wisp is 152x56 and asks for two to six frames a second. A CPU does not
 //! notice that.

@@ -1,8 +1,7 @@
 //! The part of Glimmerwood that has no platform: the dose model, the lists,
 //! the garden, the diary, the protocol the chrome speaks, and the files they
 //! live in. No window, no widgets, no web engine, and no dependency that
-//! isn't portable — so the same core runs behind GTK on Linux, WKWebView on
-//! macOS and WebView2 on Windows.
+//! isn't portable, so the shell around it stays a shell.
 //!
 //! What it can't know, it is handed: the clock's offset from UTC, and the
 //! paths its files live at.

@@ -9,20 +9,6 @@ permissions:
   contents: write
 
 jobs:
-  chrome:
-    name: the chrome
-    runs-on: ubuntu-latest
-    container: fedora:44
-    steps:
-      - name: Dependencies
-        run: dnf install -y --setopt=install_weak_deps=False tar curl findutils
-      - uses: actions/checkout@v4
-      - run: scripts/build-ui
-      - uses: actions/upload-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
-
   linux:
     name: Linux
     runs-on: ubuntu-latest
@@ -41,118 +27,10 @@ jobs:
           name: glimmerwood-linux
           path: glimmerwood-x86_64.flatpak
 
-  windows:
-    name: Windows
-    runs-on: windows-latest
-    needs: chrome
-    env:
-      WINDOWS_PFX: ${{ secrets.WINDOWS_PFX }}
-      WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/download-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
-      - run: cargo build --locked --release -p glimmerwood-windows
-      # Signing needs a certificate in the repository's secrets: WINDOWS_PFX
-      # (base64 of a .pfx) and WINDOWS_PFX_PASSWORD. Without them the build
-      # goes out unsigned and SmartScreen warns the first time it is run.
-      - name: Sign it
-        if: env.WINDOWS_PFX != ''
-        shell: bash
-        run: |
-          echo "$WINDOWS_PFX" | base64 --decode > signing.pfx
-          signtool sign /f signing.pfx /p "$WINDOWS_PFX_PASSWORD" \
-            /fd sha256 /tr http://timestamp.digicert.com /td sha256 \
-            target/release/glimmerwood.exe
-          rm -f signing.pfx
-      - name: Gather it up
-        shell: bash
-        run: |
-          mkdir -p Glimmerwood
-          cp target/release/glimmerwood.exe Glimmerwood/
-          cp target/release/WebView2Loader.dll Glimmerwood/
-          7z a glimmerwood-windows-x64.zip Glimmerwood
-      - uses: actions/upload-artifact@v4
-        with:
-          name: glimmerwood-windows
-          path: glimmerwood-windows-x64.zip
-
-  macos:
-    name: macOS
-    runs-on: macos-latest
-    needs: chrome
-    env:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin, x86_64-apple-darwin
-      - uses: actions/download-artifact@v4
-        with:
-          name: chrome
-          path: ui/dist
-      # Both architectures, so the download runs on an Intel Mac as well.
-      - run: cargo build --locked --release --target aarch64-apple-darwin -p glimmerwood-macos
-      - run: cargo build --locked --release --target x86_64-apple-darwin -p glimmerwood-macos
-      - name: Make it an app
-        run: |
-          mkdir -p target/universal
-          lipo -create -output target/universal/glimmerwood \
-            target/aarch64-apple-darwin/release/glimmerwood \
-            target/x86_64-apple-darwin/release/glimmerwood
-          scripts/macos-app target/universal/glimmerwood Glimmerwood.app
-          # The icon is easy to lose and hard to notice missing.
-          test -f Glimmerwood.app/Contents/Resources/Glimmerwood.icns
-      # Signing and notarising need an Apple Developer account in the
-      # repository's secrets: APPLE_CERTIFICATE (base64 of a Developer ID
-      # Application .p12), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
-      # APPLE_API_KEY (base64 of the .p8), APPLE_API_KEY_ID and
-      # APPLE_API_ISSUER. Without them the app goes out unsigned and Gatekeeper
-      # refuses it on a double-click.
-      - name: Sign and notarise it
-        if: env.APPLE_CERTIFICATE != ''
-        run: |
-          # A keychain of its own, so nothing is left behind on the runner.
-          keychain="$RUNNER_TEMP/signing.keychain-db"
-          password="$(uuidgen)"
-          security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 900 "$keychain"
-          security unlock-keychain -p "$password" "$keychain"
-          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
-          security list-keychain -d user -s "$keychain" login.keychain-db
-          codesign --force --deep --options runtime --timestamp \
-            --sign "$APPLE_SIGNING_IDENTITY" Glimmerwood.app
-          echo "$APPLE_API_KEY" | base64 --decode > "$RUNNER_TEMP/key.p8"
-          ditto -c -k --keepParent Glimmerwood.app "$RUNNER_TEMP/notarise.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarise.zip" \
-            --key "$RUNNER_TEMP/key.p8" --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER" --wait
-          xcrun stapler staple Glimmerwood.app
-          security delete-keychain "$keychain"
-          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/key.p8"
-      - name: Pack it
-        run: ditto -c -k --keepParent Glimmerwood.app glimmerwood-macos.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: glimmerwood-macos
-          path: glimmerwood-macos.zip
-
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    needs: [linux, windows, macos]
+    needs: [linux]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       # Before the artifacts: a checkout tidies away anything untracked.

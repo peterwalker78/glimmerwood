@@ -1,6 +1,6 @@
 //! The wisp, rasterised — the same six moods the core keeps as SVG, drawn
-//! this time by the surface Windows and macOS will use. Keeping both means a
-//! change to the wisp has to look the same on every platform it runs on.
+//! this time into pixels. Keeping both means a change to the wisp has to come
+//! out the same through either surface.
 //!
 //! `GLIMMERWOOD_BLESS=1` writes the pictures again.
 
