@@ -47,6 +47,19 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.7.0" date="2026-09-16">
+      <description>
+        <p>The macOS and Windows builds are browsers now, on the same core as the Linux one.</p>
+        <ul>
+          <li>Tabs, bookmarks, find in page, the keyboard and the wisp in its nook on all three systems</li>
+          <li>The wisp is drawn on macOS for the first time, at the screen's own scale, following the system's light and dark and holding still when less motion is asked for</li>
+          <li>Home and Settings do what their buttons say everywhere, and a page that won't open says why in plain words rather than showing the engine's error</li>
+          <li>A certificate that doesn't check out is named as such, and is never quietly retried without encryption</li>
+          <li>How large a site is drawn is remembered per site, on Ctrl or Cmd with plus, minus and zero</li>
+          <li>Each window opens the size it was left</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.6.0" date="2026-09-16">
       <description>
         <p>The wisp does its real work on Windows and macOS, and the welcome page has things to do.</p>
