@@ -8,6 +8,18 @@
 use crate::nav;
 use crate::protocol::{TabInfo, TabSound};
 
+/// How wide the column may be dragged, and where it starts. Narrow by
+/// default: just wide enough for each site's mark, with titles appearing
+/// once someone drags it out far enough to want them.
+pub const COLUMN_DEFAULT: i32 = 48;
+pub const COLUMN_MIN: i32 = 48;
+pub const COLUMN_MAX: i32 = 360;
+
+/// A width to keep, clamped to what the column allows.
+pub fn column_width(asked: i32) -> i32 {
+    asked.clamp(COLUMN_MIN, COLUMN_MAX)
+}
+
 /// What a shell's engine reports about one tab.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Facts {
@@ -230,6 +242,13 @@ impl Tabs {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_column_keeps_to_its_limits() {
+        assert_eq!(column_width(10), COLUMN_MIN);
+        assert_eq!(column_width(900), COLUMN_MAX);
+        assert_eq!(column_width(220), 220);
+    }
     use super::*;
 
     fn with(n: usize) -> Tabs {

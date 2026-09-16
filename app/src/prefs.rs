@@ -11,10 +11,12 @@ use gtk::glib;
 const GROUP: &str = "window";
 const TAB_COLUMN_WIDTH: &str = "tab-column-width";
 
-/// Just wide enough for a site icon in its tile.
-pub const DEFAULT_TAB_COLUMN_WIDTH: i32 = 48;
-pub const MIN_TAB_COLUMN_WIDTH: i32 = 48;
-pub const MAX_TAB_COLUMN_WIDTH: i32 = 360;
+// The width the column starts at and may be dragged between is the core's,
+// so every platform agrees about it.
+pub use glimmerwood_core::tabs::{
+    COLUMN_DEFAULT as DEFAULT_TAB_COLUMN_WIDTH, COLUMN_MAX as MAX_TAB_COLUMN_WIDTH,
+    COLUMN_MIN as MIN_TAB_COLUMN_WIDTH,
+};
 
 fn path() -> PathBuf {
     glib::user_config_dir()
