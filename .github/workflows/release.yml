@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  chrome:
+    name: the chrome
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Dependencies
+        run: dnf install -y --setopt=install_weak_deps=False tar curl findutils
+      - uses: actions/checkout@v4
+      - run: scripts/build-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: glimmerwood-x86_64.flatpak
+          manifest-path: flatpak/io.github.peterwalker78.Glimmerwood.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glimmerwood-linux
+          path: glimmerwood-x86_64.flatpak
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    needs: chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+      - run: cargo build --locked --release -p glimmerwood-windows
+      - name: Gather it up
+        shell: bash
+        run: |
+          mkdir -p Glimmerwood
+          cp target/release/glimmerwood.exe Glimmerwood/
+          cp target/release/WebView2Loader.dll Glimmerwood/
+          7z a glimmerwood-windows-x64.zip Glimmerwood
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glimmerwood-windows
+          path: glimmerwood-windows-x64.zip
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    needs: chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+      - run: cargo build --locked --release -p glimmerwood-macos
+      - name: Make it an app
+        run: |
+          scripts/macos-app target/release/glimmerwood Glimmerwood.app
+          zip -qry glimmerwood-macos.zip Glimmerwood.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glimmerwood-macos
+          path: glimmerwood-macos.zip
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: [linux, windows, macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: glimmerwood-*
+          merge-multiple: true
+          path: built
+      - name: Checksums
+        run: cd built && sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: built/*
+          generate_release_notes: true
