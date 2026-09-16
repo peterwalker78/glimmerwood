@@ -47,6 +47,15 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.10.0" date="2026-09-16">
+      <description>
+        <p>Glimmerwood is a Linux browser.</p>
+        <ul>
+          <li>The macOS and Windows builds are withdrawn. Both were working browsers, but neither could be developed against on a Linux machine, and three engines meant every feature was written three times</li>
+          <li>Nothing else changes for the Linux build: the same browser, the same wisp, the same lists</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.2" date="2026-09-16">
       <description>
         <p>Two things the ports were getting wrong.</p>

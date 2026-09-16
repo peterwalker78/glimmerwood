@@ -1,6 +1,6 @@
 [package]
 name = "glimmerwood-raster"
-version = "0.9.2"
+version = "0.10.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 description = "The wisp, drawn into a buffer of pixels"
