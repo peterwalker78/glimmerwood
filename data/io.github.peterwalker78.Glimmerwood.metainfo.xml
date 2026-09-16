@@ -47,6 +47,15 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.9.2" date="2026-09-16">
+      <description>
+        <p>Two things the ports were getting wrong.</p>
+        <ul>
+          <li>The tab column appears on macOS: its own page was never served to it, so the column stood empty and white</li>
+          <li>On Windows, a profile folder the engine won't take no longer stops the browser opening, and whatever does go wrong says which folder and which step it was about</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.1" date="2026-09-16">
       <description>
         <p>Three things the Windows build was doing that it shouldn't.</p>
