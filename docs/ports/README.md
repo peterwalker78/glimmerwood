@@ -18,11 +18,13 @@ the CI and release jobs, and the `cfg(windows)` bundled-SQLite line in
 
 Not the porting work itself, which mostly went as planned. Two things:
 
-- **Neither could be run here.** The dev machine is Linux. Every fix for either
-  shell was written blind, tagged, released, and tried by someone else on their
-  own machine — a loop measured in days, on a browser that changes daily. Six
-  of the eight commits after the shells landed were fixes for faults that
-  would have been obvious in a minute in front of the thing.
+- **Neither could be developed against.** The dev machine is Linux. The Windows
+  shell cross-builds and runs under Wine, which is a real check but not an
+  honest one (below); macOS has no local answer at all. Every fix for either
+  went out as a release artifact before it could be judged on the hardware it
+  was for — a loop measured in days, on a browser that changes daily. Six of
+  the eight commits after the shells landed were fixes for faults that a
+  minute in front of the real thing would have shown.
 - **Three engines is three browsers.** WebKitGTK, WKWebView and WebView2 agree
   on very little past `Navigate`. Tabs, downloads, find, zoom, failure pages
   and session restore each landed three times, and each of the three has its
@@ -102,6 +104,30 @@ Everything the GTK window asks of WebKitGTK, and its counterpart:
 | `glimmerwood://` scheme | `WKURLSchemeHandler` | `AddWebResourceRequestedFilter` |
 | find in page | `find(_:configuration:)` | none — inject it |
 
+## Wine is a harness, not a verdict
+
+The Windows shell cross-builds in the dev container against
+`x86_64-pc-windows-gnu` in about a minute, and runs under the Wine that ships
+inside Proton. `build.rs` drops `WebView2Loader.dll` beside the exe correctly on
+the gnu target, and WebView2 itself works: the standalone Evergreen installer
+goes in silently and renders, falling back to software rasterisation. Proton's
+Wine carries only `winex11.drv`, so it needs `DISPLAY=:0` and Xwayland; with
+Wayland alone it stops with "no driver could be loaded".
+
+It is worth having and it is not worth trusting. One fault came from the
+harness rather than the program: the nook is a `WS_CHILD | WS_EX_LAYERED`
+window, and Wine gives a layered child an X window of its own, so its
+parent-relative position is applied as a *screen* position and the wisp lands
+somewhere out on the desktop. `xdotool search --onlyvisible` shows it as a
+second 152x56 window sitting apart from the browser's. Judge the nook on real
+Windows only.
+
+Two smaller things about the harness: under Wine the processes take Chromium's
+names (`CrBrowserMain`, `CrGpuMain`), so `pgrep -x glimmerwood.exe` never
+matches and `pgrep -f` is needed; and the prefix wants to live on real disk,
+since a prefix plus the installer on tmpfs costs the best part of a gigabyte of
+memory.
+
 ## Things that cost a release each to find
 
 Written down because none of them is obvious from the API, and all of them cost
@@ -120,8 +146,9 @@ a round trip to someone else's machine:
   the engine reads a relative path as relative to the program.
 - **The nook is placed by the toolbar, not by the shell.** Handed a point as
   well as a size, a Windows layered window moves to it in *screen* coordinates,
-  which for a default point is the corner of the desktop. The wisp ended up
-  there.
+  which for a default point is the corner of the desktop. Note that a wisp
+  adrift on the desktop has two possible causes: this one, and Wine's handling
+  of a layered child window (above). They look identical and only one is real.
 - **A custom scheme handler must answer every view that may ask.** Both chrome
   views may ask for anything carried in the binary; a tab is still the web and
   may ask only for Home and Settings. Answering only the toolbar drops the
