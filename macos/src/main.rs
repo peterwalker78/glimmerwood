@@ -13,6 +13,9 @@ mod files {
 mod host;
 
 #[cfg(target_os = "macos")]
+mod nook;
+
+#[cfg(target_os = "macos")]
 mod shell;
 
 #[cfg(target_os = "macos")]

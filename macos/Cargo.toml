@@ -36,6 +36,15 @@ objc2-app-kit = { version = "0.3", features = [
     "NSMenu",
     "NSMenuItem",
     "NSEvent",
+    # The wisp's nook: a view of its own over the toolbar, the pixels the
+    # rasteriser hands it, and the system's word on dark mode and motion.
+    "NSImage",
+    "NSImageRep",
+    "NSBitmapImageRep",
+    "NSTrackingArea",
+    "NSAppearance",
+    "NSWorkspace",
+    "NSAccessibility",
 ] }
 objc2-foundation = { version = "0.3", features = [
     "NSString",
@@ -57,6 +66,9 @@ objc2-foundation = { version = "0.3", features = [
     "NSURLProtectionSpace",
     "NSURLCredential",
     "NSURLSession",
+    "NSArray",
+    # The wisp's clock, which moves forward whatever the wall clock does.
+    "NSProcessInfo",
 ] }
 objc2-web-kit = { version = "0.3", features = [
     "WKWebView",
@@ -69,4 +81,9 @@ objc2-web-kit = { version = "0.3", features = [
     "WKNavigationDelegate",
     "WKNavigation",
     "WKNavigationAction",
+    # Find in page, and how large a site is drawn.
+    "WKFindConfiguration",
+    "WKFindResult",
+    "block2",
+    "objc2-core-foundation",
 ] }

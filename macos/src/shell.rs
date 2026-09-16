@@ -8,22 +8,26 @@
 
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
+use std::ptr::NonNull;
 use std::rc::Rc;
 
-use block2::DynBlock;
+use block2::{DynBlock, RcBlock};
 use glimmerwood_core::companion::Companion;
+use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::failure::{self, Reason};
+use glimmerwood_core::find;
 use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
 use glimmerwood_core::tabs::Tabs;
+use glimmerwood_core::zoom;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{AllocAnyThread, MainThreadOnly, define_class, msg_send, sel};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventModifierFlags, NSMenu,
-    NSMenuItem, NSWindow, NSWindowDelegate, NSWindowStyleMask,
+    NSMenuItem, NSMenuItemValidation, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
     MainThreadMarker, NSData, NSError, NSInteger, NSJSONSerialization, NSJSONWritingOptions,
@@ -38,10 +42,12 @@ use objc2_foundation::{
     NSURLSessionAuthChallengeDisposition,
 };
 use objc2_web_kit::{
-    WKNavigation, WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate,
-    WKScriptMessage, WKScriptMessageHandler, WKURLSchemeHandler, WKURLSchemeTask,
-    WKUserContentController, WKWebView, WKWebViewConfiguration,
+    WKFindConfiguration, WKFindResult, WKNavigation, WKNavigationAction, WKNavigationActionPolicy,
+    WKNavigationDelegate, WKScriptMessage, WKScriptMessageHandler, WKURLSchemeHandler,
+    WKURLSchemeTask, WKUserContentController, WKWebView, WKWebViewConfiguration,
 };
+
+use crate::nook;
 
 /// The size the window opens at before it has been left anywhere to return
 /// to, and before the chrome says otherwise.
@@ -93,6 +99,24 @@ struct Engine {
     fallback: RefCell<Option<nav::Target>>,
 }
 
+/// Where the toolbar says the wisp's nook belongs, measured from the top
+/// right of the window, and how big it is.
+#[derive(Clone, Copy)]
+struct NookAt {
+    right: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+}
+
+/// The nook's corner until the toolbar reports its own.
+const INITIAL_NOOK: NookAt = NookAt {
+    right: 0.0,
+    top: 0.0,
+    width: 152.0,
+    height: TOOLBAR_HEIGHT,
+};
+
 pub struct Shell {
     window: Retained<NSWindow>,
     pub(crate) toolbar: Retained<WKWebView>,
@@ -103,6 +127,13 @@ pub struct Shell {
     /// core's, so it is the same here as it is anywhere else.
     tabs: RefCell<Tabs>,
     toolbar_height: Cell<f64>,
+    nook_at: Cell<NookAt>,
+    /// Whether the find bar is open, and what was last typed into it.
+    finding: Cell<bool>,
+    find_query: RefCell<String>,
+    /// How large each site is drawn. The level belongs to the site, so it is
+    /// the window's rather than a tab's.
+    zooms: RefCell<zoom::Zooms>,
     mtm: MainThreadMarker,
 }
 
@@ -135,6 +166,17 @@ pub fn run() {
     if let Some(content) = window.contentView() {
         content.addSubview(&toolbar);
         content.addSubview(&sidebar);
+        // The wisp is drawn over the toolbar's own corner, so its view goes
+        // in front of the toolbar's.
+        nook::open(
+            &content,
+            &toolbar,
+            NSRect::new(
+                NSPoint::new(0.0, 0.0),
+                NSSize::new(INITIAL_NOOK.width, INITIAL_NOOK.height),
+            ),
+            mtm,
+        );
     }
 
     load(&toolbar, "glimmerwood://chrome/toolbar.html");
@@ -147,9 +189,16 @@ pub fn run() {
         engines: RefCell::new(Vec::new()),
         tabs: RefCell::new(Tabs::new()),
         toolbar_height: Cell::new(TOOLBAR_HEIGHT),
+        nook_at: Cell::new(INITIAL_NOOK),
+        finding: Cell::new(false),
+        find_query: RefCell::new(String::new()),
+        zooms: RefCell::new(zoom::Zooms::new()),
         mtm,
     });
     SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
+    if let Some(path) = zooms_path() {
+        shell.zooms.replace(zoom::Zooms::load(&path));
+    }
     // The window goes back where it was left before anything is laid out
     // inside it.
     match saved_frame() {
@@ -257,6 +306,16 @@ fn lay_out() {
             engine.view.setFrame(page);
             engine.view.setHidden(Some(engine.id) != selected);
         }
+        // The nook is measured from the top right, so it stays in its corner
+        // as the window resizes.
+        let at = shell.nook_at.get();
+        nook::move_to(NSRect::new(
+            NSPoint::new(
+                (whole.size.width - at.right - at.width).max(0.0),
+                (whole.size.height - at.top - at.height).max(0.0),
+            ),
+            NSSize::new(at.width.max(1.0), at.height.max(1.0)),
+        ));
     });
 }
 
@@ -380,6 +439,9 @@ fn open_tab(uri: &str, select: bool) -> Option<u32> {
 
 fn select_tab(id: u32) {
     let Some(shell) = held() else { return };
+    if shell.tabs.borrow().selected() != Some(id) {
+        close_find(false);
+    }
     if !shell.tabs.borrow_mut().select(id) {
         return;
     }
@@ -485,6 +547,17 @@ fn push_tabs() {
         (held.info(), held.selected().unwrap_or_default())
     };
     tell_the_column(&ToChrome::Tabs { tabs, selected });
+}
+
+/// The pointer entered or left the wisp, which the toolbar shows a caption
+/// for. The wisp is drawn over the toolbar, so the hover is heard here.
+pub(crate) fn hovering_wisp(open: bool) {
+    tell_the_chrome(&ToChrome::Caption { open });
+}
+
+/// The wisp was clicked.
+pub(crate) fn wisp_clicked() {
+    show_wisp();
 }
 
 /// The wisp's history on Home: the tab in front if that is where it is, else
@@ -722,8 +795,24 @@ fn heard(message: ToCore) {
         ToCore::FindSupport { samaritans } => {
             open_tab(if samaritans { SAMARITANS } else { HELPLINES }, true);
         }
-        ToCore::ToolbarLayout { height, .. } => {
+        ToCore::Find { query } => find(query),
+        ToCore::FindNext { backwards } => find_next(backwards),
+        ToCore::CloseFind => close_find(true),
+        ToCore::ToolbarLayout {
+            height,
+            nook_right,
+            nook_top,
+            nook_width,
+            nook_height,
+            ..
+        } => {
             shell.toolbar_height.set(f64::from(height));
+            shell.nook_at.set(NookAt {
+                right: f64::from(nook_right),
+                top: f64::from(nook_top),
+                width: f64::from(nook_width),
+                height: f64::from(nook_height),
+            });
             lay_out();
         }
         ToCore::Minimize => shell.window.miniaturize(None),
@@ -754,18 +843,176 @@ fn heard(message: ToCore) {
         ToCore::Ready {
             view: ChromeView::Sidebar,
         } => push_tabs(),
-        // Find in page is the one thing still to come here; everything else
-        // the chrome can ask for is answered.
+        // What is left belongs to a window that floats, which this shell
+        // doesn't have: the title bar is the system's.
         _ => {}
     }
     refresh_tabs();
 }
 
+// --- How large a site is drawn -----------------------------------------------
+
+/// A step larger, a step smaller, or back to plain. The level belongs to the
+/// site, so every tab showing it follows.
+fn zoom(by: isize) {
+    let Some(shell) = held() else { return };
+    let Some(view) = selected_view() else { return };
+    let uri = uri_of(&view);
+    {
+        let mut zooms = shell.zooms.borrow_mut();
+        if by == 0 {
+            zooms.reset(&uri);
+        } else {
+            zooms.step(&uri, by);
+        }
+    }
+    let host = nav::host_of(&uri);
+    let views: Vec<Retained<WKWebView>> = shell
+        .engines
+        .borrow()
+        .iter()
+        .map(|engine| engine.view.clone())
+        .collect();
+    for view in views {
+        if nav::host_of(&uri_of(&view)) == host {
+            draw_at_remembered_size(&view);
+        }
+    }
+    let saved = zooms_path().map_or(Ok(()), |path| {
+        path.parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .map_err(|err| err.to_string())
+            .and_then(|()| shell.zooms.borrow().save(&path))
+    });
+    if let Err(err) = saved {
+        eprintln!("glimmerwood: couldn't remember how large {host} is drawn: {err}");
+    }
+}
+
+/// Draw a tab at the level its site is remembered at.
+fn draw_at_remembered_size(view: &WKWebView) {
+    let Some(shell) = held() else { return };
+    let level = shell.zooms.borrow().of(&uri_of(view));
+    unsafe { view.setPageZoom(level) };
+}
+
+// --- Find in page ------------------------------------------------------------
+
+/// Open the find bar, with the keyboard in it.
+fn open_find() {
+    let Some(shell) = held() else { return };
+    if selected_view().is_none() {
+        return;
+    }
+    shell.finding.set(true);
+    shell.window.makeFirstResponder(Some(&shell.toolbar));
+    tell_the_chrome(&ToChrome::Find { open: true });
+}
+
+/// Search the page on screen from the top, ignoring case and wrapping round
+/// at the end. An empty query clears what was found.
+fn find(query: String) {
+    let Some(shell) = held() else { return };
+    let Some(view) = selected_view() else { return };
+    shell.find_query.replace(query.clone());
+    if query.is_empty() {
+        clear_matches(&view);
+        tell_the_chrome(&ToChrome::Found {
+            query,
+            summary: String::new(),
+        });
+        return;
+    }
+    search(&view, &query, false);
+}
+
+/// The next match, or the one before it. With the bar closed, it opens.
+fn find_next(backwards: bool) {
+    let Some(shell) = held() else { return };
+    let Some(view) = selected_view() else { return };
+    let query = shell.find_query.borrow().clone();
+    if !shell.finding.get() || query.is_empty() {
+        open_find();
+        return;
+    }
+    search(&view, &query, backwards);
+}
+
+/// Clear what was found and close the bar. `to_page`: the user closed it, so
+/// the keyboard goes back to the page.
+fn close_find(to_page: bool) {
+    let Some(shell) = held() else { return };
+    if !shell.finding.replace(false) {
+        return;
+    }
+    shell.find_query.borrow_mut().clear();
+    if let Some(view) = selected_view() {
+        clear_matches(&view);
+        if to_page {
+            shell.window.makeFirstResponder(Some(&view));
+        }
+    }
+    tell_the_chrome(&ToChrome::Find { open: false });
+}
+
+/// Ask the engine for `query`. WebKit searches from wherever the last match
+/// was, so asking again is what moves on to the next one.
+fn search(view: &WKWebView, query: &str, backwards: bool) {
+    let Some(shell) = held() else { return };
+    let configuration = unsafe { WKFindConfiguration::new(shell.mtm) };
+    unsafe {
+        configuration.setBackwards(backwards);
+        configuration.setCaseSensitive(false);
+        configuration.setWraps(true);
+    }
+    let asked = query.to_owned();
+    let answer = RcBlock::new(move |result: NonNull<WKFindResult>| {
+        // Safety: WebKit hands the result to this block and keeps it alive
+        // for the call.
+        let found = unsafe { result.as_ref().matchFound() };
+        report(&asked, found);
+    });
+    unsafe {
+        view.findString_withConfiguration_completionHandler(
+            &NSString::from_str(query),
+            Some(&configuration),
+            &answer,
+        );
+    }
+}
+
+/// What the bar is told about a search. WebKit says whether it found
+/// anything and not how much, so a search that found something is reported
+/// with nothing to say rather than with a count it hasn't counted. A late
+/// answer to a search the user has already typed past is dropped.
+fn report(query: &str, found: bool) {
+    let Some(shell) = held() else { return };
+    if !shell.finding.get() || *shell.find_query.borrow() != query {
+        return;
+    }
+    tell_the_chrome(&ToChrome::Found {
+        query: query.to_owned(),
+        summary: if found {
+            String::new()
+        } else {
+            find::summary(None)
+        },
+    });
+}
+
+/// Take what was found off the page. WebKit's find leaves the match selected
+/// and offers no way to undo that, so the selection is what goes.
+fn clear_matches(view: &WKWebView) {
+    let script = NSString::from_str("window.getSelection()?.removeAllRanges()");
+    unsafe { view.evaluateJavaScript_completionHandler(&script, None) };
+}
+
 // --- The menu bar ------------------------------------------------------------
 
-/// The arrow keys, as a menu item spells them.
+/// The arrow keys and Escape, as a menu item spells them.
 const LEFT_ARROW: &str = "\u{f702}";
 const RIGHT_ARROW: &str = "\u{f703}";
+const ESCAPE: &str = "\u{1b}";
 /// Tabs reachable by number; the ninth key is always the last tab.
 const NUMBERED_TABS: usize = 8;
 
@@ -841,6 +1088,35 @@ fn build_the_menu(app: &NSApplication, mtm: MainThreadMarker) {
         command,
         None,
     ));
+    edit.addItem(&NSMenuItem::separatorItem(mtm));
+    let finding = submenu(&edit, mtm, "Find");
+    finding.addItem(&item(mtm, "Find…", sel!(openFind:), "f", command, target));
+    finding.addItem(&item(
+        mtm,
+        "Find Next",
+        sel!(findNext:),
+        "g",
+        command,
+        target,
+    ));
+    finding.addItem(&item(
+        mtm,
+        "Find Previous",
+        sel!(findPrevious:),
+        "g",
+        shifted,
+        target,
+    ));
+    // Escape closes the bar, and only while it is open: the rest of the time
+    // the key belongs to the page or to the address field.
+    spare_key(
+        &finding,
+        mtm,
+        sel!(closeFind:),
+        ESCAPE,
+        NSEventModifierFlags::empty(),
+        target,
+    );
 
     let file = submenu(&bar, mtm, "File");
     file.addItem(&item(
@@ -875,6 +1151,20 @@ fn build_the_menu(app: &NSApplication, mtm: MainThreadMarker) {
         "Reload",
         sel!(reloadPage:),
         "r",
+        command,
+        target,
+    ));
+    view.addItem(&NSMenuItem::separatorItem(mtm));
+    view.addItem(&item(mtm, "Zoom In", sel!(zoomIn:), "+", command, target));
+    // The key beside the minus, which is what a hand reaches for and what
+    // the plus above needs Shift for.
+    spare_key(&view, mtm, sel!(zoomIn:), "=", command, target);
+    view.addItem(&item(mtm, "Zoom Out", sel!(zoomOut:), "-", command, target));
+    view.addItem(&item(
+        mtm,
+        "Actual Size",
+        sel!(zoomPlain:),
+        "0",
         command,
         target,
     ));
@@ -955,12 +1245,12 @@ fn build_the_menu(app: &NSApplication, mtm: MainThreadMarker) {
     MENUS.with_borrow_mut(|held| *held = Some(menus));
 }
 
-/// A menu of `title` hung off the bar.
-fn submenu(bar: &NSMenu, mtm: MainThreadMarker, title: &str) -> Retained<NSMenu> {
+/// A menu of `title` hung off `parent`: off the bar, or off another menu.
+fn submenu(parent: &NSMenu, mtm: MainThreadMarker, title: &str) -> Retained<NSMenu> {
     let holder = NSMenuItem::new(mtm);
     let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str(title));
     holder.setSubmenu(Some(&menu));
-    bar.addItem(&holder);
+    parent.addItem(&holder);
     menu
 }
 
@@ -1099,6 +1389,41 @@ define_class!(
             select_last();
         }
 
+        #[unsafe(method(openFind:))]
+        fn open_the_find_bar(&self, _sender: Option<&AnyObject>) {
+            open_find();
+        }
+
+        #[unsafe(method(findNext:))]
+        fn find_the_next(&self, _sender: Option<&AnyObject>) {
+            find_next(false);
+        }
+
+        #[unsafe(method(findPrevious:))]
+        fn find_the_previous(&self, _sender: Option<&AnyObject>) {
+            find_next(true);
+        }
+
+        #[unsafe(method(closeFind:))]
+        fn close_the_find_bar(&self, _sender: Option<&AnyObject>) {
+            close_find(true);
+        }
+
+        #[unsafe(method(zoomIn:))]
+        fn zoom_in(&self, _sender: Option<&AnyObject>) {
+            zoom(1);
+        }
+
+        #[unsafe(method(zoomOut:))]
+        fn zoom_out(&self, _sender: Option<&AnyObject>) {
+            zoom(-1);
+        }
+
+        #[unsafe(method(zoomPlain:))]
+        fn zoom_plain(&self, _sender: Option<&AnyObject>) {
+            zoom(0);
+        }
+
         /// Quitting doesn't close the window, so the window's size and place
         /// are written down on the way out.
         #[unsafe(method(quitGlimmerwood:))]
@@ -1107,18 +1432,36 @@ define_class!(
             NSApplication::sharedApplication(self.mtm()).terminate(None);
         }
     }
+
+    /// Escape belongs to the find bar only while it is open. An item its
+    /// target turns down doesn't take the key, so it goes on to the page or
+    /// the address field as it did before.
+    unsafe impl NSMenuItemValidation for Menus {
+        #[unsafe(method(validateMenuItem:))]
+        fn validate(&self, item: &NSMenuItem) -> bool {
+            item.action() != Some(sel!(closeFind:))
+                || held().is_some_and(|shell| shell.finding.get())
+        }
+    }
 );
 
 // --- Where the window was last left ------------------------------------------
 
-/// Where the window's size and place are kept between runs.
-fn frame_path() -> Option<PathBuf> {
+/// Where what the user set by hand is kept between runs.
+fn config_dir() -> Option<PathBuf> {
     let shell = held()?;
-    Some(
-        host::Host::config_dir(&*shell)
-            .join("glimmerwood")
-            .join("window.ini"),
-    )
+    Some(host::Host::config_dir(&*shell).join("glimmerwood"))
+}
+
+/// Where the window's size and place are kept.
+fn frame_path() -> Option<PathBuf> {
+    Some(config_dir()?.join("window.ini"))
+}
+
+/// Where the per-site drawing sizes are kept, in the same plain form as the
+/// Linux build's, so it can be edited by hand.
+fn zooms_path() -> Option<PathBuf> {
+    Some(config_dir()?.join("zoom.toml"))
 }
 
 /// The window as it was left, if it was written down. Anything unreadable is
@@ -1167,6 +1510,14 @@ define_class!(
         #[unsafe(method(windowWillClose:))]
         fn will_close(&self, _notification: &NSNotification) {
             remember_frame();
+        }
+
+        /// Nothing inside the window sizes itself, so a resize is laid out
+        /// from here: the toolbar across the new width, the column and the
+        /// tab below it, and the wisp's nook back in its corner.
+        #[unsafe(method(windowDidResize:))]
+        fn did_resize(&self, _notification: &NSNotification) {
+            lay_out();
         }
     }
 );
@@ -1323,7 +1674,13 @@ define_class!(
         }
 
         #[unsafe(method(webView:didStartProvisionalNavigation:))]
-        fn started(&self, _view: &WKWebView, _navigation: Option<&WKNavigation>) {
+        fn started(&self, view: &WKWebView, _navigation: Option<&WKNavigation>) {
+            // The page the find bar was searching is on its way out.
+            if tab_of(view).is_some_and(|id| {
+                held().is_some_and(|shell| shell.tabs.borrow().selected() == Some(id))
+            }) {
+                close_find(false);
+            }
             refresh_tabs();
         }
 
@@ -1332,6 +1689,10 @@ define_class!(
             if let Some(id) = tab_of(view) {
                 forget_fallback(id);
             }
+            // As early as the level can be set, so the page is laid out at
+            // the size its site is remembered at rather than resized once it
+            // is up.
+            draw_at_remembered_size(view);
             refresh_tabs();
         }
 
@@ -1340,6 +1701,7 @@ define_class!(
             if let Some(id) = tab_of(view) {
                 push_page(id);
             }
+            draw_at_remembered_size(view);
             refresh_tabs();
         }
 
@@ -1521,6 +1883,27 @@ impl host::Window for Shell {
     }
 
     fn send_to_chrome(&self, message: &ToChrome) {
+        // The wisp is drawn here, not in the chrome, so it takes every change
+        // of dose; the chrome only shows words.
+        if let ToChrome::Wisp {
+            dose,
+            mode,
+            trend,
+            night,
+            private,
+            welcome,
+            ..
+        } = message
+        {
+            nook::update(
+                *dose,
+                Mode::from(*mode),
+                Trend::from(*trend),
+                *private,
+                *night,
+                *welcome,
+            );
+        }
         match message {
             ToChrome::Tabs { .. } | ToChrome::TabIcon { .. } => tell_the_column(message),
             _ => tell_the_chrome(message),
