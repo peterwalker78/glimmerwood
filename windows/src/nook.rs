@@ -205,7 +205,6 @@ fn blit(window: HWND, raster: &Raster, width: u32, height: u32) {
     }
 
     let old = unsafe { SelectObject(memory, bitmap.into()) };
-    let where_ = POINT::default();
     let size = windows::Win32::Foundation::SIZE {
         cx: width as i32,
         cy: height as i32,
@@ -221,7 +220,10 @@ fn blit(window: HWND, raster: &Raster, width: u32, height: u32) {
         UpdateLayeredWindow(
             window,
             Some(screen),
-            Some(&where_),
+            // Where the window goes is the toolbar's to say, and it has
+            // already said it. Given a point here the wisp is moved to it,
+            // in screen coordinates — which is the desktop's own corner.
+            None,
             Some(&size),
             Some(memory),
             Some(&from),
