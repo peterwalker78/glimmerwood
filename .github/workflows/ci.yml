@@ -46,3 +46,28 @@ jobs:
       # There is no distrobox here, so this runs where it stands.
       - name: Check
         run: scripts/check
+      # The pinned tsc is a Linux binary, so the chrome is built once here and
+      # the other platforms are handed the result.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+
+  # Windows has no WebKit of any kind, so its shell is WebView2 over the same
+  # core. This builds it for real: type-checking would miss the linking.
+  windows:
+    name: the Windows shell
+    runs-on: windows-latest
+    needs: linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - uses: actions/download-artifact@v4
+        with:
+          name: chrome
+          path: ui/dist
+      - run: cargo build --locked -p glimmerwood-windows
+      - run: cargo clippy --locked -p glimmerwood-windows -- -D warnings
