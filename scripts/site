@@ -19,9 +19,14 @@ cp ui/dist/site/site.js ui/dist/site/places.gen.js ui/dist/site/facts.gen.js "$O
 cp ui/dist/common/garden.js ui/dist/common/place.js "$OUT/"
 
 cp "$ICON" "$OUT/icon.svg"
-for size in 180 192 512; do
+cp ui/site/icon-maskable.svg "$OUT/"
+for size in 192 512; do
   rsvg-convert -w "$size" -h "$size" "$ICON" -o "$OUT/icon-$size.png"
+  rsvg-convert -w "$size" -h "$size" ui/site/icon-maskable.svg -o "$OUT/icon-maskable-$size.png"
 done
+# iOS masks what it is given and fills the shape, so it gets the one that
+# reaches every edge rather than the tile with transparent corners.
+rsvg-convert -w 180 -h 180 ui/site/icon-maskable.svg -o "$OUT/icon-180.png"
 
 echo "site: built $(du -sh "$OUT" | cut -f1) in dist/site"
 

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The home-screen icon, drawn to be masked.
+     Phones cut an icon to whatever shape they use — a circle, a squircle, a
+     rounded square — so the background runs right to every edge, and the wisp
+     sits well inside the middle 80% that is never cut away. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="tile" cx="0.5" cy="0.62" r="0.78">
+      <stop offset="0" stop-color="#3b3a30"/>
+      <stop offset="0.55" stop-color="#2f3232"/>
+      <stop offset="1" stop-color="#23272b"/>
+    </radialGradient>
+    <radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="256" cy="275" r="150">
+      <stop offset="0" stop-color="#f0c36b" stop-opacity="0.5"/>
+      <stop offset="0.45" stop-color="#f0c36b" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#f0c36b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="body" gradientUnits="userSpaceOnUse" cx="64" cy="71.68" fx="57.09" fy="63.39" r="34.56">
+      <stop offset="0.074" stop-color="#fff7df"/>
+      <stop offset="0.72" stop-color="#fbe7bc"/>
+      <stop offset="1" stop-color="#fbe7bc" stop-opacity="0.9"/>
+    </radialGradient>
+    <radialGradient id="cheek">
+      <stop offset="0" stop-color="#f29e59" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#f29e59" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#tile)"/>
+  <circle cx="256" cy="275" r="150" fill="url(#glow)"/>
+
+  <g transform="translate(70.4 87.8) scale(2.9)">
+    <path fill="url(#body)" d="M38.4 71.68C38.4 98.56 89.6 98.56 89.6 71.68 89.6 52.48 72.96 42.24 67.84 26.88 62.72 40.96 38.4 51.2 38.4 71.68Z"/>
+    <circle cx="48.13" cy="76.8" r="5.12" fill="url(#cheek)"/>
+    <circle cx="79.87" cy="76.8" r="5.12" fill="url(#cheek)"/>
+    <path d="M50.7 69.2C52.2 71.9 56.3 71.9 57.8 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
+    <path d="M70.2 69.2C71.7 71.9 75.8 71.9 77.3 69.2" fill="none" stroke="#2b2119" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="round"/>
+    <path d="M66.4 79.9C65.2 81.5 62.8 81.5 61.6 79.9" fill="none" stroke="#2b2119" stroke-opacity="0.7" stroke-width="1.9" stroke-linecap="round"/>
+    <g fill="#7fa05f">
+      <ellipse cx="45" cy="97" rx="14" ry="6"/>
+      <ellipse cx="64" cy="95.5" rx="17" ry="7"/>
+      <ellipse cx="83" cy="97.5" rx="13" ry="5.5"/>
+    </g>
+  </g>
+</svg>
