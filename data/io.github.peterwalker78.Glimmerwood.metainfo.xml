@@ -47,6 +47,16 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.9.1" date="2026-09-16">
+      <description>
+        <p>Three things the Windows build was doing that it shouldn't.</p>
+        <ul>
+          <li>No console window opens beside the browser, and a start that fails says why rather than closing without a word</li>
+          <li>The engine keeps its profile with everything else Glimmerwood keeps, not in the folder the program was unpacked into</li>
+          <li>The wisp stays on the toolbar's corner instead of being sent to the corner of the desktop</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-09-16">
       <description>
         <p>The tab column can be dragged on all three systems, and is remembered where you leave it.</p>
