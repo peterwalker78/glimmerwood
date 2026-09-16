@@ -63,7 +63,7 @@ impl host::Host for Shell {
     }
 
     fn data_dir(&self) -> PathBuf {
-        known_folder(&FOLDERID_LocalAppData).unwrap_or_else(|| PathBuf::from("."))
+        data_dir()
     }
 
     fn config_dir(&self) -> PathBuf {
@@ -122,6 +122,12 @@ fn utc_offset_s() -> i32 {
             zone.StandardBias
         };
     -bias * 60
+}
+
+/// Where what this user has done is kept. Also wanted before there is a
+/// shell to ask, for the engine's own state.
+pub fn data_dir() -> PathBuf {
+    known_folder(&FOLDERID_LocalAppData).unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// Where this user's settings live. Also wanted before there is a shell to

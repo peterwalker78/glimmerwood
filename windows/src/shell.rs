@@ -1581,15 +1581,27 @@ fn our_scheme() -> ICoreWebView2EnvironmentOptions {
     options.into()
 }
 
+/// Where the engine keeps what it is holding on to: its caches, its cookies,
+/// its own crash reports. Told nothing, WebView2 fills a folder beside the
+/// binary instead, which leaves a browser profile sitting in whatever folder
+/// someone unpacked the program into. It belongs with everything else
+/// Glimmerwood keeps for this user.
+fn engine_dir() -> PathBuf {
+    crate::host::data_dir().join("glimmerwood").join("engine")
+}
+
 fn make_environment() -> Fallible<ICoreWebView2Environment> {
     let held: Rc<RefCell<Option<ICoreWebView2Environment>>> = Rc::new(RefCell::new(None));
     let out = held.clone();
     let options = our_scheme();
+    let dir = engine_dir();
+    std::fs::create_dir_all(&dir)?;
+    let dir = HSTRING::from(dir.as_os_str());
     CreateCoreWebView2EnvironmentCompletedHandler::wait_for_async_operation(
         Box::new(move |handler| unsafe {
             CreateCoreWebView2EnvironmentWithOptions(
                 PCWSTR::null(),
-                PCWSTR::null(),
+                PCWSTR(dir.as_ptr()),
                 Some(&options),
                 &handler,
             )
