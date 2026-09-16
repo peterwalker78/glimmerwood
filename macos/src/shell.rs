@@ -2503,7 +2503,12 @@ define_class!(
                 .and_then(|url| url.absoluteString())
                 .map(|text| text.to_string())
                 .unwrap_or_default();
-            let ours = held().is_some_and(|shell| &*shell.toolbar == _view);
+            // Both of the chrome's own views may ask for anything carried in
+            // the binary — the toolbar and the tab column are each one of
+            // Glimmerwood's pages. A tab is the web, and may ask only for the
+            // two pages any tab is allowed to open.
+            let ours =
+                held().is_some_and(|shell| &*shell.toolbar == _view || &*shell.sidebar == _view);
             if !ours && !pages::is_local_page(&uri) {
                 return;
             }
