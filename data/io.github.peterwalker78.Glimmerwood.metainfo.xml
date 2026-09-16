@@ -47,6 +47,19 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.5.0" date="2026-09-16">
+      <description>
+        <p>The wisp reads from across the room, the garden follows the real sun, and there's a page for your phone.</p>
+        <ul>
+          <li>The wisp has eyebrows: its mood now reads at a glance rather than only up close</li>
+          <li>Its nook takes on the weather of your dose, fresh while you recover and dusky while it wears</li>
+          <li>The garden is lit by where the sun actually is where you are, not by the clock</li>
+          <li>The wisp follows only the tab in front of you, and sound there keeps you present for half an hour after you last touched anything</li>
+          <li>A welcome page on the web for phones, which can't run the browser: the same garden, the same good places, and the wisp asleep because it has nothing to watch there</li>
+          <li>Early Windows and macOS builds, which open a page but are not browsers yet</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-09-15">
       <description>
         <p>Fresh good places, and far more of the web rated.</p>

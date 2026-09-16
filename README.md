@@ -199,6 +199,22 @@ choose it under *Default Applications* in your desktop's settings.
 > web, and it's growing quickly. If something doesn't work, please
 > [open an issue](https://github.com/peterwalker78/glimmerwood/issues).
 
+### Windows and macOS
+
+Early builds are on the [releases page](https://github.com/peterwalker78/glimmerwood/releases/latest),
+and they are **early**: a window, a toolbar and a page, but no tabs yet and no
+wisp watching over them. The part that decides how your time is going still
+lives in the Linux build, and until it moves across, the wisp on Windows only
+dozes. They are there to be tried, not to be relied on.
+
+Both are unsigned, because signing them means paying Apple and Microsoft for
+permission to run our own software. Windows will warn you and let you continue;
+on macOS the honest way round it is to build from source, which needs no
+signature and no account.
+
+The engine underneath is whatever the system already has — WebKit on macOS, the
+Edge runtime on Windows. Nothing is bundled, on any platform.
+
 <br>
 
 ## Everything stays on your computer
@@ -295,6 +311,7 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
 - Zoom, downloads, session restore and the rest of the everyday basics.
+- **Windows and macOS in earnest**: tabs, and the wisp actually watching.
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
