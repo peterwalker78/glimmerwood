@@ -55,6 +55,12 @@ happily and lets off little motes of light. Sink into an endless feed and it
 slowly clouds over, grows tired and drifts toward the edge of its nook, as if
 it's ready to go outside and hoping you'll come too.
 
+**Its eyebrows do most of the talking.** They only ever move up or down, never
+tilting into sad or stern, so its mood reads from across the room rather than
+only up close. Behind it, the nook takes on the weather of your day: fresh and
+green while you're recovering, a dusky haze while it wears. Never red, never
+an alarm.
+
 **It never scolds you.** At its heaviest it looks sleepy, never sad or cross.
 Step away for a while and it perks up again. Hover over it any time and it
 tells you, in plain words, exactly what's moving it.
@@ -135,6 +141,8 @@ fetched from anywhere.
   learning brings ferns, a gentle day brings flowers, and a calm night leaves
   fireflies. A heavy day simply grows nothing. **Nothing ever wilts, and
   missing a day costs you nothing:** there are no streaks to break.
+- **A sky that follows the real sun.** Morning, day, evening and night arrive
+  when they actually do where you are, rather than when a clock says so.
 - **A greeting that notices what went well.** "You took a proper break
   earlier." "Last night stayed calm after dark." Only ever true, and never
   about what went badly.
@@ -296,6 +304,7 @@ Flatpak), which you can edit by hand too. Changes take effect immediately.
 - An optional **pause at the door** for sites *you* choose, with two equal
   buttons: go in, or not now.
 - Zoom, downloads, session restore and the rest of the everyday basics.
+- **Windows and macOS**, on the same core as the Linux build.
 
 Have a site you think is on the wrong list? That's exactly the kind of help
 Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
@@ -305,11 +314,18 @@ and say why.
 
 ## For developers
 
-Glimmerwood is written in Rust on GTK 4 and WebKitGTK 6.0. The wisp itself is drawn
-natively rather than in a web page, so the whole browser idles at around one
-percent of a CPU core with the wisp breathing. The
-toolbar and Home are small TypeScript pages compiled by the native TypeScript
-7 compiler, so there's no Node in the build.
+Glimmerwood is written in Rust, on GTK 4 and WebKitGTK 6.0. The wisp itself is
+drawn natively rather than in a web page, so the whole browser idles at around
+one percent of a CPU core with the wisp breathing. The toolbar and Home are
+small TypeScript pages compiled by the native TypeScript 7 compiler, so
+there's no Node in the build.
+
+The workspace splits the browser from the machine it runs on. `core/` is the
+dose model, the lists, the garden, the diary, the protocol and the whole of
+the wisp's drawing, with no window toolkit anywhere in its dependencies;
+`app/` is the GTK build on top of it. `raster/` draws the wisp into pixels for
+platforms without cairo, and `windows/` and `macos/` are shells being built on
+the same core.
 
 Requirements: Rust (stable), GTK 4.20 or later, WebKitGTK 6.0,
 `glib-compile-resources`, SQLite, and `curl` to fetch the compiler.
@@ -319,6 +335,7 @@ scripts/dev      # build and run from the source tree
 scripts/check    # formatting, clippy, tests and the TypeScript build
 scripts/flatpak  # build and install the Flatpak for your user
 scripts/bundle   # build a single-file Flatpak bundle for release
+scripts/site     # build the welcome page; --publish puts it online
 ```
 
 If a distrobox named `glimmerwood` exists, `scripts/dev` and `scripts/check` run
