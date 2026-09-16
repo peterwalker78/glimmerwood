@@ -21,6 +21,7 @@ const find = element("find", HTMLInputElement);
 const findSummary = element("find-summary", HTMLSpanElement);
 const star = element("bookmark", HTMLButtonElement);
 const progress = element("progress", HTMLDivElement);
+const downloads = element("downloads", HTMLSpanElement);
 const windowButtons = element("window-buttons", HTMLDivElement);
 const nook = element("wisp", HTMLButtonElement);
 const caption = element("caption", HTMLElement);
@@ -232,6 +233,13 @@ address.addEventListener("blur", () => {
   if (current) render(current);
 });
 address.addEventListener("keydown", (event) => {
+  // Held down over Enter, the modifier asks for a bare word to be completed
+  // to .com. What that amounts to is the core's business.
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    go(true);
+    return;
+  }
   if (event.key !== "Escape") return;
   edited = false;
   address.value = current?.uri ?? "";
@@ -239,13 +247,17 @@ address.addEventListener("keydown", (event) => {
   send({ type: "focus_page" });
 });
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+function go(dotCom: boolean): void {
   const input = address.value.trim();
   if (!input) return;
   edited = false;
   address.blur();
-  send({ type: "navigate", input });
+  send({ type: dotCom ? "navigate_dot_com" : "navigate", input });
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  go(false);
 });
 
 // Find in page. Every keystroke searches from the top; Enter moves on to the
@@ -297,6 +309,11 @@ receive((message) => {
       break;
     case "found":
       if (message.query === find.value) findSummary.textContent = message.summary;
+      break;
+    case "downloads":
+      // A mark while anything is on its way, and nothing once it has landed.
+      downloads.hidden = message.running === 0;
+      reportLayout();
       break;
     case "window":
       windowButtons.hidden = !message.floating;

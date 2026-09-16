@@ -1,6 +1,6 @@
 // The tabs, down the column: each site's icon, or a quiet letter when it has
 // none, the title beside it once the column is wide enough, and a small mark
-// on tabs making sound that mutes them.
+// on tabs making sound that mutes them. Tabs waiting to be woken are faint.
 //
 // Tiles are kept and updated in place, never rebuilt: a tile replaced between
 // a press and its release would swallow the click.
@@ -109,6 +109,9 @@ export class TabList {
     item.setAttribute("aria-selected", String(selected));
     item.tabIndex = selected ? 0 : -1;
     item.classList.toggle("loading", tab.loading);
+    // Carried over from the last run and not opened yet. It reads the same,
+    // only fainter; selecting it is what wakes it.
+    item.classList.toggle("asleep", tab.asleep);
 
     const letter = letterFor(tab);
     if (icon !== tile.icon || (!icon && letter !== tile.letter)) {

@@ -40,6 +40,7 @@ receive((message) => {
       break;
     case "state":
     case "focus_address":
+    case "downloads":
     case "find":
     case "found":
     case "window":

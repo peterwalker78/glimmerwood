@@ -337,6 +337,84 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .empty { margin: 0; color: var(--quiet); }
 .empty[hidden] { display: none; }
 
+/* Downloads. A line each while they matter, and gone once they don't: there
+   is nowhere here to manage them. */
+.downloads {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.download {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  border-radius: 10px;
+}
+.download:hover { background: var(--card); }
+.download .name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.download .filling {
+  flex: none;
+  width: 64px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.download .filling i { display: block; height: 100%; background: var(--quiet); }
+.download .state { flex: none; color: var(--quiet); font-size: 0.85rem; }
+.download .show {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.download .show:hover { background: var(--hairline); }
+
+/* This week: somewhere to find Tuesday's page again, a day at a time. */
+.week-note { margin: -6px 0 16px; color: var(--quiet); font-size: 0.85rem; }
+.days { display: flex; flex-direction: column; gap: 20px; }
+.day-name { margin: 0 0 6px; font: 400 1.05rem/1.3 var(--serif); }
+.visits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.visit { border-radius: 10px; }
+.visit:hover { background: var(--card); }
+.visit a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  text-decoration: none;
+}
+.visit .tile { width: 30px; height: 30px; border-radius: 8px; font-size: 0.9rem; }
+.visit .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.visit .host { flex: none; color: var(--quiet); font-size: 0.85rem; }
+
+.forget-hour {
+  display: inline-block;
+  margin: 18px 0 0 -9px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.forget-hour:hover { background: var(--hairline); }
+.forget-note { margin: 2px 0 0; max-width: 56ch; color: var(--quiet); font-size: 0.85rem; }
+
 .made-here {
   color: var(--quiet);
   font-size: 0.8rem;

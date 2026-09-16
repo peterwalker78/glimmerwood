@@ -73,6 +73,23 @@
       <p id="no-bookmarks" class="empty" hidden>Star a page in the toolbar, or press Ctrl+D, and it will wait for you here.</p>
     </section>
 
+    <!-- Only while something is on its way or has just landed. There is no
+         downloads manager behind this. -->
+    <section id="downloads" aria-labelledby="downloads-heading" hidden>
+      <h2 id="downloads-heading">Downloads</h2>
+      <ul id="download-list" class="downloads"></ul>
+    </section>
+
+    <!-- The pages of the last seven days, newest first. Absent when there
+         are none. -->
+    <section id="this-week" aria-labelledby="this-week-heading" hidden>
+      <h2 id="this-week-heading">This week</h2>
+      <p class="week-note">I keep a week of these, and no more. Anything older has already gone.</p>
+      <div id="days" class="days"></div>
+      <a class="forget-hour" href="glimmerwood://home/do/forget-hour">Forget the last hour</a>
+      <p class="forget-note">It takes the last hour's pages, and the downloads that have finished, off this page. I'll still remember how the time felt.</p>
+    </section>
+
     <section id="wisp" class="diary" aria-labelledby="wisp-heading">
       <h2 id="wisp-heading">The wisp's days</h2>
 

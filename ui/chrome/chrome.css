@@ -137,6 +137,11 @@ span.icon {
 }
 .tab.loading .title { opacity: 0.6; }
 
+/* A tab kept from the last run, still to be woken. Everything about it is
+   there, just fainter. */
+.tab.asleep .icon, .tab.asleep .title { opacity: 0.45; }
+.tab.asleep:hover .icon, .tab.asleep:hover .title { opacity: 0.7; }
+
 .tab .sound {
   flex: none;
   width: 22px;
@@ -396,6 +401,28 @@ span.icon {
   font-size: 11.5px;
   letter-spacing: 0.02em;
   pointer-events: none;
+}
+
+/* Something is arriving. It says that much and no more: no count, no bar,
+   and nothing that pulls at the eye beside the wisp. */
+.downloads {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--quiet);
+}
+.downloads[hidden] { display: none; }
+.downloads svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .star[hidden] { display: none; }

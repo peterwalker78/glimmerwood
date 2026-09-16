@@ -44,6 +44,11 @@
     <button id="bookmark" class="step star" type="button" aria-label="Bookmark this page" aria-pressed="false" title="Bookmark (Ctrl+D)" hidden>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2l1.75 3.6 3.95.55-2.87 2.77.7 3.93L8 11.2l-3.53 1.85.7-3.93L2.3 6.35l3.95-.55z"/></svg>
     </button>
+    <!-- While something is on its way. A mark and nothing else: no count, no
+         progress, nothing to press. -->
+    <span id="downloads" class="downloads" role="img" aria-label="Something is arriving" title="Something is arriving" hidden>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v6.6M5 6.8 8 9.8l3-3M3.6 12.6h8.8"/></svg>
+    </span>
     <!-- The wisp's nook. The wisp itself is drawn natively on top of it; the
          button gives it keyboard focus and a name. -->
     <button id="wisp" class="nook" type="button" aria-label="The wisp" aria-describedby="caption"></button>

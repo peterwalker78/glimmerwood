@@ -2,7 +2,7 @@
 // `window.wispHome.show`; the page never asks for anything. Its buttons are
 // plain links to glimmerwood://home/do/..., which the core catches.
 
-import type { HomeData } from "../protocol.gen.js";
+import type { Download, HomeData, Page, Progress } from "../protocol.gen.js";
 import { showDiary } from "./diary.js";
 import { bank, drawGarden, H, partOfClock, W } from "./garden.js";
 import { letter, placeCard, span } from "./place.js";
@@ -37,6 +37,10 @@ const places = element("places", HTMLUListElement);
 const bookmarks = element("bookmarks", HTMLUListElement);
 const noBookmarks = element("no-bookmarks", HTMLParagraphElement);
 const garden = document.getElementById("garden") as unknown as SVGSVGElement;
+const thisWeek = element("this-week", HTMLElement);
+const days = element("days", HTMLDivElement);
+const arriving = element("downloads", HTMLElement);
+const downloads = element("download-list", HTMLUListElement);
 const diary = {
   section: element("wisp", HTMLElement),
   today: document.getElementById("today") as unknown as SVGSVGElement,
@@ -97,6 +101,9 @@ function show(data: HomeData): void {
     }),
   );
 
+  showPages(data.pages);
+  showDownloads(data.downloads);
+
   drawGarden(garden, data.part, data.plants, data.seed);
   showDiary(diary, data.wisp);
 
@@ -109,6 +116,102 @@ let shown = false;
 function reveal(): void {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   diary.section.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" });
+}
+
+// --- This week ----------------------------------------------------------------
+
+const DAY_MS = 86_400_000;
+
+function midnight(at: number): number {
+  const date = new Date(at);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+// "Today", "Yesterday", then the weekday. Nothing here is a week old, so the
+// weekday alone is never ambiguous.
+function dayName(at: number, now: number): string {
+  const between = Math.round((midnight(now) - midnight(at)) / DAY_MS);
+  if (between <= 0) return "Today";
+  if (between === 1) return "Yesterday";
+  return new Date(at).toLocaleDateString(undefined, { weekday: "long" });
+}
+
+function visit(page: Page): HTMLLIElement {
+  const item = document.createElement("li");
+  item.className = "visit";
+  const link = document.createElement("a");
+  link.href = page.url;
+  link.title = page.url;
+  link.append(letter(page.title || page.host), span("title", page.title || page.url), span("host", page.host));
+  item.append(link);
+  return item;
+}
+
+// The pages arrive newest first, so a day is a run of neighbours.
+function showPages(pages: Page[]): void {
+  thisWeek.hidden = pages.length === 0;
+  const now = Date.now();
+  const groups: HTMLDivElement[] = [];
+  let day: number | null = null;
+  let list: HTMLUListElement | null = null;
+  for (const page of pages) {
+    const start = midnight(page.at);
+    if (start !== day || !list) {
+      day = start;
+      list = document.createElement("ul");
+      list.className = "visits";
+      const group = document.createElement("div");
+      group.className = "day-group";
+      const heading = document.createElement("h3");
+      heading.className = "day-name";
+      heading.textContent = dayName(page.at, now);
+      group.append(heading, list);
+      groups.push(group);
+    }
+    list.append(visit(page));
+  }
+  days.replaceChildren(...groups);
+}
+
+// --- Downloads ------------------------------------------------------------------
+
+const PROGRESS_WORD: Record<Progress, string> = {
+  running: "Arriving",
+  saved: "Saved",
+  stopped: "Stopped",
+  failed: "Didn't finish",
+};
+
+function download(file: Download): HTMLLIElement {
+  const item = document.createElement("li");
+  item.className = "download";
+  const name = span("name", file.name);
+  name.title = file.path;
+  item.append(name);
+  // How far along, while it is still coming and the size is known at all.
+  if (file.progress === "running" && file.fraction !== null) {
+    const track = document.createElement("span");
+    track.className = "filling";
+    const filled = document.createElement("i");
+    filled.style.width = `${Math.round(Math.min(1, Math.max(0, file.fraction)) * 100)}%`;
+    track.append(filled);
+    item.append(track);
+  }
+  item.append(span("state", PROGRESS_WORD[file.progress]));
+  if (file.progress === "saved") {
+    const show = document.createElement("a");
+    show.className = "show";
+    show.href = `glimmerwood://home/do/open-download/${file.id}`;
+    show.setAttribute("aria-label", `Show ${file.name}`);
+    show.textContent = "Show";
+    item.append(show);
+  }
+  return item;
+}
+
+function showDownloads(files: Download[]): void {
+  arriving.hidden = files.length === 0;
+  downloads.replaceChildren(...files.map(download));
 }
 
 // Sit the introducing wisp on the near bank. The garden is scaled to cover
