@@ -7,13 +7,14 @@
 //! whether or not it is the one being looked at.
 
 use std::cell::{Cell, RefCell};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
 use std::rc::Rc;
 
 use block2::{DynBlock, RcBlock};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::downloads::Progress;
 use glimmerwood_core::failure::{self, Reason};
 use glimmerwood_core::find;
 use glimmerwood_core::host;
@@ -24,14 +25,15 @@ use glimmerwood_core::tabs::Tabs;
 use glimmerwood_core::zoom;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject, Sel};
-use objc2::{AllocAnyThread, MainThreadOnly, define_class, msg_send, sel};
+use objc2::{AllocAnyThread, MainThreadOnly, Message, define_class, msg_send, sel};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventModifierFlags, NSMenu,
     NSMenuItem, NSMenuItemValidation, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    MainThreadMarker, NSData, NSError, NSInteger, NSJSONSerialization, NSJSONWritingOptions,
-    NSNotification, NSPoint, NSRect, NSSize, NSString, NSTimer, NSURL,
+    MainThreadMarker, NSData, NSError, NSFileManager, NSInteger, NSJSONSerialization,
+    NSJSONWritingOptions, NSNotification, NSPoint, NSProgressReporting, NSRect,
+    NSSearchPathDirectory, NSSearchPathDomainMask, NSSize, NSString, NSTimer, NSURL,
     NSURLAuthenticationChallenge, NSURLAuthenticationMethodServerTrust, NSURLCredential,
     NSURLErrorCancelled, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost,
     NSURLErrorDNSLookupFailed, NSURLErrorFailingURLErrorKey, NSURLErrorInternationalRoamingOff,
@@ -42,8 +44,9 @@ use objc2_foundation::{
     NSURLSessionAuthChallengeDisposition,
 };
 use objc2_web_kit::{
-    WKFindConfiguration, WKFindResult, WKNavigation, WKNavigationAction, WKNavigationActionPolicy,
-    WKNavigationDelegate, WKScriptMessage, WKScriptMessageHandler, WKURLSchemeHandler,
+    WKDownload, WKDownloadDelegate, WKFindConfiguration, WKFindResult, WKNavigation,
+    WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate, WKNavigationResponse,
+    WKNavigationResponsePolicy, WKScriptMessage, WKScriptMessageHandler, WKURLSchemeHandler,
     WKURLSchemeTask, WKUserContentController, WKWebView, WKWebViewConfiguration,
 };
 
@@ -97,6 +100,11 @@ struct Engine {
     /// it tried, and the plain HTTP form to use instead if that exact attempt
     /// can't connect.
     fallback: RefCell<Option<nav::Target>>,
+    /// The page saying an address couldn't be opened is on its way in, and
+    /// then is what the tab is showing. Where a tab got to is written down;
+    /// where it didn't get to is not.
+    failing: Cell<bool>,
+    failed: Cell<bool>,
 }
 
 /// Where the toolbar says the wisp's nook belongs, measured from the top
@@ -121,7 +129,8 @@ pub struct Shell {
     window: Retained<NSWindow>,
     pub(crate) toolbar: Retained<WKWebView>,
     pub(crate) sidebar: Retained<WKWebView>,
-    /// The engines, in the order the column shows them.
+    /// The engines, in the order the column shows them. A tab restored from
+    /// the last run has none until it is asked for.
     engines: RefCell<Vec<Engine>>,
     /// Which tabs there are and which one is in front. The bookkeeping is the
     /// core's, so it is the same here as it is anywhere else.
@@ -209,15 +218,20 @@ pub fn run() {
     window.setDelegate(Some(&ProtocolObject::from_retained(keeper.clone())));
     KEEPER.with_borrow_mut(|held| *held = Some(keeper));
     build_the_menu(&app, mtm);
+
+    // The companion decides how the time is going. It is the same one the
+    // Linux build uses; this only tells it what is on screen. It is started
+    // before the first tab because it is what remembers which tabs there
+    // were.
+    let started = Companion::new(shell as Rc<dyn host::Host>, None);
+    COMPANION.with_borrow_mut(|held| *held = Some(started.clone()));
+    // What was open goes back in the column, asleep, and Home opens in front
+    // of it as it does on any other run.
+    restore_the_session(&started);
     open_tab(HOME, true);
     watch_the_engines();
     lay_out();
-
-    // The companion decides how the time is going. It is the same one the
-    // Linux build uses; this only tells it what is on screen.
-    let started = Companion::new(shell as Rc<dyn host::Host>, None);
     started.windows_changed();
-    COMPANION.with_borrow_mut(|held| *held = Some(started));
 
     window.makeKeyAndOrderFront(None);
     app.activate();
@@ -352,11 +366,19 @@ fn tab_of(view: &WKWebView) -> Option<u32> {
 /// Sends a tab to `input`, keeping the plain HTTP form of an address that was
 /// optimistically upgraded in case the secure attempt can't connect.
 fn navigate(id: u32, input: &str) {
+    send(id, nav::resolve(input));
+}
+
+/// The same, for the address field submitted with Cmd held: a bare word is
+/// the `.com` of that name.
+fn navigate_dot_com(id: u32, input: &str) {
+    send(id, nav::dot_com(input));
+}
+
+fn send(id: u32, target: Option<nav::Target>) {
     let Some(shell) = held() else { return };
     let Some(view) = engine(id) else { return };
-    let Some(target) = nav::resolve(input) else {
-        return;
-    };
+    let Some(target) = target else { return };
     load(&view, &target.uri);
     if let Some(engine) = shell.engines.borrow().iter().find(|engine| engine.id == id) {
         engine
@@ -379,6 +401,39 @@ fn fallback_for(id: u32, failing: &str) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// A page saying an address couldn't be opened is about to be loaded into
+/// this tab.
+fn expect_failure(id: u32) {
+    if let Some(shell) = held()
+        && let Some(engine) = shell.engines.borrow().iter().find(|engine| engine.id == id)
+    {
+        engine.failing.set(true);
+    }
+}
+
+/// Whether the page that just committed is one of those, and remembers the
+/// answer for as long as the tab is showing it.
+fn committing_failure(id: u32) -> bool {
+    let Some(shell) = held() else { return false };
+    let engines = shell.engines.borrow();
+    let Some(engine) = engines.iter().find(|engine| engine.id == id) else {
+        return false;
+    };
+    let failure = engine.failing.replace(false);
+    engine.failed.set(failure);
+    failure
+}
+
+fn showing_failure(id: u32) -> bool {
+    held().is_some_and(|shell| {
+        shell
+            .engines
+            .borrow()
+            .iter()
+            .any(|engine| engine.id == id && engine.failed.get())
+    })
 }
 
 /// Forgets a tab's fallback: the attempt got far enough that trying the same
@@ -418,23 +473,60 @@ fn select_last() {
 /// A new tab showing `uri`, with an engine of its own.
 fn open_tab(uri: &str, select: bool) -> Option<u32> {
     let shell = held()?;
-    let view = make_webview(shell.mtm, false);
-    if let Some(content) = shell.window.contentView() {
-        content.addSubview(&view);
-    }
     let id = shell.tabs.borrow_mut().open(select);
-    shell.engines.borrow_mut().push(Engine {
-        id,
-        view: view.clone(),
-        fallback: RefCell::new(None),
-    });
+    let view = give_an_engine(&shell, id);
     load(&view, uri);
     lay_out();
     push_tabs();
     if select {
         push_state();
     }
+    keep_the_session();
     Some(id)
+}
+
+/// A tab restored from the last run is a row in the column and nothing more
+/// until it is asked for. This is the moment it becomes a page: an engine of
+/// its own, pointed at the address it has been holding.
+fn wake_tab(id: u32) {
+    let Some(shell) = held() else { return };
+    if !shell.tabs.borrow_mut().wake(id) {
+        return;
+    }
+    let uri = shell
+        .tabs
+        .borrow()
+        .facts(id)
+        .map(|facts| facts.uri.clone())
+        .unwrap_or_default();
+    let view = give_an_engine(&shell, id);
+    draw_at_remembered_size(&view);
+    load(&view, &uri);
+}
+
+/// Builds a tab's engine and puts it in beside the tab, so the engines stay
+/// in the order the column shows them.
+fn give_an_engine(shell: &Rc<Shell>, id: u32) -> Retained<WKWebView> {
+    let view = make_webview(shell.mtm, false);
+    if let Some(content) = shell.window.contentView() {
+        content.addSubview(&view);
+    }
+    let engine = Engine {
+        id,
+        view: view.clone(),
+        fallback: RefCell::new(None),
+        failing: Cell::new(false),
+        failed: Cell::new(false),
+    };
+    let order = shell.tabs.borrow().ids();
+    let place = |id: u32| order.iter().position(|other| *other == id);
+    let mut engines = shell.engines.borrow_mut();
+    let at = engines
+        .iter()
+        .position(|other| place(other.id) > place(id))
+        .unwrap_or(engines.len());
+    engines.insert(at, engine);
+    view
 }
 
 fn select_tab(id: u32) {
@@ -445,10 +537,12 @@ fn select_tab(id: u32) {
     if !shell.tabs.borrow_mut().select(id) {
         return;
     }
+    wake_tab(id);
     lay_out();
     push_tabs();
     push_state();
     focus_tab(id);
+    keep_the_session();
     if let Some(companion) = companion() {
         companion.refresh();
     }
@@ -490,12 +584,15 @@ fn close_tab(id: u32) {
     let next = shell.tabs.borrow_mut().close(id);
     match next {
         None => shell.window.close(),
-        Some(_) => {
+        Some(next) => {
+            // The tab that takes its place may be one still asleep.
+            wake_tab(next);
             lay_out();
             push_tabs();
             if was_selected {
                 push_state();
             }
+            keep_the_session();
             if let Some(companion) = companion() {
                 companion.refresh();
             }
@@ -516,6 +613,7 @@ fn refresh_tabs() {
         .collect();
     let mut changed = false;
     let mut front_changed = false;
+    let mut moved = false;
     let selected = shell.tabs.borrow().selected();
     for (id, view) in engines {
         let uri = uri_of(&view);
@@ -523,20 +621,76 @@ fn refresh_tabs() {
             .map(|text| text.to_string())
             .unwrap_or_default();
         let loading = unsafe { view.isLoading() };
+        let (was_uri, was_title) = shell
+            .tabs
+            .borrow()
+            .facts(id)
+            .map(|facts| (facts.uri.clone(), facts.title.clone()))
+            .unwrap_or_default();
+        // A tab just woken holds the address it is on its way to, which the
+        // engine has nothing to say about until the load starts.
+        let holding = uri.is_empty() && !was_uri.is_empty();
+        let elsewhere = !holding && (uri != was_uri || title != was_title);
         if shell.tabs.borrow_mut().update(id, |facts| {
-            facts.uri = uri;
-            facts.title = title;
+            if !holding {
+                facts.uri = uri.clone();
+                facts.title = title.clone();
+            }
             facts.loading = loading;
         }) {
             changed = true;
             front_changed |= Some(id) == selected;
+            if elsewhere {
+                // A page that names itself once it is up, or a move within
+                // one that never became a navigation: either way the tab is
+                // somewhere the delegate never heard about.
+                note_visit(id, &uri, &title);
+                moved = true;
+            }
         }
     }
     if changed {
         push_tabs();
     }
+    if moved {
+        keep_the_session();
+    }
     if front_changed {
         push_state();
+    }
+}
+
+/// Write down where a tab has got to. The core keeps its own counsel about
+/// what is worth remembering and what is nobody's business; what is held
+/// back here is the page that says an address couldn't be opened, which is
+/// not somewhere anyone went.
+fn note_visit(id: u32, uri: &str, title: &str) {
+    if uri.is_empty() || showing_failure(id) {
+        return;
+    }
+    if let Some(companion) = companion() {
+        companion.visited(uri, title);
+    }
+}
+
+/// The tabs as they stand, for next time. Written whenever they change and
+/// on the way out, so a crash costs at most the last move.
+fn keep_the_session() {
+    let Some(shell) = held() else { return };
+    let Some(companion) = companion() else { return };
+    let session = shell.tabs.borrow().session();
+    companion.keep_session(&session);
+}
+
+/// What was open last time, as rows in the column and nothing more. Home is
+/// opened in front of them afterwards, as it is on any other run.
+fn restore_the_session(companion: &Companion) {
+    let Some(shell) = held() else { return };
+    for sleeper in companion.last_session().tabs {
+        shell
+            .tabs
+            .borrow_mut()
+            .open_asleep(&sleeper.url, &sleeper.title);
     }
 }
 
@@ -744,6 +898,12 @@ fn heard(message: ToCore) {
                 navigate(id, &input);
             }
         }
+        ToCore::NavigateDotCom { input } => {
+            let selected = shell.tabs.borrow().selected();
+            if let Some(id) = selected {
+                navigate_dot_com(id, &input);
+            }
+        }
         ToCore::Back => {
             if let Some(view) = view {
                 unsafe {
@@ -790,6 +950,7 @@ fn heard(message: ToCore) {
             // one is making a sound, so the column doesn't offer it here.
         }
         ToCore::ToggleBookmark => toggle_bookmark(),
+        ToCore::OpenDownload { id } => open_download(id),
         ToCore::ShowWisp => show_wisp(),
         ToCore::OpenSettings => open_settings(),
         ToCore::FindSupport { samaritans } => {
@@ -1006,6 +1167,216 @@ fn clear_matches(view: &WKWebView) {
     let script = NSString::from_str("window.getSelection()?.removeAllRanges()");
     unsafe { view.evaluateJavaScript_completionHandler(&script, None) };
 }
+
+// --- Files arriving ----------------------------------------------------------
+
+/// A file on its way in: the number the companion knows it by, the download
+/// itself so its progress can be read, and where it is being written.
+struct Arriving {
+    id: u32,
+    download: Retained<WKDownload>,
+    path: String,
+}
+
+thread_local! {
+    /// A download points at its delegate weakly, so the one they all share is
+    /// kept here.
+    static SAVER: RefCell<Option<Retained<Saver>>> = const { RefCell::new(None) };
+    /// The files still arriving.
+    static ARRIVING: RefCell<Vec<Arriving>> = const { RefCell::new(Vec::new()) };
+}
+
+fn saver(mtm: MainThreadMarker) -> Retained<Saver> {
+    SAVER.with_borrow_mut(|held| {
+        held.get_or_insert_with(|| unsafe { msg_send![Saver::alloc(mtm), init] })
+            .clone()
+    })
+}
+
+/// A navigation turned out to be a file. From here it answers to the saver
+/// rather than to the page it came from.
+fn take_over(download: &WKDownload, mtm: MainThreadMarker) {
+    let saver = ProtocolObject::from_retained(saver(mtm));
+    unsafe { download.setDelegate(Some(&saver)) };
+}
+
+/// Where files are saved. macOS keeps a folder for this and will say where
+/// it is even if it has been moved.
+fn downloads_dir() -> PathBuf {
+    NSFileManager::defaultManager()
+        .URLsForDirectory_inDomains(
+            NSSearchPathDirectory::DownloadsDirectory,
+            NSSearchPathDomainMask::UserDomainMask,
+        )
+        .firstObject()
+        .and_then(|url| url.path())
+        .map(|path| PathBuf::from(path.to_string()))
+        .unwrap_or_else(|| match held() {
+            Some(shell) => host::Host::home_dir(&*shell).join("Downloads"),
+            None => PathBuf::from("."),
+        })
+}
+
+/// The name to save under: what the site suggested, with anything that would
+/// take the file somewhere other than the folder it is meant for taken out.
+fn file_name(suggested: &str) -> String {
+    let name: String = suggested
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default()
+        .chars()
+        .filter(|c| *c != ':' && !c.is_control())
+        .collect();
+    let name = name.trim();
+    if name.is_empty() || name == "." || name == ".." {
+        "download".to_owned()
+    } else {
+        name.to_owned()
+    }
+}
+
+/// Where the file goes, never over one that is already there: `moss.pdf`,
+/// then `moss (2).pdf`, and so on up to the point where it is plainly not
+/// working.
+fn free_path(dir: &Path, name: &str) -> Option<PathBuf> {
+    let first = dir.join(name);
+    if !first.exists() {
+        return Some(first);
+    }
+    let (stem, extension) = match name.rfind('.') {
+        Some(at) if at > 0 => (&name[..at], &name[at..]),
+        _ => (name, ""),
+    };
+    (2..100)
+        .map(|n| dir.join(format!("{stem} ({n}){extension}")))
+        .find(|path| !path.exists())
+}
+
+/// The number a download is known by, and where it is being written, taken
+/// off the list now that it has stopped arriving.
+fn arrived(download: &WKDownload) -> Option<(u32, String)> {
+    ARRIVING.with_borrow_mut(|list| {
+        let at = list
+            .iter()
+            .position(|arriving| &*arriving.download == download)?;
+        let arriving = list.remove(at);
+        Some((arriving.id, arriving.path))
+    })
+}
+
+/// How far along each file is. WebKit keeps a progress object on a download
+/// and changes it as bytes land; this reads it on the watch timer rather
+/// than observing it, which is often enough for a bar that moves in steps.
+fn report_progress() {
+    let Some(companion) = companion() else { return };
+    let along: Vec<(u32, Option<f64>)> = ARRIVING.with_borrow(|list| {
+        list.iter()
+            .map(|arriving| {
+                let progress = arriving.download.progress();
+                let known = progress.totalUnitCount() > 0 && !progress.isIndeterminate();
+                (arriving.id, known.then(|| progress.fractionCompleted()))
+            })
+            .collect()
+    });
+    for (id, fraction) in along {
+        companion.download_progressed(id, fraction);
+    }
+}
+
+/// Hand a file that has finished arriving to the system, which takes it off
+/// Home: it has been dealt with.
+fn open_download(id: u32) {
+    let Some(shell) = held() else { return };
+    let Some(companion) = companion() else { return };
+    if let Some(path) = companion.open_download(id)
+        && !host::Host::open_file(&*shell, &path)
+    {
+        eprintln!("glimmerwood: nothing here opens {path}");
+    }
+}
+
+/// How WebKit is told where to put a file: a place for it, or nothing,
+/// which turns the download down.
+type Destination = DynBlock<dyn Fn(*mut NSURL)>;
+
+define_class!(
+    /// What becomes of a file being saved. There is no window for this: a
+    /// download is a file arriving on the machine, so it goes where files
+    /// go, and the mark in the toolbar and the line on Home are all that is
+    /// said about it.
+    ///
+    /// The method that answers through a block is written out by hand, so the
+    /// conformance below declares none of its own.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "GlimmerwoodSaver"]
+    struct Saver;
+
+    unsafe impl NSObjectProtocol for Saver {}
+
+    unsafe impl WKDownloadDelegate for Saver {}
+
+    impl Saver {
+        #[unsafe(method(download:decideDestinationUsingResponse:suggestedFilename:completionHandler:))]
+        fn decide_destination(
+            &self,
+            download: &WKDownload,
+            _response: &NSURLResponse,
+            suggested: &NSString,
+            answer: &Destination,
+        ) {
+            let dir = downloads_dir();
+            let name = file_name(&suggested.to_string());
+            let where_to = std::fs::create_dir_all(&dir)
+                .ok()
+                .and_then(|()| free_path(&dir, &name));
+            // Answering with nowhere is how a download is turned down, and
+            // nowhere to put it is the only reason to turn one down here.
+            let (Some(where_to), Some(companion)) = (where_to, companion()) else {
+                answer.call((std::ptr::null_mut(),));
+                return;
+            };
+            let shown = where_to
+                .file_name()
+                .map_or(name, |name| name.to_string_lossy().into_owned());
+            let path = where_to.to_string_lossy().into_owned();
+            let id = companion.download_started(&shown, &path);
+            ARRIVING.with_borrow_mut(|list| {
+                list.push(Arriving {
+                    id,
+                    download: download.retain(),
+                    path: path.clone(),
+                });
+            });
+            let url = NSURL::fileURLWithPath(&NSString::from_str(&path));
+            answer.call((Retained::as_ptr(&url).cast_mut(),));
+        }
+
+        #[unsafe(method(downloadDidFinish:))]
+        fn finished(&self, download: &WKDownload) {
+            if let Some((id, path)) = arrived(download)
+                && let Some(companion) = companion()
+            {
+                companion.download_finished(id, Progress::Saved, Some(&path));
+            }
+        }
+
+        #[unsafe(method(download:didFailWithError:resumeData:))]
+        fn failed(&self, download: &WKDownload, error: &NSError, _resume: Option<&NSData>) {
+            let stopped = error.code() == NSURLErrorCancelled;
+            if let Some((id, _)) = arrived(download)
+                && let Some(companion) = companion()
+            {
+                let how = if stopped {
+                    Progress::Stopped
+                } else {
+                    Progress::Failed
+                };
+                companion.download_finished(id, how, None);
+            }
+        }
+    }
+);
 
 // --- The menu bar ------------------------------------------------------------
 
@@ -1424,11 +1795,12 @@ define_class!(
             zoom(0);
         }
 
-        /// Quitting doesn't close the window, so the window's size and place
-        /// are written down on the way out.
+        /// Quitting doesn't close the window, so its size and place and the
+        /// tabs it holds are written down on the way out.
         #[unsafe(method(quitGlimmerwood:))]
         fn quit(&self, _sender: Option<&AnyObject>) {
             remember_frame();
+            keep_the_session();
             NSApplication::sharedApplication(self.mtm()).terminate(None);
         }
     }
@@ -1510,6 +1882,7 @@ define_class!(
         #[unsafe(method(windowWillClose:))]
         fn will_close(&self, _notification: &NSNotification) {
             remember_frame();
+            keep_the_session();
         }
 
         /// Nothing inside the window sizes itself, so a resize is laid out
@@ -1526,6 +1899,7 @@ define_class!(
 
 /// The callbacks a WebKit delegate method is handed to answer with.
 type Decision = DynBlock<dyn Fn(WKNavigationActionPolicy)>;
+type Answer = DynBlock<dyn Fn(WKNavigationResponsePolicy)>;
 type Trust = DynBlock<dyn Fn(NSURLSessionAuthChallengeDisposition, *const NSURLCredential)>;
 
 /// Home and Settings trigger things by asking for an address rather than by
@@ -1594,16 +1968,19 @@ fn failing_uri(view: &WKWebView, error: &NSError) -> String {
 }
 
 /// The page that says why an address didn't open, in place of the address.
-fn show_failure(view: &WKWebView, uri: &str, reason: &Reason) {
+/// False if there was no page to show, in which case the tab is left with
+/// whatever it had.
+fn show_failure(view: &WKWebView, uri: &str, reason: &Reason) -> bool {
     let Some(template) = file("pages/failed.html").and_then(|bytes| str::from_utf8(bytes).ok())
     else {
-        return;
+        return false;
     };
     let html = NSString::from_str(&failure::fill(template, uri, reason));
     let base = NSURL::URLWithString(&NSString::from_str(uri));
     unsafe {
         let _ = view.loadHTMLString_baseURL(&html, base.as_deref());
     }
+    true
 }
 
 /// A load that didn't finish: the plain HTTP form if this was an upgraded
@@ -1622,7 +1999,11 @@ fn load_failed(view: &WKWebView, error: &NSError) {
         load(view, &http);
         return;
     }
-    show_failure(view, &uri, &reason);
+    if show_failure(view, &uri, &reason)
+        && let Some(id) = tab_of(view)
+    {
+        expect_failure(id);
+    }
     refresh_tabs();
 }
 
@@ -1645,6 +2026,12 @@ define_class!(
     impl Navigator {
         #[unsafe(method(webView:decidePolicyForNavigationAction:decisionHandler:))]
         fn decide(&self, view: &WKWebView, action: &WKNavigationAction, answer: &Decision) {
+            // A link that asks to be saved rather than opened is a file
+            // arriving, and WebKit hands it over once it is told so.
+            if unsafe { action.shouldPerformDownload() } {
+                answer.call((WKNavigationActionPolicy::Download,));
+                return;
+            }
             let wanted = unsafe { action.request() }
                 .URL()
                 .and_then(|url| url.absoluteString())
@@ -1673,6 +2060,46 @@ define_class!(
             answer.call((policy,));
         }
 
+        /// What comes back from an address WebKit has no way to draw is a
+        /// file, and a file is something to save rather than a page that
+        /// wouldn't open.
+        #[unsafe(method(webView:decidePolicyForNavigationResponse:decisionHandler:))]
+        fn decide_response(
+            &self,
+            _view: &WKWebView,
+            response: &WKNavigationResponse,
+            answer: &Answer,
+        ) {
+            let showable =
+                unsafe { response.canShowMIMEType() || !response.isForMainFrame() };
+            let policy = if showable {
+                WKNavigationResponsePolicy::Allow
+            } else {
+                WKNavigationResponsePolicy::Download
+            };
+            answer.call((policy,));
+        }
+
+        #[unsafe(method(webView:navigationAction:didBecomeDownload:))]
+        fn action_became_download(
+            &self,
+            _view: &WKWebView,
+            _action: &WKNavigationAction,
+            download: &WKDownload,
+        ) {
+            take_over(download, self.mtm());
+        }
+
+        #[unsafe(method(webView:navigationResponse:didBecomeDownload:))]
+        fn response_became_download(
+            &self,
+            _view: &WKWebView,
+            _response: &WKNavigationResponse,
+            download: &WKDownload,
+        ) {
+            take_over(download, self.mtm());
+        }
+
         #[unsafe(method(webView:didStartProvisionalNavigation:))]
         fn started(&self, view: &WKWebView, _navigation: Option<&WKNavigation>) {
             // The page the find bar was searching is on its way out.
@@ -1688,6 +2115,12 @@ define_class!(
         fn committed(&self, view: &WKWebView, _navigation: Option<&WKNavigation>) {
             if let Some(id) = tab_of(view) {
                 forget_fallback(id);
+                if !committing_failure(id) {
+                    let title = unsafe { view.title() }
+                        .map(|text| text.to_string())
+                        .unwrap_or_default();
+                    note_visit(id, &uri_of(view), &title);
+                }
             }
             // As early as the level can be set, so the page is laid out at
             // the size its site is remembered at rather than resized once it
@@ -1844,6 +2277,7 @@ define_class!(
         #[unsafe(method(fire:))]
         fn fire(&self, _timer: &NSTimer) {
             refresh_tabs();
+            report_progress();
         }
     }
 );
@@ -1864,16 +2298,25 @@ impl host::Window for Shell {
         self.tabs
             .borrow()
             .selected_facts()
+            .filter(|facts| !facts.asleep)
             .map(|facts| facts.uri.clone())
             .unwrap_or_default()
     }
 
     /// Every tab but the one being looked at. They weigh nothing, but the
-    /// dose engine still wants to know they are open.
+    /// dose engine still wants to know they are open — and a tab restored
+    /// from the last run has not been opened at all. It is a name in the
+    /// column until someone asks for it, and nowhere anybody is.
     fn other_tabs(&self, in_front: bool) -> Vec<String> {
         let tabs = self.tabs.borrow();
         let attended = if in_front { tabs.selected() } else { None };
-        tabs.other_uris(attended)
+        tabs.ids()
+            .into_iter()
+            .filter(|id| Some(*id) != attended)
+            .filter_map(|id| tabs.facts(id))
+            .filter(|facts| !facts.asleep && !facts.uri.is_empty())
+            .map(|facts| facts.uri.clone())
+            .collect()
     }
 
     fn sound_on_screen(&self) -> bool {

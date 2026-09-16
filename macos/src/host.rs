@@ -11,7 +11,8 @@ use glimmerwood_core::host;
 use objc2::rc::Retained;
 use objc2::runtime::{NSObject, NSObjectProtocol};
 use objc2::{AllocAnyThread, define_class, msg_send, sel};
-use objc2_foundation::{NSTimeZone, NSTimer};
+use objc2_app_kit::NSWorkspace;
+use objc2_foundation::{NSString, NSTimeZone, NSTimer, NSURL};
 
 use crate::shell::Shell;
 
@@ -21,6 +22,13 @@ thread_local! {
 }
 
 impl host::Host for Shell {
+    /// Hand a file to whichever application the system opens that kind
+    /// with, which is what the Finder would do with a double click.
+    fn open_file(&self, path: &str) -> bool {
+        let url = NSURL::fileURLWithPath(&NSString::from_str(path));
+        NSWorkspace::sharedWorkspace().openURL(&url)
+    }
+
     fn windows(&self) -> Vec<Rc<dyn host::Window>> {
         match crate::shell::held() {
             Some(shell) => vec![shell as Rc<dyn host::Window>],

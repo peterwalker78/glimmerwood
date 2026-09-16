@@ -67,6 +67,10 @@ objc2-foundation = { version = "0.3", features = [
     "NSURLCredential",
     "NSURLSession",
     "NSArray",
+    # Where a file being saved goes, and how far along it is.
+    "NSFileManager",
+    "NSPathUtilities",
+    "NSProgress",
     # The wisp's clock, which moves forward whatever the wall clock does.
     "NSProcessInfo",
 ] }
@@ -84,6 +88,10 @@ objc2-web-kit = { version = "0.3", features = [
     # Find in page, and how large a site is drawn.
     "WKFindConfiguration",
     "WKFindResult",
+    # A navigation that turns out to be a file arriving instead.
+    "WKDownload",
+    "WKDownloadDelegate",
+    "WKNavigationResponse",
     "block2",
     "objc2-core-foundation",
 ] }
