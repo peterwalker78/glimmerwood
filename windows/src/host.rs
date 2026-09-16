@@ -48,7 +48,7 @@ impl host::Host for Shell {
     }
 
     fn config_dir(&self) -> PathBuf {
-        known_folder(&FOLDERID_RoamingAppData).unwrap_or_else(|| PathBuf::from("."))
+        config_dir()
     }
 
     fn home_dir(&self) -> PathBuf {
@@ -103,6 +103,12 @@ fn utc_offset_s() -> i32 {
             zone.StandardBias
         };
     -bias * 60
+}
+
+/// Where this user's settings live. Also wanted before there is a shell to
+/// ask, for the size the window opens at.
+pub fn config_dir() -> PathBuf {
+    known_folder(&FOLDERID_RoamingAppData).unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn known_folder(which: &GUID) -> Option<PathBuf> {

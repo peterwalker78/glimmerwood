@@ -7,12 +7,15 @@
 //! is the one on screen.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::error::Error;
+use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
 use crate::nook;
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
+use glimmerwood_core::failure::{self, Reason};
 use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
@@ -20,17 +23,26 @@ use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
 use glimmerwood_core::tabs::Tabs;
 use webview2_com::Microsoft::Web::WebView2::Win32::*;
 use webview2_com::{
-    CreateCoreWebView2ControllerCompletedHandler, CreateCoreWebView2EnvironmentCompletedHandler,
-    DocumentTitleChangedEventHandler, IsDocumentPlayingAudioChangedEventHandler,
-    IsMutedChangedEventHandler, NavigationCompletedEventHandler, NavigationStartingEventHandler,
+    AcceleratorKeyPressedEventHandler, CreateCoreWebView2ControllerCompletedHandler,
+    CreateCoreWebView2EnvironmentCompletedHandler, DocumentTitleChangedEventHandler,
+    FaviconChangedEventHandler, GetFaviconCompletedHandler,
+    IsDocumentPlayingAudioChangedEventHandler, IsMutedChangedEventHandler,
+    NavigationCompletedEventHandler, NavigationStartingEventHandler,
     NewWindowRequestedEventHandler, SourceChangedEventHandler, WebMessageReceivedEventHandler,
     WebResourceRequestedEventHandler,
 };
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
-use windows::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoTaskMemFree};
+use windows::Win32::System::Com::{
+    COINIT_APARTMENTTHREADED, CoInitializeEx, CoTaskMemFree, IStream,
+};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
+};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetKeyState, VIRTUAL_KEY, VK_1, VK_9, VK_CONTROL, VK_D, VK_F4, VK_F5, VK_F6, VK_HOME, VK_L,
+    VK_LEFT, VK_MENU, VK_NEXT, VK_OEM_COMMA, VK_PRIOR, VK_R, VK_RIGHT, VK_SHIFT, VK_T, VK_TAB,
+    VK_W,
 };
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -39,9 +51,12 @@ use windows::core::{HSTRING, Interface, PCWSTR, PWSTR, w};
 
 type Fallible<T> = std::result::Result<T, Box<dyn Error>>;
 
-/// Before the chrome says otherwise.
+/// The window's size the first time it opens, before there is one to
+/// remember, and the smallest it is ever restored to.
 const INITIAL_WIDTH: i32 = 1100;
 const INITIAL_HEIGHT: i32 = 760;
+const LEAST_WIDTH: i32 = 480;
+const LEAST_HEIGHT: i32 = 360;
 /// The toolbar's height until it reports its own.
 const TOOLBAR_HEIGHT: i32 = 56;
 /// The tab column's width. The GTK build lets it be dragged and remembers
@@ -52,8 +67,15 @@ const COLUMN_WIDTH: i32 = 48;
 const HOME: &str = "glimmerwood://home/";
 const HOME_WISP: &str = "glimmerwood://home/#wisp";
 const SETTINGS: &str = "glimmerwood://settings/";
+/// What Home's and Settings' own buttons are links to. Following one is
+/// never a navigation: it is how the page asks for something to be done.
+const HOME_ACTIONS: &str = "glimmerwood://home/do/";
+const SETTINGS_ACTIONS: &str = "glimmerwood://settings/do/";
 const HELPLINES: &str = "https://findahelpline.com/";
 const SAMARITANS: &str = "https://www.samaritans.org/how-we-can-help/contact-samaritan/";
+
+/// Tabs reachable with Ctrl+number; Ctrl+9 is always the last tab.
+const NUMBERED_TABS: u16 = 8;
 
 thread_local! {
     static SHELL: RefCell<Option<Rc<Shell>>> = const { RefCell::new(None) };
@@ -77,6 +99,24 @@ struct Engine {
     view: ICoreWebView2,
 }
 
+/// What a tab last set out to load.
+struct Attempt {
+    /// The address it is trying to reach.
+    uri: String,
+    /// The plain HTTP form of it, when it was optimistically upgraded to
+    /// HTTPS and the plain one is what was meant if that can't be reached.
+    plain: Option<String>,
+}
+
+/// A failure page standing in for a page a tab couldn't open.
+struct Standing {
+    /// The address it stands in for, which is still the tab's address as
+    /// far as the chrome and the wisp are concerned.
+    uri: String,
+    /// Its own load hasn't started yet.
+    pending: bool,
+}
+
 pub struct Shell {
     window: HWND,
     environment: ICoreWebView2Environment,
@@ -89,6 +129,10 @@ pub struct Shell {
     tabs: RefCell<Tabs>,
     /// What the toolbar last said it needed, in the window's own pixels.
     toolbar_height: RefCell<i32>,
+    /// What each tab is in the middle of loading, while it is.
+    attempts: RefCell<HashMap<u32, Attempt>>,
+    /// The tabs showing a failure page rather than what was asked for.
+    failures: RefCell<HashMap<u32, Standing>>,
 }
 
 pub fn run() -> Fallible<()> {
@@ -99,11 +143,19 @@ pub fn run() -> Fallible<()> {
         CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
     }
 
-    let window = make_window()?;
+    let shape = remembered_shape();
+    let window = make_window(&shape)?;
     // Shown before the engine is asked for, so that a machine which cannot
     // start one has a window to be told so in rather than nothing at all.
     unsafe {
-        let _ = ShowWindow(window, SW_SHOW);
+        let _ = ShowWindow(
+            window,
+            if shape.maximised {
+                SW_SHOWMAXIMIZED
+            } else {
+                SW_SHOW
+            },
+        );
     }
     if let Err(why) = runtime_version() {
         complain(window, &why);
@@ -121,6 +173,8 @@ pub fn run() -> Fallible<()> {
         engines: RefCell::new(Vec::new()),
         tabs: RefCell::new(Tabs::new()),
         toolbar_height: RefCell::new(TOOLBAR_HEIGHT),
+        attempts: RefCell::new(HashMap::new()),
+        failures: RefCell::new(HashMap::new()),
     });
 
     let toolbar_view = unsafe { shell.toolbar.CoreWebView2()? };
@@ -132,6 +186,10 @@ pub fn run() -> Fallible<()> {
         serve_our_own_files(view, &environment, true)?;
         listen_to_the_chrome(view, &shell)?;
     }
+    // The window's shortcuts work wherever the keyboard is, which includes
+    // the chrome's own two engines.
+    watch_the_keys(&shell.toolbar, &shell)?;
+    watch_the_keys(&shell.sidebar, &shell)?;
 
     // The wisp's own window, over the toolbar's corner. It is created after
     // the engines so that it sits above them.
@@ -209,12 +267,32 @@ impl Shell {
         self.engine(id)
     }
 
+    /// Where a tab is, as everything outside the engine sees it. While a
+    /// failure page stands in for a page, it is the address that wouldn't
+    /// open rather than the page put in its place.
+    fn uri_of(&self, id: u32) -> String {
+        if let Some(standing) = self.failures.borrow().get(&id) {
+            return standing.uri.clone();
+        }
+        match self.engine(id) {
+            Some(view) => unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default(),
+            None => String::new(),
+        }
+    }
+
+    /// Whether a failure page is what a tab is showing. Time on one is time
+    /// on no site at all, and there is nothing there to bookmark.
+    fn failed(&self, id: u32) -> bool {
+        self.failures.borrow().contains_key(&id)
+    }
+
     /// A new tab showing `uri`, with an engine of its own.
     fn open_tab(self: &Rc<Self>, uri: &str, select: bool) -> Fallible<u32> {
         let controller = make_controller(&self.environment, self.window)?;
         let view = unsafe { controller.CoreWebView2()? };
         let id = self.tabs.borrow_mut().open(select);
         watch_a_tab(&view, self, id)?;
+        watch_the_keys(&controller, self)?;
         self.engines.borrow_mut().push(Engine {
             id,
             controller,
@@ -256,6 +334,8 @@ impl Shell {
             let _ = engine.controller.SetIsVisible(false);
             let _ = engine.controller.Close();
         }
+        self.attempts.borrow_mut().remove(&id);
+        self.failures.borrow_mut().remove(&id);
         let was_selected = self.tabs.borrow().selected() == Some(id);
         let next = self.tabs.borrow_mut().close(id);
         match next {
@@ -283,7 +363,7 @@ impl Shell {
     /// the chrome only if something it shows actually changed.
     fn refresh_tab(&self, id: u32, loading: Option<bool>) {
         let Some(view) = self.engine(id) else { return };
-        let uri = unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default();
+        let uri = self.uri_of(id);
         let title = unsafe { taken_string(|out| view.DocumentTitle(out)) }.unwrap_or_default();
         let (playing, muted) = match view.cast::<ICoreWebView2_8>() {
             Ok(audio) => unsafe {
@@ -332,6 +412,20 @@ impl Shell {
             .map(|engine| engine.controller.clone());
         if let Some(controller) = controller {
             let _ = unsafe { controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC) };
+        }
+    }
+
+    /// Every tab's icon, for a column that has only just been drawn.
+    fn push_icons(&self) {
+        let icons: Vec<(u32, Option<String>)> = {
+            let tabs = self.tabs.borrow();
+            tabs.ids()
+                .into_iter()
+                .map(|id| (id, tabs.facts(id).and_then(|facts| facts.icon.clone())))
+                .collect()
+        };
+        for (id, icon) in icons {
+            self.tell_the_column(&ToChrome::TabIcon { id, icon });
         }
     }
 
@@ -396,6 +490,14 @@ impl Shell {
     /// Star the page in front, or unstar it.
     fn toggle_bookmark(&self) {
         let Some(companion) = companion() else { return };
+        if self
+            .tabs
+            .borrow()
+            .selected()
+            .is_some_and(|id| self.failed(id))
+        {
+            return;
+        }
         let Some(facts) = self
             .tabs
             .borrow()
@@ -451,7 +553,7 @@ impl Shell {
             return;
         };
         let Some(view) = self.engine(id) else { return };
-        let uri = unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default();
+        let uri = self.uri_of(id);
         let title = unsafe { taken_string(|out| view.DocumentTitle(out)) }.unwrap_or_default();
         let can_go_back = unsafe { taken_bool(|out| view.CanGoBack(out)) };
         let can_go_forward = unsafe { taken_bool(|out| view.CanGoForward(out)) };
@@ -476,7 +578,7 @@ impl Shell {
             progress: if loading { 0.5 } else { 1.0 },
             can_go_back,
             can_go_forward,
-            can_bookmark: !local && !uri.is_empty(),
+            can_bookmark: !local && !uri.is_empty() && !self.failed(id),
             bookmarked,
         });
     }
@@ -492,14 +594,254 @@ impl Shell {
     }
 
     fn navigate(&self, input: &str) {
-        let Some(view) = self.selected_view() else {
+        let Some(id) = self.tabs.borrow().selected() else {
+            return;
+        };
+        let Some(view) = self.engine(id) else {
             return;
         };
         let Some(target) = nav::resolve(input) else {
             return;
         };
-        let uri = HSTRING::from(target.uri);
+        let uri = HSTRING::from(target.uri.clone());
         let _ = unsafe { view.Navigate(PCWSTR(uri.as_ptr())) };
+        // An address typed without a scheme is tried over HTTPS first, and
+        // the plain form is what was meant if that can't be reached.
+        self.attempts.borrow_mut().insert(
+            id,
+            Attempt {
+                uri: target.uri,
+                plain: target.fallback,
+            },
+        );
+    }
+
+    /// Put the caret in the address field, wherever the keyboard was.
+    fn focus_address(&self) {
+        let _ = unsafe {
+            self.toolbar
+                .MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC)
+        };
+        self.tell_the_chrome(&ToChrome::FocusAddress);
+    }
+
+    /// The tab `by` places along the column from the one in front, wrapping
+    /// round at either end.
+    fn step_tab(self: &Rc<Self>, by: isize) {
+        let next = self.tabs.borrow().step(by);
+        if let Some(id) = next {
+            self.select_tab(id);
+        }
+    }
+
+    // --- Navigation ------------------------------------------------------------
+
+    /// A navigation a tab is about to make. Home's and Settings' buttons are
+    /// links that never go anywhere: they are caught here and done instead.
+    /// Anything else is a real load, and ends whatever the last one left.
+    fn navigation_starting(&self, id: u32, args: &ICoreWebView2NavigationStartingEventArgs) {
+        let target = unsafe { taken_string(|out| args.Uri(out)) }.unwrap_or_default();
+        if self.page_action(id, &target) {
+            let _ = unsafe { args.SetCancel(true) };
+            return;
+        }
+        // A failure page's own load is the one load that leaves the failure
+        // standing; any other is a fresh attempt at something.
+        {
+            let mut failures = self.failures.borrow_mut();
+            match failures.get_mut(&id) {
+                Some(standing) if standing.pending => standing.pending = false,
+                _ => {
+                    failures.remove(&id);
+                }
+            }
+        }
+        // A fallback belongs to one attempt at one address. Anywhere else,
+        // a redirect included, is not that attempt any more.
+        let mut attempts = self.attempts.borrow_mut();
+        let carried = attempts
+            .get(&id)
+            .filter(|attempt| nav::same_address(&attempt.uri, &target))
+            .and_then(|attempt| attempt.plain.clone());
+        attempts.insert(
+            id,
+            Attempt {
+                uri: target,
+                plain: carried,
+            },
+        );
+        drop(attempts);
+        self.refresh_tab(id, Some(true));
+    }
+
+    /// The buttons on Home and Settings, which are links the page follows
+    /// rather than messages: honoured only while the tab is actually showing
+    /// the page that asked. Says whether the address was one of them.
+    fn page_action(&self, id: u32, target: &str) -> bool {
+        let showing = self.uri_of(id);
+        if let Some(action) = target.strip_prefix(HOME_ACTIONS) {
+            if let Some(companion) = companion()
+                && pages::is_home(&showing)
+                && companion.home_action(action)
+            {
+                companion.refresh_pages();
+            }
+            return true;
+        }
+        if let Some(action) = target.strip_prefix(SETTINGS_ACTIONS) {
+            if let Some(companion) = companion()
+                && pages::is_settings(&showing)
+            {
+                companion.settings_action(action);
+            }
+            return true;
+        }
+        false
+    }
+
+    /// What a navigation came to. One that worked needs nothing; one that
+    /// didn't is either the plain-HTTP address an upgrade left behind, or
+    /// Glimmerwood's own page saying what happened.
+    fn navigation_ended(&self, id: u32, args: &ICoreWebView2NavigationCompletedEventArgs) {
+        if unsafe { taken_bool(|out| args.IsSuccess(out)) } {
+            self.attempts.borrow_mut().remove(&id);
+            return;
+        }
+        let mut status = COREWEBVIEW2_WEB_ERROR_STATUS::default();
+        if unsafe { args.WebErrorStatus(&mut status) }.is_err() {
+            return;
+        }
+        // The user's own Stop, and a load a newer one replaced.
+        if status == COREWEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED {
+            return;
+        }
+        // The failure page itself wouldn't load. Another would fare no
+        // better, and asking for one would never stop.
+        if self.failed(id) {
+            return;
+        }
+        let Some(view) = self.engine(id) else { return };
+        let attempt = self.attempts.borrow_mut().remove(&id);
+        let failing = match &attempt {
+            Some(attempt) => attempt.uri.clone(),
+            None => unsafe { taken_string(|out| view.Source(out)) }.unwrap_or_default(),
+        };
+        let reason = reason_of(status);
+        // A certificate is never a reason to try the same site again
+        // without encryption.
+        let fallback = attempt
+            .and_then(|attempt| attempt.plain)
+            .filter(|_| reason != Reason::Untrusted);
+        if let Some(plain) = fallback {
+            let uri = HSTRING::from(plain);
+            let _ = unsafe { view.Navigate(PCWSTR(uri.as_ptr())) };
+            return;
+        }
+        self.show_failure(id, &view, &failing, &reason);
+    }
+
+    /// Say in Glimmerwood's words why a page didn't open, in place of the
+    /// engine's own page about it.
+    fn show_failure(&self, id: u32, view: &ICoreWebView2, uri: &str, reason: &Reason) {
+        let Some(template) = file("pages/failed.html") else {
+            return;
+        };
+        let Ok(template) = std::str::from_utf8(template) else {
+            return;
+        };
+        let page = HSTRING::from(failure::fill(template, uri, reason));
+        if unsafe { view.NavigateToString(PCWSTR(page.as_ptr())) }.is_ok() {
+            self.failures.borrow_mut().insert(
+                id,
+                Standing {
+                    uri: uri.to_owned(),
+                    pending: true,
+                },
+            );
+        }
+    }
+
+    // --- Site icons ------------------------------------------------------------
+
+    /// Ask the engine for the icon of the site a tab is on. Glimmerwood's
+    /// own pages have no favicon; they wear the wisp.
+    fn fetch_icon(self: &Rc<Self>, id: u32, icons: &ICoreWebView2_15) {
+        if pages::is_local_page(&self.uri_of(id)) {
+            self.set_icon(id, Some(wisp_icon()));
+            return;
+        }
+        let weak: Weak<Shell> = Rc::downgrade(self);
+        let got = GetFaviconCompletedHandler::create(Box::new(move |code, stream| {
+            let Some(shell) = weak.upgrade() else {
+                return Ok(());
+            };
+            let icon = code
+                .ok()
+                .and(stream)
+                .map(|stream| everything_in(&stream))
+                .filter(|png| !png.is_empty())
+                .map(|png| format!("data:image/png;base64,{}", base64(&png)));
+            shell.set_icon(id, icon);
+            Ok(())
+        }));
+        let _ = unsafe { icons.GetFavicon(COREWEBVIEW2_FAVICON_IMAGE_FORMAT_PNG, &got) };
+    }
+
+    /// Hand the column a tab's icon, if it isn't the one it already has.
+    fn set_icon(&self, id: u32, icon: Option<String>) {
+        let changed = self
+            .tabs
+            .borrow_mut()
+            .update(id, |facts| facts.icon = icon.clone());
+        if changed {
+            self.tell_the_column(&ToChrome::TabIcon { id, icon });
+        }
+    }
+
+    // --- The keyboard ----------------------------------------------------------
+
+    /// The window's shortcuts, the same set the Linux build has. Says
+    /// whether the key was one of them, since one that was must not reach
+    /// the page as well.
+    fn shortcut(self: &Rc<Self>, key: VIRTUAL_KEY, ctrl: bool, shift: bool, alt: bool) -> bool {
+        // Ctrl+1 to Ctrl+8 pick a tab by where it sits in the column, and
+        // Ctrl+9 the last one however many there are.
+        if ctrl && !shift && !alt && (VK_1.0..=VK_9.0).contains(&key.0) {
+            let nth = key.0 - VK_1.0;
+            let tabs = self.tabs.borrow();
+            let id = if nth < NUMBERED_TABS {
+                tabs.nth(nth as usize)
+            } else {
+                tabs.last()
+            };
+            drop(tabs);
+            if let Some(id) = id {
+                self.select_tab(id);
+            }
+            return true;
+        }
+        match (key, ctrl, shift, alt) {
+            (VK_L, true, false, false)
+            | (VK_D, false, false, true)
+            | (VK_F6, false, false, false) => self.focus_address(),
+            (VK_LEFT, false, false, true) => self.heard(ToCore::Back),
+            (VK_RIGHT, false, false, true) => self.heard(ToCore::Forward),
+            (VK_R, true, false, false) | (VK_F5, false, false, false) => self.heard(ToCore::Reload),
+            (VK_T, true, false, false) => self.heard(ToCore::NewTab),
+            (VK_W, true, false, false) | (VK_F4, true, false, false) => {
+                let in_front = self.tabs.borrow().selected();
+                if let Some(id) = in_front {
+                    self.close_tab(id);
+                }
+            }
+            (VK_D, true, false, false) => self.heard(ToCore::ToggleBookmark),
+            (VK_HOME, false, false, true) => self.heard(ToCore::GoHome),
+            (VK_OEM_COMMA, true, false, false) => self.heard(ToCore::OpenSettings),
+            (VK_TAB, true, false, false) | (VK_NEXT, true, false, false) => self.step_tab(1),
+            (VK_TAB, true, true, false) | (VK_PRIOR, true, false, false) => self.step_tab(-1),
+            _ => return false,
+        }
+        true
     }
 
     fn heard(self: &Rc<Self>, message: ToCore) {
@@ -611,7 +953,10 @@ impl Shell {
             }
             ToCore::Ready {
                 view: ChromeView::Sidebar,
-            } => self.push_tabs(),
+            } => {
+                self.push_tabs();
+                self.push_icons();
+            }
             // Find in page is the one thing WebView2 has no API for, so it
             // is not here yet; everything else the chrome can ask for is.
             _ => {}
@@ -619,7 +964,84 @@ impl Shell {
     }
 }
 
-fn make_window() -> Fallible<HWND> {
+/// How the window was left last time, which is how it opens this time.
+struct Shape {
+    width: i32,
+    height: i32,
+    maximised: bool,
+}
+
+impl Default for Shape {
+    fn default() -> Self {
+        Self {
+            width: INITIAL_WIDTH,
+            height: INITIAL_HEIGHT,
+            maximised: false,
+        }
+    }
+}
+
+/// Beside the settings, and about the window and nothing else.
+fn shape_file() -> PathBuf {
+    crate::host::config_dir()
+        .join("glimmerwood")
+        .join("window.ini")
+}
+
+/// The size the window was last left at. No file, or one that says nothing
+/// this version understands, just means the usual size.
+fn remembered_shape() -> Shape {
+    let mut shape = Shape::default();
+    let Ok(text) = std::fs::read_to_string(shape_file()) else {
+        return shape;
+    };
+    for line in text.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.trim();
+        match key.trim() {
+            "width" => shape.width = value.parse().unwrap_or(shape.width),
+            "height" => shape.height = value.parse().unwrap_or(shape.height),
+            "maximised" => shape.maximised = value == "true",
+            _ => {}
+        }
+    }
+    // A saved size from a screen that is no longer here shouldn't leave the
+    // window too small to use.
+    shape.width = shape.width.max(LEAST_WIDTH);
+    shape.height = shape.height.max(LEAST_HEIGHT);
+    shape
+}
+
+/// Keep the window's size for next time. A window closed maximised opens
+/// maximised, at the size it had before it was.
+fn remember_shape(window: HWND) {
+    let mut placement = WINDOWPLACEMENT {
+        length: size_of::<WINDOWPLACEMENT>() as u32,
+        ..Default::default()
+    };
+    if unsafe { GetWindowPlacement(window, &mut placement) }.is_err() {
+        return;
+    }
+    let normal = placement.rcNormalPosition;
+    let text = format!(
+        "[window]\nwidth={}\nheight={}\nmaximised={}\n",
+        normal.right - normal.left,
+        normal.bottom - normal.top,
+        placement.showCmd == SW_SHOWMAXIMIZED.0 as u32,
+    );
+    let path = shape_file();
+    let written = path
+        .parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .and_then(|()| std::fs::write(&path, text));
+    if let Err(err) = written {
+        eprintln!("glimmerwood: couldn't remember the window's size: {err}");
+    }
+}
+
+fn make_window(shape: &Shape) -> Fallible<HWND> {
     unsafe {
         let instance = GetModuleHandleW(None)?;
         let class = WNDCLASSW {
@@ -637,8 +1059,8 @@ fn make_window() -> Fallible<HWND> {
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            INITIAL_WIDTH,
-            INITIAL_HEIGHT,
+            shape.width,
+            shape.height,
             None,
             None,
             Some(instance.into()),
@@ -799,53 +1221,83 @@ fn listen_to_the_chrome(webview: &ICoreWebView2, shell: &Rc<Shell>) -> Fallible<
 fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<()> {
     let mut token = 0i64;
 
-    let told = |shell: &Rc<Shell>, loading: Option<bool>| {
+    let told = |shell: &Rc<Shell>| {
         let weak: Weak<Shell> = Rc::downgrade(shell);
         move || {
             if let Some(shell) = weak.upgrade() {
-                shell.refresh_tab(id, loading);
+                shell.refresh_tab(id, None);
             }
         }
     };
 
-    let moved = told(shell, None);
+    let moved = told(shell);
     let changed = SourceChangedEventHandler::create(Box::new(move |_, _| {
         moved();
         Ok(())
     }));
     unsafe { webview.add_SourceChanged(&changed, &mut token)? };
 
-    let named = told(shell, None);
+    let named = told(shell);
     let titled = DocumentTitleChangedEventHandler::create(Box::new(move |_, _| {
         named();
         Ok(())
     }));
     unsafe { webview.add_DocumentTitleChanged(&titled, &mut token)? };
 
-    let began = told(shell, Some(true));
-    let starting = NavigationStartingEventHandler::create(Box::new(move |_, _| {
-        began();
+    let weak: Weak<Shell> = Rc::downgrade(shell);
+    let starting = NavigationStartingEventHandler::create(Box::new(move |_, args| {
+        if let Some(shell) = weak.upgrade()
+            && let Some(args) = args
+        {
+            shell.navigation_starting(id, &args);
+        }
         Ok(())
     }));
     unsafe { webview.add_NavigationStarting(&starting, &mut token)? };
 
-    let ended = told(shell, Some(false));
-    let done = NavigationCompletedEventHandler::create(Box::new(move |_, _| {
-        ended();
+    // The site icon the column shows. It is asked for again at the end of
+    // every load, so that a page with none of its own loses the last one's.
+    let icons = webview.cast::<ICoreWebView2_15>().ok();
+
+    let weak: Weak<Shell> = Rc::downgrade(shell);
+    let after = icons.clone();
+    let done = NavigationCompletedEventHandler::create(Box::new(move |_, args| {
+        let Some(shell) = weak.upgrade() else {
+            return Ok(());
+        };
+        shell.refresh_tab(id, Some(false));
+        if let Some(args) = args {
+            shell.navigation_ended(id, &args);
+        }
+        if let Some(icons) = after.as_ref() {
+            shell.fetch_icon(id, icons);
+        }
         Ok(())
     }));
     unsafe { webview.add_NavigationCompleted(&done, &mut token)? };
 
+    if let Some(icons) = icons {
+        let weak: Weak<Shell> = Rc::downgrade(shell);
+        let mine = icons.clone();
+        let drawn = FaviconChangedEventHandler::create(Box::new(move |_, _| {
+            if let Some(shell) = weak.upgrade() {
+                shell.fetch_icon(id, &mine);
+            }
+            Ok(())
+        }));
+        unsafe { icons.add_FaviconChanged(&drawn, &mut token)? };
+    }
+
     // Sound, which the column marks and the dose engine counts.
     if let Ok(audio) = webview.cast::<ICoreWebView2_8>() {
-        let heard = told(shell, None);
+        let heard = told(shell);
         let playing = IsDocumentPlayingAudioChangedEventHandler::create(Box::new(move |_, _| {
             heard();
             Ok(())
         }));
         unsafe { audio.add_IsDocumentPlayingAudioChanged(&playing, &mut token)? };
 
-        let hushed = told(shell, None);
+        let hushed = told(shell);
         let muted = IsMutedChangedEventHandler::create(Box::new(move |_, _| {
             hushed();
             Ok(())
@@ -869,6 +1321,126 @@ fn watch_a_tab(webview: &ICoreWebView2, shell: &Rc<Shell>, id: u32) -> Fallible<
     }));
     unsafe { webview.add_NewWindowRequested(&asked, &mut token)? };
     Ok(())
+}
+
+/// The window's shortcuts on one engine. WebView2 hands the page every key
+/// it is sent, so the ones the window answers have to be taken out of the
+/// stream before the page sees them.
+fn watch_the_keys(controller: &ICoreWebView2Controller, shell: &Rc<Shell>) -> Fallible<()> {
+    let weak: Weak<Shell> = Rc::downgrade(shell);
+    let pressed = AcceleratorKeyPressedEventHandler::create(Box::new(move |_, args| {
+        let Some(args) = args else { return Ok(()) };
+        let mut kind = COREWEBVIEW2_KEY_EVENT_KIND::default();
+        unsafe { args.KeyEventKind(&mut kind)? };
+        // Presses only, and Alt combinations arrive as system keys.
+        if kind != COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN
+            && kind != COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN
+        {
+            return Ok(());
+        }
+        let mut key = 0u32;
+        unsafe { args.VirtualKey(&mut key)? };
+        let Some(shell) = weak.upgrade() else {
+            return Ok(());
+        };
+        let taken = shell.shortcut(
+            VIRTUAL_KEY(key as u16),
+            down(VK_CONTROL),
+            down(VK_SHIFT),
+            down(VK_MENU),
+        );
+        if taken {
+            unsafe { args.SetHandled(true)? };
+        }
+        Ok(())
+    }));
+    let mut token = 0i64;
+    unsafe { controller.add_AcceleratorKeyPressed(&pressed, &mut token)? };
+    Ok(())
+}
+
+/// Whether a modifier key is down at this moment.
+fn down(key: VIRTUAL_KEY) -> bool {
+    unsafe { GetKeyState(key.0 as i32) < 0 }
+}
+
+/// What the engine's error status means in the words a reader cares about.
+fn reason_of(status: COREWEBVIEW2_WEB_ERROR_STATUS) -> Reason {
+    match status {
+        COREWEBVIEW2_WEB_ERROR_STATUS_HOST_NAME_NOT_RESOLVED => Reason::NotFound,
+        COREWEBVIEW2_WEB_ERROR_STATUS_CANNOT_CONNECT
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CONNECTION_ABORTED
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CONNECTION_RESET => Reason::Refused,
+        COREWEBVIEW2_WEB_ERROR_STATUS_TIMEOUT
+        | COREWEBVIEW2_WEB_ERROR_STATUS_SERVER_UNREACHABLE
+        | COREWEBVIEW2_WEB_ERROR_STATUS_ERROR_HTTP_INVALID_SERVER_RESPONSE => Reason::NoAnswer,
+        COREWEBVIEW2_WEB_ERROR_STATUS_DISCONNECTED => Reason::Offline,
+        COREWEBVIEW2_WEB_ERROR_STATUS_CERTIFICATE_COMMON_NAME_IS_INCORRECT
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CERTIFICATE_EXPIRED
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CERTIFICATE_IS_INVALID
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CERTIFICATE_REVOKED
+        | COREWEBVIEW2_WEB_ERROR_STATUS_CLIENT_CERTIFICATE_CONTAINS_ERRORS => Reason::Untrusted,
+        COREWEBVIEW2_WEB_ERROR_STATUS_REDIRECT_FAILED => {
+            Reason::Other("The site sent the page round in circles.".into())
+        }
+        COREWEBVIEW2_WEB_ERROR_STATUS_VALID_AUTHENTICATION_CREDENTIALS_REQUIRED => {
+            Reason::Other("The site wants a name and password this address doesn't carry.".into())
+        }
+        COREWEBVIEW2_WEB_ERROR_STATUS_VALID_PROXY_AUTHENTICATION_REQUIRED => {
+            Reason::Other("The proxy for this network wants a name and password.".into())
+        }
+        _ => Reason::Other("The page couldn't be opened.".into()),
+    }
+}
+
+/// Glimmerwood's own mark, for the tabs showing Home or Settings.
+fn wisp_icon() -> String {
+    thread_local! {
+        static ICON: String = match file("home/wisp.svg") {
+            Some(svg) => format!("data:image/svg+xml;base64,{}", base64(svg)),
+            None => String::new(),
+        };
+    }
+    ICON.with(Clone::clone)
+}
+
+/// Everything a stream holds. COM hands a site icon over as one.
+fn everything_in(stream: &IStream) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    let mut buffer = [0u8; 4096];
+    loop {
+        let mut read = 0u32;
+        let code = unsafe {
+            stream.Read(
+                buffer.as_mut_ptr().cast(),
+                buffer.len() as u32,
+                Some(&mut read),
+            )
+        };
+        if code.is_err() || read == 0 {
+            return bytes;
+        }
+        bytes.extend_from_slice(&buffer[..read as usize]);
+    }
+}
+
+/// Base64, for the `data:` URL an icon is handed to the chrome as.
+fn base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let mut three = [0u8; 3];
+        three[..chunk.len()].copy_from_slice(chunk);
+        let bits = u32::from_be_bytes([0, three[0], three[1], three[2]]);
+        for place in 0..4 {
+            if place <= chunk.len() {
+                out.push(ALPHABET[(bits >> (18 - 6 * place) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
 }
 
 /// Hand a chrome page a message. Nothing else is ever spoken to.
@@ -936,6 +1508,7 @@ extern "system" fn procedure(window: HWND, message: u32, w: WPARAM, l: LPARAM) -
             LRESULT(0)
         }
         WM_DESTROY => {
+            remember_shape(window);
             COMPANION.with_borrow_mut(|held| *held = None);
             SHELL.with_borrow_mut(|held| *held = None);
             unsafe { PostQuitMessage(0) };
@@ -956,12 +1529,17 @@ impl host::Window for Shell {
         unsafe { GetForegroundWindow() == self.window && IsWindowVisible(self.window).as_bool() }
     }
 
+    /// Nothing while a failure page stands in for the page in front: time
+    /// spent on one is time spent on no site at all.
     fn attended_uri(&self) -> String {
-        self.tabs
-            .borrow()
-            .selected_facts()
-            .map(|facts| facts.uri.clone())
-            .unwrap_or_default()
+        let tabs = self.tabs.borrow();
+        match tabs.selected() {
+            Some(id) if !self.failed(id) => tabs
+                .facts(id)
+                .map(|facts| facts.uri.clone())
+                .unwrap_or_default(),
+            _ => String::new(),
+        }
     }
 
     /// Every tab but the one being looked at. They weigh nothing, but the
