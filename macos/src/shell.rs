@@ -7,30 +7,44 @@
 //! whether or not it is the one being looked at.
 
 use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::Rc;
 
+use block2::DynBlock;
 use glimmerwood_core::companion::Companion;
+use glimmerwood_core::failure::{self, Reason};
 use glimmerwood_core::host;
 use glimmerwood_core::nav;
 use glimmerwood_core::pages;
 use glimmerwood_core::protocol::{ChromeView, Security, ToChrome, ToCore};
 use glimmerwood_core::tabs::Tabs;
 use objc2::rc::Retained;
-use objc2::runtime::{NSObject, NSObjectProtocol, ProtocolObject};
+use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{AllocAnyThread, MainThreadOnly, define_class, msg_send, sel};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSWindow, NSWindowStyleMask,
+    NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventModifierFlags, NSMenu,
+    NSMenuItem, NSWindow, NSWindowDelegate, NSWindowStyleMask,
 };
 use objc2_foundation::{
-    MainThreadMarker, NSData, NSJSONSerialization, NSJSONWritingOptions, NSPoint, NSRect, NSSize,
-    NSString, NSTimer, NSURL, NSURLResponse,
+    MainThreadMarker, NSData, NSError, NSInteger, NSJSONSerialization, NSJSONWritingOptions,
+    NSNotification, NSPoint, NSRect, NSSize, NSString, NSTimer, NSURL,
+    NSURLAuthenticationChallenge, NSURLAuthenticationMethodServerTrust, NSURLCredential,
+    NSURLErrorCancelled, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost,
+    NSURLErrorDNSLookupFailed, NSURLErrorFailingURLErrorKey, NSURLErrorInternationalRoamingOff,
+    NSURLErrorNetworkConnectionLost, NSURLErrorNotConnectedToInternet,
+    NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateHasBadDate,
+    NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorServerCertificateNotYetValid,
+    NSURLErrorServerCertificateUntrusted, NSURLErrorTimedOut, NSURLResponse,
+    NSURLSessionAuthChallengeDisposition,
 };
 use objc2_web_kit::{
+    WKNavigation, WKNavigationAction, WKNavigationActionPolicy, WKNavigationDelegate,
     WKScriptMessage, WKScriptMessageHandler, WKURLSchemeHandler, WKURLSchemeTask,
     WKUserContentController, WKWebView, WKWebViewConfiguration,
 };
 
-/// Before the chrome says otherwise.
+/// The size the window opens at before it has been left anywhere to return
+/// to, and before the chrome says otherwise.
 const INITIAL_WIDTH: f64 = 1100.0;
 const INITIAL_HEIGHT: f64 = 760.0;
 /// The toolbar's height until it reports its own.
@@ -38,9 +52,12 @@ const TOOLBAR_HEIGHT: f64 = 56.0;
 /// The tab column's width. The GTK build lets it be dragged and remembers
 /// where; here it is the width that shows a tab's mark and nothing else.
 const COLUMN_WIDTH: f64 = 48.0;
-/// How often the engines are asked what they are showing. WebKit reports a
-/// title or a finished load through KVO, which this stands in for.
-const WATCH_SECONDS: f64 = 0.4;
+/// How often the engines are asked what they are showing. The navigation
+/// delegate reports a load starting, committing, finishing or failing as it
+/// happens; this is left for the two things it never hears about — a page
+/// that changes its own title after it has loaded, and a move within a page
+/// that never becomes a navigation.
+const WATCH_SECONDS: f64 = 2.0;
 
 /// Where a new tab starts, and where the chrome's buttons point.
 const HOME: &str = "glimmerwood://home/";
@@ -52,6 +69,8 @@ const SAMARITANS: &str = "https://www.samaritans.org/how-we-can-help/contact-sam
 thread_local! {
     static SHELL: RefCell<Option<Rc<Shell>>> = const { RefCell::new(None) };
     static COMPANION: RefCell<Option<Rc<Companion>>> = const { RefCell::new(None) };
+    /// A window points at its delegate weakly, so this one is kept here.
+    static KEEPER: RefCell<Option<Retained<Keeper>>> = const { RefCell::new(None) };
 }
 
 /// The shell, for the few places that need it from outside.
@@ -68,6 +87,10 @@ pub fn companion() -> Option<Rc<Companion>> {
 struct Engine {
     id: u32,
     view: Retained<WKWebView>,
+    /// While an address optimistically upgraded to HTTPS is in flight: what
+    /// it tried, and the plain HTTP form to use instead if that exact attempt
+    /// can't connect.
+    fallback: RefCell<Option<nav::Target>>,
 }
 
 pub struct Shell {
@@ -127,6 +150,16 @@ pub fn run() {
         mtm,
     });
     SHELL.with_borrow_mut(|held| *held = Some(shell.clone()));
+    // The window goes back where it was left before anything is laid out
+    // inside it.
+    match saved_frame() {
+        Some(frame) => window.setFrame_display(frame, false),
+        None => window.center(),
+    }
+    let keeper: Retained<Keeper> = unsafe { msg_send![Keeper::alloc(mtm), init] };
+    window.setDelegate(Some(&ProtocolObject::from_retained(keeper.clone())));
+    KEEPER.with_borrow_mut(|held| *held = Some(keeper));
+    build_the_menu(&app, mtm);
     open_tab(HOME, true);
     watch_the_engines();
     lay_out();
@@ -137,7 +170,6 @@ pub fn run() {
     started.windows_changed();
     COMPANION.with_borrow_mut(|held| *held = Some(started));
 
-    window.center();
     window.makeKeyAndOrderFront(None);
     app.activate();
     app.run();
@@ -167,7 +199,22 @@ fn make_webview(mtm: MainThreadMarker, is_chrome: bool) -> Retained<WKWebView> {
         }
     }
     let frame = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(1.0, 1.0));
-    unsafe { WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &configuration) }
+    let view = unsafe {
+        WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &configuration)
+    };
+    if !is_chrome {
+        let navigator = ProtocolObject::from_retained(navigator(mtm));
+        unsafe { view.setNavigationDelegate(Some(&navigator)) };
+    }
+    view
+}
+
+/// What a webview says it is showing.
+fn uri_of(view: &WKWebView) -> String {
+    unsafe { view.URL() }
+        .and_then(|url| url.absoluteString())
+        .map(|text| text.to_string())
+        .unwrap_or_default()
 }
 
 fn load(view: &WKWebView, uri: &str) {
@@ -232,6 +279,83 @@ fn selected_view() -> Option<Retained<WKWebView>> {
     engine(id)
 }
 
+/// Which tab an engine belongs to.
+fn tab_of(view: &WKWebView) -> Option<u32> {
+    let shell = held()?;
+    shell
+        .engines
+        .borrow()
+        .iter()
+        .find(|engine| &*engine.view == view)
+        .map(|engine| engine.id)
+}
+
+/// Sends a tab to `input`, keeping the plain HTTP form of an address that was
+/// optimistically upgraded in case the secure attempt can't connect.
+fn navigate(id: u32, input: &str) {
+    let Some(shell) = held() else { return };
+    let Some(view) = engine(id) else { return };
+    let Some(target) = nav::resolve(input) else {
+        return;
+    };
+    load(&view, &target.uri);
+    if let Some(engine) = shell.engines.borrow().iter().find(|engine| engine.id == id) {
+        engine
+            .fallback
+            .replace(target.fallback.is_some().then_some(target));
+    }
+}
+
+/// The plain HTTP address to try instead, if this failure is the upgraded
+/// attempt's own. A fallback belongs to one attempt: the failure of a page
+/// this navigation replaced may arrive after it, and must leave it be.
+fn fallback_for(id: u32, failing: &str) -> Option<String> {
+    let shell = held()?;
+    let engines = shell.engines.borrow();
+    let engine = engines.iter().find(|engine| engine.id == id)?;
+    let mut slot = engine.fallback.borrow_mut();
+    match slot.as_ref() {
+        Some(target) if nav::same_address(&target.uri, failing) => {
+            slot.take().and_then(|target| target.fallback)
+        }
+        _ => None,
+    }
+}
+
+/// Forgets a tab's fallback: the attempt got far enough that trying the same
+/// address again without encryption would be the wrong answer.
+fn forget_fallback(id: u32) {
+    if let Some(shell) = held()
+        && let Some(engine) = shell.engines.borrow().iter().find(|engine| engine.id == id)
+    {
+        engine.fallback.take();
+    }
+}
+
+/// The tab `by` places along, wrapping at both ends.
+fn step_tab(by: isize) {
+    let next = held().and_then(|shell| shell.tabs.borrow().step(by));
+    if let Some(id) = next {
+        select_tab(id);
+    }
+}
+
+/// The nth tab, counting from zero. There is nothing to select past the end.
+fn select_nth(n: usize) {
+    let id = held().and_then(|shell| shell.tabs.borrow().nth(n));
+    if let Some(id) = id {
+        select_tab(id);
+    }
+}
+
+/// The tab at the end of the column.
+fn select_last() {
+    let id = held().and_then(|shell| shell.tabs.borrow().last());
+    if let Some(id) = id {
+        select_tab(id);
+    }
+}
+
 /// A new tab showing `uri`, with an engine of its own.
 fn open_tab(uri: &str, select: bool) -> Option<u32> {
     let shell = held()?;
@@ -243,6 +367,7 @@ fn open_tab(uri: &str, select: bool) -> Option<u32> {
     shell.engines.borrow_mut().push(Engine {
         id,
         view: view.clone(),
+        fallback: RefCell::new(None),
     });
     load(&view, uri);
     lay_out();
@@ -317,8 +442,8 @@ fn close_tab(id: u32) {
 }
 
 /// Reads what the engines are showing into the bookkeeping, and tells the
-/// chrome only about what changed. WebKit reports a title or a finished load
-/// through KVO; this asks instead, on the watch timer.
+/// chrome only about what changed. The navigation delegate calls this as a
+/// load moves on; the watch timer calls it for what a delegate never hears.
 fn refresh_tabs() {
     let Some(shell) = held() else { return };
     let engines: Vec<(u32, Retained<WKWebView>)> = shell
@@ -331,10 +456,7 @@ fn refresh_tabs() {
     let mut front_changed = false;
     let selected = shell.tabs.borrow().selected();
     for (id, view) in engines {
-        let uri = unsafe { view.URL() }
-            .and_then(|url| url.absoluteString())
-            .map(|text| text.to_string())
-            .unwrap_or_default();
+        let uri = uri_of(&view);
         let title = unsafe { view.title() }
             .map(|text| text.to_string())
             .unwrap_or_default();
@@ -466,10 +588,7 @@ fn say(view: &WKWebView, message: &ToChrome) {
 fn push_page(id: u32) {
     let Some(companion) = companion() else { return };
     let Some(view) = engine(id) else { return };
-    let uri = unsafe { view.URL() }
-        .and_then(|url| url.absoluteString())
-        .map(|text| text.to_string())
-        .unwrap_or_default();
+    let uri = uri_of(&view);
     let Some(page) = pages::Local::of(&uri) else {
         return;
     };
@@ -493,10 +612,7 @@ fn push_state() {
     };
     let Some(view) = engine(id) else { return };
     push_page(id);
-    let uri = unsafe { view.URL() }
-        .and_then(|url| url.absoluteString())
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    let uri = uri_of(&view);
     let title = unsafe { view.title() }
         .map(|s| s.to_string())
         .unwrap_or_default();
@@ -527,8 +643,11 @@ fn push_state() {
     });
 }
 
-/// Ask the engines what they are showing, on a timer, because WebKit reports
-/// it through KVO and this shell has no observers.
+/// Ask the engines what they are showing, on a slow timer. The navigation
+/// delegate covers a load's own edges; what is left is a page that changes
+/// its title once it is up and a move within a page that never becomes a
+/// navigation, and WebKit reports both only through KVO, which this shell has
+/// no observers for.
 fn watch_the_engines() {
     let watcher: Retained<Watcher> = unsafe { msg_send![Watcher::alloc(), init] };
     unsafe {
@@ -547,8 +666,9 @@ fn heard(message: ToCore) {
     let view = selected_view();
     match message {
         ToCore::Navigate { input } => {
-            if let (Some(view), Some(target)) = (view, nav::resolve(&input)) {
-                load(&view, &target.uri);
+            let selected = shell.tabs.borrow().selected();
+            if let Some(id) = selected {
+                navigate(id, &input);
             }
         }
         ToCore::Back => {
@@ -641,6 +761,634 @@ fn heard(message: ToCore) {
     refresh_tabs();
 }
 
+// --- The menu bar ------------------------------------------------------------
+
+/// The arrow keys, as a menu item spells them.
+const LEFT_ARROW: &str = "\u{f702}";
+const RIGHT_ARROW: &str = "\u{f703}";
+/// Tabs reachable by number; the ninth key is always the last tab.
+const NUMBERED_TABS: usize = 8;
+
+thread_local! {
+    /// A menu item points at its target weakly, so the one every item shares
+    /// is kept here.
+    static MENUS: RefCell<Option<Retained<Menus>>> = const { RefCell::new(None) };
+}
+
+/// The menu bar. Without one, none of the standard keys — copy, paste, quit —
+/// reach anything, so neither the address field nor the page can be edited.
+fn build_the_menu(app: &NSApplication, mtm: MainThreadMarker) {
+    let menus: Retained<Menus> = unsafe { msg_send![Menus::alloc(mtm), init] };
+    let bar = NSMenu::new(mtm);
+    let command = NSEventModifierFlags::Command;
+    let shifted = NSEventModifierFlags::Command | NSEventModifierFlags::Shift;
+    let alt = NSEventModifierFlags::Command | NSEventModifierFlags::Option;
+    let target = Some(&*menus as &AnyObject);
+
+    // The first submenu is the application's own, whatever it is called.
+    let application = submenu(&bar, mtm, "Glimmerwood");
+    application.addItem(&item(
+        mtm,
+        "About Glimmerwood",
+        sel!(orderFrontStandardAboutPanel:),
+        "",
+        command,
+        None,
+    ));
+    application.addItem(&NSMenuItem::separatorItem(mtm));
+    application.addItem(&item(
+        mtm,
+        "Settings…",
+        sel!(openSettings:),
+        ",",
+        command,
+        target,
+    ));
+    application.addItem(&NSMenuItem::separatorItem(mtm));
+    application.addItem(&item(
+        mtm,
+        "Hide Glimmerwood",
+        sel!(hide:),
+        "h",
+        command,
+        None,
+    ));
+    application.addItem(&NSMenuItem::separatorItem(mtm));
+    application.addItem(&item(
+        mtm,
+        "Quit Glimmerwood",
+        sel!(quitGlimmerwood:),
+        "q",
+        command,
+        target,
+    ));
+
+    // Nothing targets these: they travel up the responder chain to whatever
+    // is being edited, which is the only thing that knows what to do.
+    let edit = submenu(&bar, mtm, "Edit");
+    edit.addItem(&item(mtm, "Undo", sel!(undo:), "z", command, None));
+    edit.addItem(&item(mtm, "Redo", sel!(redo:), "z", shifted, None));
+    edit.addItem(&NSMenuItem::separatorItem(mtm));
+    edit.addItem(&item(mtm, "Cut", sel!(cut:), "x", command, None));
+    edit.addItem(&item(mtm, "Copy", sel!(copy:), "c", command, None));
+    edit.addItem(&item(mtm, "Paste", sel!(paste:), "v", command, None));
+    edit.addItem(&NSMenuItem::separatorItem(mtm));
+    edit.addItem(&item(
+        mtm,
+        "Select All",
+        sel!(selectAll:),
+        "a",
+        command,
+        None,
+    ));
+
+    let file = submenu(&bar, mtm, "File");
+    file.addItem(&item(
+        mtm,
+        "New Tab",
+        sel!(openNewTab:),
+        "t",
+        command,
+        target,
+    ));
+    file.addItem(&item(
+        mtm,
+        "Close Tab",
+        sel!(closeCurrentTab:),
+        "w",
+        command,
+        target,
+    ));
+    file.addItem(&NSMenuItem::separatorItem(mtm));
+    file.addItem(&item(
+        mtm,
+        "Open Location…",
+        sel!(openLocation:),
+        "l",
+        command,
+        target,
+    ));
+
+    let view = submenu(&bar, mtm, "View");
+    view.addItem(&item(
+        mtm,
+        "Reload",
+        sel!(reloadPage:),
+        "r",
+        command,
+        target,
+    ));
+    view.addItem(&NSMenuItem::separatorItem(mtm));
+    view.addItem(&item(
+        mtm,
+        "Next Tab",
+        sel!(showNextTab:),
+        RIGHT_ARROW,
+        alt,
+        target,
+    ));
+    view.addItem(&item(
+        mtm,
+        "Previous Tab",
+        sel!(showPreviousTab:),
+        LEFT_ARROW,
+        alt,
+        target,
+    ));
+    spare_key(
+        &view,
+        mtm,
+        sel!(showNextTab:),
+        "\t",
+        NSEventModifierFlags::Control,
+        target,
+    );
+    spare_key(
+        &view,
+        mtm,
+        sel!(showPreviousTab:),
+        "\t",
+        NSEventModifierFlags::Control | NSEventModifierFlags::Shift,
+        target,
+    );
+    // The numbers reach a tab without taking up a line of the menu each.
+    for n in 1..=NUMBERED_TABS {
+        let numbered = item(
+            mtm,
+            &format!("Tab {n}"),
+            sel!(showNumberedTab:),
+            &n.to_string(),
+            command,
+            target,
+        );
+        numbered.setTag(n as NSInteger);
+        hide(&numbered);
+        view.addItem(&numbered);
+    }
+    let last = item(mtm, "Last Tab", sel!(showLastTab:), "9", command, target);
+    hide(&last);
+    view.addItem(&last);
+
+    let history = submenu(&bar, mtm, "History");
+    history.addItem(&item(mtm, "Back", sel!(goBack:), "[", command, target));
+    history.addItem(&item(
+        mtm,
+        "Forward",
+        sel!(goForward:),
+        "]",
+        command,
+        target,
+    ));
+    spare_key(&history, mtm, sel!(goBack:), LEFT_ARROW, command, target);
+    spare_key(
+        &history,
+        mtm,
+        sel!(goForward:),
+        RIGHT_ARROW,
+        command,
+        target,
+    );
+    history.addItem(&NSMenuItem::separatorItem(mtm));
+    history.addItem(&item(mtm, "Home", sel!(goHome:), "h", shifted, target));
+
+    app.setMainMenu(Some(&bar));
+    MENUS.with_borrow_mut(|held| *held = Some(menus));
+}
+
+/// A menu of `title` hung off the bar.
+fn submenu(bar: &NSMenu, mtm: MainThreadMarker, title: &str) -> Retained<NSMenu> {
+    let holder = NSMenuItem::new(mtm);
+    let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str(title));
+    holder.setSubmenu(Some(&menu));
+    bar.addItem(&holder);
+    menu
+}
+
+/// One item. No target sends the action up the responder chain instead.
+fn item(
+    mtm: MainThreadMarker,
+    title: &str,
+    action: Sel,
+    key: &str,
+    modifiers: NSEventModifierFlags,
+    target: Option<&AnyObject>,
+) -> Retained<NSMenuItem> {
+    let item = unsafe {
+        NSMenuItem::initWithTitle_action_keyEquivalent(
+            NSMenuItem::alloc(mtm),
+            &NSString::from_str(title),
+            Some(action),
+            &NSString::from_str(key),
+        )
+    };
+    item.setKeyEquivalentModifierMask(modifiers);
+    unsafe { item.setTarget(target) };
+    item
+}
+
+/// An item that is only there for its key. macOS gives one item one key, so a
+/// second way to reach the same thing needs an item of its own.
+fn spare_key(
+    menu: &NSMenu,
+    mtm: MainThreadMarker,
+    action: Sel,
+    key: &str,
+    modifiers: NSEventModifierFlags,
+    target: Option<&AnyObject>,
+) {
+    let spare = item(mtm, "", action, key, modifiers, target);
+    hide(&spare);
+    menu.addItem(&spare);
+}
+
+/// Takes an item out of the menu but leaves its key working, which is how a
+/// row of numbered tabs stays reachable without filling the menu.
+fn hide(item: &NSMenuItem) {
+    item.setHidden(true);
+    item.setAllowsKeyEquivalentWhenHidden(true);
+}
+
+define_class!(
+    /// What the menu bar's own items act on. Each does what the same button
+    /// in the chrome does, by the same route.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "GlimmerwoodMenus"]
+    struct Menus;
+
+    unsafe impl NSObjectProtocol for Menus {}
+
+    impl Menus {
+        #[unsafe(method(openNewTab:))]
+        fn open_new_tab(&self, _sender: Option<&AnyObject>) {
+            open_tab(HOME, true);
+        }
+
+        #[unsafe(method(closeCurrentTab:))]
+        fn close_current_tab(&self, _sender: Option<&AnyObject>) {
+            let selected = held().and_then(|shell| shell.tabs.borrow().selected());
+            if let Some(id) = selected {
+                close_tab(id);
+            }
+        }
+
+        #[unsafe(method(openLocation:))]
+        fn open_location(&self, _sender: Option<&AnyObject>) {
+            tell_the_chrome(&ToChrome::FocusAddress);
+        }
+
+        #[unsafe(method(reloadPage:))]
+        fn reload_page(&self, _sender: Option<&AnyObject>) {
+            if let Some(view) = selected_view() {
+                unsafe {
+                    let _ = view.reload();
+                }
+            }
+        }
+
+        #[unsafe(method(goBack:))]
+        fn go_back(&self, _sender: Option<&AnyObject>) {
+            if let Some(view) = selected_view() {
+                unsafe {
+                    let _ = view.goBack();
+                }
+            }
+        }
+
+        #[unsafe(method(goForward:))]
+        fn go_forward(&self, _sender: Option<&AnyObject>) {
+            if let Some(view) = selected_view() {
+                unsafe {
+                    let _ = view.goForward();
+                }
+            }
+        }
+
+        #[unsafe(method(goHome:))]
+        fn go_home(&self, _sender: Option<&AnyObject>) {
+            if let Some(view) = selected_view() {
+                load(&view, HOME);
+            }
+        }
+
+        #[unsafe(method(openSettings:))]
+        fn settings(&self, _sender: Option<&AnyObject>) {
+            open_settings();
+        }
+
+        #[unsafe(method(showNextTab:))]
+        fn show_next_tab(&self, _sender: Option<&AnyObject>) {
+            step_tab(1);
+        }
+
+        #[unsafe(method(showPreviousTab:))]
+        fn show_previous_tab(&self, _sender: Option<&AnyObject>) {
+            step_tab(-1);
+        }
+
+        #[unsafe(method(showNumberedTab:))]
+        fn show_numbered_tab(&self, sender: &NSMenuItem) {
+            let n = sender.tag();
+            if n >= 1 {
+                select_nth(n as usize - 1);
+            }
+        }
+
+        #[unsafe(method(showLastTab:))]
+        fn show_last_tab(&self, _sender: Option<&AnyObject>) {
+            select_last();
+        }
+
+        /// Quitting doesn't close the window, so the window's size and place
+        /// are written down on the way out.
+        #[unsafe(method(quitGlimmerwood:))]
+        fn quit(&self, _sender: Option<&AnyObject>) {
+            remember_frame();
+            NSApplication::sharedApplication(self.mtm()).terminate(None);
+        }
+    }
+);
+
+// --- Where the window was last left ------------------------------------------
+
+/// Where the window's size and place are kept between runs.
+fn frame_path() -> Option<PathBuf> {
+    let shell = held()?;
+    Some(
+        host::Host::config_dir(&*shell)
+            .join("glimmerwood")
+            .join("window.ini"),
+    )
+}
+
+/// The window as it was left, if it was written down. Anything unreadable is
+/// simply a window that hasn't been opened before.
+fn saved_frame() -> Option<NSRect> {
+    let text = std::fs::read_to_string(frame_path()?).ok()?;
+    let numbers: Vec<f64> = text
+        .split_whitespace()
+        .filter_map(|word| word.parse().ok())
+        .collect();
+    let [x, y, width, height] = numbers[..] else {
+        return None;
+    };
+    (width > 0.0 && height > 0.0)
+        .then(|| NSRect::new(NSPoint::new(x, y), NSSize::new(width, height)))
+}
+
+/// Writes the window's size and place down for next time.
+fn remember_frame() {
+    let Some(shell) = held() else { return };
+    let Some(path) = frame_path() else { return };
+    let frame = shell.window.frame();
+    let line = format!(
+        "frame = {} {} {} {}\n",
+        frame.origin.x, frame.origin.y, frame.size.width, frame.size.height
+    );
+    let written = path
+        .parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .and_then(|()| std::fs::write(&path, line));
+    if let Err(err) = written {
+        eprintln!("glimmerwood: couldn't remember the window's size: {err}");
+    }
+}
+
+define_class!(
+    /// Watches the window, so its size and place outlive it.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "GlimmerwoodKeeper"]
+    struct Keeper;
+
+    unsafe impl NSObjectProtocol for Keeper {}
+
+    unsafe impl NSWindowDelegate for Keeper {
+        #[unsafe(method(windowWillClose:))]
+        fn will_close(&self, _notification: &NSNotification) {
+            remember_frame();
+        }
+    }
+);
+
+// --- What the engines report -------------------------------------------------
+
+/// The callbacks a WebKit delegate method is handed to answer with.
+type Decision = DynBlock<dyn Fn(WKNavigationActionPolicy)>;
+type Trust = DynBlock<dyn Fn(NSURLSessionAuthChallengeDisposition, *const NSURLCredential)>;
+
+/// Home and Settings trigger things by asking for an address rather than by
+/// speaking to the core, since neither page is given a way to.
+const HOME_ACTIONS: &str = "glimmerwood://home/do/";
+const SETTINGS_ACTIONS: &str = "glimmerwood://settings/do/";
+
+thread_local! {
+    /// A webview points at its navigation delegate weakly, so the one every
+    /// tab shares is kept here.
+    static NAVIGATOR: RefCell<Option<Retained<Navigator>>> = const { RefCell::new(None) };
+}
+
+fn navigator(mtm: MainThreadMarker) -> Retained<Navigator> {
+    NAVIGATOR.with_borrow_mut(|held| {
+        held.get_or_insert_with(|| unsafe { msg_send![Navigator::alloc(mtm), init] })
+            .clone()
+    })
+}
+
+/// Which reason a Cocoa error is. `None` for a load the user stopped or the
+/// shell itself turned away, neither of which is a failure: the tab stays as
+/// it is.
+fn reason_of(error: &NSError) -> Option<Reason> {
+    /// WebKit's own number for a navigation that was answered with Cancel.
+    /// The rest below are the URL loading system's, which are all negative.
+    const FRAME_INTERRUPTED: NSInteger = 102;
+    Some(match error.code() {
+        code if code == NSURLErrorCancelled || code == FRAME_INTERRUPTED => return None,
+        code if code == NSURLErrorCannotFindHost || code == NSURLErrorDNSLookupFailed => {
+            Reason::NotFound
+        }
+        code if code == NSURLErrorCannotConnectToHost
+            || code == NSURLErrorNetworkConnectionLost =>
+        {
+            Reason::Refused
+        }
+        code if code == NSURLErrorTimedOut => Reason::NoAnswer,
+        code if code == NSURLErrorNotConnectedToInternet
+            || code == NSURLErrorInternationalRoamingOff =>
+        {
+            Reason::Offline
+        }
+        code if code == NSURLErrorSecureConnectionFailed
+            || code == NSURLErrorServerCertificateHasBadDate
+            || code == NSURLErrorServerCertificateUntrusted
+            || code == NSURLErrorServerCertificateHasUnknownRoot
+            || code == NSURLErrorServerCertificateNotYetValid =>
+        {
+            Reason::Untrusted
+        }
+        _ => Reason::Other(error.localizedDescription().to_string()),
+    })
+}
+
+/// Which address the engine was trying. The error carries it; the view's own
+/// address is what is left if it doesn't.
+fn failing_uri(view: &WKWebView, error: &NSError) -> String {
+    error
+        .userInfo()
+        .objectForKey(unsafe { NSURLErrorFailingURLErrorKey })
+        .and_then(|value| value.downcast::<NSURL>().ok())
+        .and_then(|url| url.absoluteString())
+        .map(|text| text.to_string())
+        .unwrap_or_else(|| uri_of(view))
+}
+
+/// The page that says why an address didn't open, in place of the address.
+fn show_failure(view: &WKWebView, uri: &str, reason: &Reason) {
+    let Some(template) = file("pages/failed.html").and_then(|bytes| str::from_utf8(bytes).ok())
+    else {
+        return;
+    };
+    let html = NSString::from_str(&failure::fill(template, uri, reason));
+    let base = NSURL::URLWithString(&NSString::from_str(uri));
+    unsafe {
+        let _ = view.loadHTMLString_baseURL(&html, base.as_deref());
+    }
+}
+
+/// A load that didn't finish: the plain HTTP form if this was an upgraded
+/// attempt that couldn't connect, and otherwise the page saying what happened.
+fn load_failed(view: &WKWebView, error: &NSError) {
+    let Some(reason) = reason_of(error) else {
+        return;
+    };
+    let uri = failing_uri(view, error);
+    // A certificate problem is never a reason to try the same address again
+    // without encryption.
+    if reason != Reason::Untrusted
+        && let Some(id) = tab_of(view)
+        && let Some(http) = fallback_for(id, &uri)
+    {
+        load(view, &http);
+        return;
+    }
+    show_failure(view, &uri, &reason);
+    refresh_tabs();
+}
+
+define_class!(
+    /// What the engines report as a page loads: the state the address field
+    /// and the tab column draw, the buttons on Home and Settings, and the
+    /// page shown when an address can't be opened.
+    ///
+    /// The methods that answer through a block are written out by hand, so
+    /// the conformance above them declares none of its own.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "GlimmerwoodNavigator"]
+    struct Navigator;
+
+    unsafe impl NSObjectProtocol for Navigator {}
+
+    unsafe impl WKNavigationDelegate for Navigator {}
+
+    impl Navigator {
+        #[unsafe(method(webView:decidePolicyForNavigationAction:decisionHandler:))]
+        fn decide(&self, view: &WKWebView, action: &WKNavigationAction, answer: &Decision) {
+            let wanted = unsafe { action.request() }
+                .URL()
+                .and_then(|url| url.absoluteString())
+                .map(|text| text.to_string())
+                .unwrap_or_default();
+            let showing = uri_of(view);
+            let mut policy = WKNavigationActionPolicy::Allow;
+            // An action is only honoured while the tab is still showing the
+            // page whose button it belongs to.
+            if let Some(deed) = wanted.strip_prefix(HOME_ACTIONS) {
+                policy = WKNavigationActionPolicy::Cancel;
+                if let Some(companion) = companion()
+                    && pages::is_home(&showing)
+                    && companion.home_action(deed)
+                {
+                    companion.refresh_pages();
+                }
+            } else if let Some(deed) = wanted.strip_prefix(SETTINGS_ACTIONS) {
+                policy = WKNavigationActionPolicy::Cancel;
+                if let Some(companion) = companion()
+                    && pages::is_settings(&showing)
+                {
+                    companion.settings_action(deed);
+                }
+            }
+            answer.call((policy,));
+        }
+
+        #[unsafe(method(webView:didStartProvisionalNavigation:))]
+        fn started(&self, _view: &WKWebView, _navigation: Option<&WKNavigation>) {
+            refresh_tabs();
+        }
+
+        #[unsafe(method(webView:didCommitNavigation:))]
+        fn committed(&self, view: &WKWebView, _navigation: Option<&WKNavigation>) {
+            if let Some(id) = tab_of(view) {
+                forget_fallback(id);
+            }
+            refresh_tabs();
+        }
+
+        #[unsafe(method(webView:didFinishNavigation:))]
+        fn finished(&self, view: &WKWebView, _navigation: Option<&WKNavigation>) {
+            if let Some(id) = tab_of(view) {
+                push_page(id);
+            }
+            refresh_tabs();
+        }
+
+        #[unsafe(method(webView:didFailProvisionalNavigation:withError:))]
+        fn failed_early(
+            &self,
+            view: &WKWebView,
+            _navigation: Option<&WKNavigation>,
+            error: &NSError,
+        ) {
+            load_failed(view, error);
+        }
+
+        #[unsafe(method(webView:didFailNavigation:withError:))]
+        fn failed_late(
+            &self,
+            view: &WKWebView,
+            _navigation: Option<&WKNavigation>,
+            error: &NSError,
+        ) {
+            load_failed(view, error);
+        }
+
+        #[unsafe(method(webView:didReceiveAuthenticationChallenge:completionHandler:))]
+        fn challenged(
+            &self,
+            view: &WKWebView,
+            challenge: &NSURLAuthenticationChallenge,
+            answer: &Trust,
+        ) {
+            let method = challenge.protectionSpace().authenticationMethod();
+            if &*method == unsafe { NSURLAuthenticationMethodServerTrust }
+                && let Some(id) = tab_of(view)
+            {
+                // Whatever the certificate turns out to be, the address has
+                // answered over TLS, so there is nothing to retry in the open.
+                forget_fallback(id);
+            }
+            // The system's own check decides. A certificate it turns down
+            // comes back as a failure, and there is no way here to wave one
+            // through.
+            answer.call((
+                NSURLSessionAuthChallengeDisposition::PerformDefaultHandling,
+                std::ptr::null(),
+            ));
+        }
+    }
+);
+
 define_class!(
     /// Answers `glimmerwood://` out of the files carried in the binary.
     #[unsafe(super(NSObject))]
@@ -656,7 +1404,7 @@ define_class!(
             let uri = unsafe { task.request() }
                 .URL()
                 .and_then(|url| url.absoluteString())
-                .map(|s| s.to_string())
+                .map(|text| text.to_string())
                 .unwrap_or_default();
             let ours = held().is_some_and(|shell| &*shell.toolbar == _view);
             if !ours && !pages::is_local_page(&uri) {

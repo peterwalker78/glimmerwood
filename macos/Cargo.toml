@@ -19,6 +19,9 @@ glimmerwood-raster = { path = "../raster" }
 serde_json = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# WebKit answers some delegate methods through a block; this is the
+# runtime's own handling of them rather than a hand-laid struct.
+block2 = "0.6"
 # WebKit is the system engine here, the same family as WebKitGTK on Linux,
 # so the page is rendered by the same lineage on both.
 objc2 = "0.6"
@@ -30,6 +33,9 @@ objc2-app-kit = { version = "0.3", features = [
     "NSGraphics",
     "NSColor",
     "NSRunningApplication",
+    "NSMenu",
+    "NSMenuItem",
+    "NSEvent",
 ] }
 objc2-foundation = { version = "0.3", features = [
     "NSString",
@@ -45,6 +51,12 @@ objc2-foundation = { version = "0.3", features = [
     "NSTimer",
     "NSDate",
     "NSRunLoop",
+    "NSNotification",
+    "NSURLError",
+    "NSURLAuthenticationChallenge",
+    "NSURLProtectionSpace",
+    "NSURLCredential",
+    "NSURLSession",
 ] }
 objc2-web-kit = { version = "0.3", features = [
     "WKWebView",
@@ -55,4 +67,6 @@ objc2-web-kit = { version = "0.3", features = [
     "WKScriptMessageHandler",
     "WKScriptMessage",
     "WKNavigationDelegate",
+    "WKNavigation",
+    "WKNavigationAction",
 ] }

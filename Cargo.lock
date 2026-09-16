@@ -402,6 +402,7 @@ version = "0.6.0"
 name = "glimmerwood-macos"
 version = "0.6.0"
 dependencies = [
+ "block2",
  "glimmerwood-core",
  "glimmerwood-embed",
  "glimmerwood-raster",
