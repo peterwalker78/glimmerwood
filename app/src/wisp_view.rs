@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use gtk::{cairo, gdk, glib, prelude::*};
 
+use glimmerwood_core::canvas::{Canvas, Paint, Stop, stop};
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::look::{Look, Stops};
 use glimmerwood_core::oklab::Rgb;
@@ -226,11 +227,20 @@ impl WispView {
         let weak = Rc::downgrade(&anim);
         area.set_draw_func(move |area, cr, width, height| {
             if let Some(anim) = weak.upgrade() {
+                let now = area
+                    .frame_clock()
+                    .map_or(0.0, |clock| clock.frame_time() as f64 / 1000.0);
                 let next = {
                     let mut anim = anim.borrow_mut();
                     anim.width = f64::from(width);
                     anim.height = f64::from(height);
-                    draw(&mut anim, area, cr)
+                    draw(
+                        &mut anim,
+                        now,
+                        animations_enabled(),
+                        dark(),
+                        &mut CairoCanvas { cr },
+                    )
                 };
                 schedule(&anim, area, next);
             }
@@ -358,29 +368,8 @@ fn along(points: &[(f64, f64)], dose: f64) -> f64 {
     points[points.len() - 1].1
 }
 
-fn source(cr: &cairo::Context, colour: Rgb, alpha: f64) {
-    cr.set_source_rgba(colour.0, colour.1, colour.2, alpha.clamp(0.0, 1.0));
-}
-
-fn radial(cx: f64, cy: f64, radius: f64, stops: &[(f64, Rgb, f64)]) -> cairo::RadialGradient {
-    let gradient = cairo::RadialGradient::new(cx, cy, 0.0, cx, cy, radius);
-    for &(offset, colour, alpha) in stops {
-        gradient.add_color_stop_rgba(offset, colour.0, colour.1, colour.2, alpha.clamp(0.0, 1.0));
-    }
-    gradient
-}
-
-fn disc(cr: &cairo::Context, x: f64, y: f64, radius: f64) {
-    cr.arc(x, y, radius, 0.0, TAU);
-    let _ = cr.fill();
-}
-
 /// Draw one frame. Returns how long until the next one is wanted.
-fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option<f64> {
-    let now = area
-        .frame_clock()
-        .map_or(0.0, |clock| clock.frame_time() as f64 / 1000.0);
-    let moving = animations_enabled();
+fn draw(anim: &mut Anim, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas) -> Option<f64> {
     let dt = anim
         .last_tick
         .map_or(16.0, |last| (now - last).clamp(0.0, 250.0));
@@ -449,7 +438,6 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
     look.core = look
         .core
         .mix(NIGHT_GLOW, NIGHT_WARMTH * 0.3 * anim.night_mix);
-    let dark = dark();
     let height = anim.height;
     let rested = (1.0 - dose / 0.5).max(0.0);
     let engaged = if (0.15..0.6).contains(&dose) {
@@ -667,7 +655,7 @@ fn draw(anim: &mut Anim, area: &gtk::DrawingArea, cr: &cairo::Context) -> Option
 /// The nook's weather: a soft wash of colour behind the wisp, fading out
 /// downward so the moss keeps its own green.
 fn draw_sky(
-    cr: &cairo::Context,
+    cr: &mut dyn Canvas,
     width: f64,
     height: f64,
     recovering: f64,
@@ -681,11 +669,15 @@ fn draw_sky(
     let colour = SKY_RECOVERING.mix(SKY_WEARING, wearing / (recovering + wearing).max(1e-6));
     // A dark chrome takes less of it: the same wash reads twice as strong.
     let alpha = SKY_ALPHA * strength * if dark { 0.6 } else { 1.0 };
-    let sky = cairo::LinearGradient::new(0.0, 0.0, 0.0, height);
-    sky.add_color_stop_rgba(0.0, colour.0, colour.1, colour.2, alpha);
-    sky.add_color_stop_rgba(0.65, colour.0, colour.1, colour.2, alpha * 0.45);
-    sky.add_color_stop_rgba(1.0, colour.0, colour.1, colour.2, 0.0);
-    let _ = cr.set_source(&sky);
+    cr.set_paint(Paint::Linear {
+        from: (0.0, 0.0),
+        to: (0.0, height),
+        stops: &[
+            stop(0.0, colour, alpha),
+            stop(0.65, colour, alpha * 0.45),
+            stop(1.0, colour, 0.0),
+        ],
+    });
     // Rounded like the nook it sits in.
     let r = height / 3.2;
     cr.new_path();
@@ -694,13 +686,13 @@ fn draw_sky(
     cr.line_to(width, height);
     cr.line_to(0.0, height);
     cr.close_path();
-    let _ = cr.fill();
+    cr.fill();
 }
 
 /// A soft mound of moss along the nook's floor, with a few tufts.
 #[allow(clippy::too_many_arguments)]
 fn draw_moss(
-    cr: &cairo::Context,
+    cr: &mut dyn Canvas,
     width: f64,
     height: f64,
     dose: f64,
@@ -724,7 +716,7 @@ fn draw_moss(
     let floor = height - MOSS_FLOOR;
     let top = floor - MOSS_HEIGHT * (1.0 - dry * 0.25);
 
-    source(cr, colour, 0.8);
+    cr.set_paint(Paint::solid(colour, 0.8));
     cr.move_to(moss_left, floor);
     cr.curve_to(
         moss_left + 16.0,
@@ -735,13 +727,13 @@ fn draw_moss(
         floor,
     );
     cr.close_path();
-    let _ = cr.fill();
+    cr.fill();
 
     // Cushions along the mound's top: plump and lighter when fresh, flatter
     // as they dry.
     let plump = 1.0 - dry * 0.4;
     let cushion = colour.mix(Rgb(0.85, 0.92, 0.6), 0.18 * (1.0 - dry));
-    source(cr, cushion, 0.85);
+    cr.set_paint(Paint::solid(cushion, 0.85));
     for (at, size) in [
         (0.14, 3.2),
         (0.24, 4.2),
@@ -756,12 +748,12 @@ fn draw_moss(
         // Sit each cushion on the curve of the mound.
         let t = at;
         let ground = floor - (top - floor).abs() * 0.75 * (4.0 * t * (1.0 - t));
-        let _ = cr.save();
+        cr.save();
         cr.translate(cx, ground);
         cr.scale(size * 1.15, size * plump);
         cr.arc(0.0, 0.0, 1.0, PI, TAU);
-        let _ = cr.restore();
-        let _ = cr.fill();
+        cr.restore();
+        cr.fill();
     }
 
     // A few short sprigs stand up when fresh and bow over as they dry.
@@ -771,13 +763,12 @@ fn draw_moss(
     } else {
         0.0
     };
-    source(
-        cr,
+    cr.set_paint(Paint::solid(
         cushion.mix(Rgb(0.9, 0.95, 0.7), 0.15 * (1.0 - dry)),
         0.9,
-    );
+    ));
     cr.set_line_width(1.2);
-    cr.set_line_cap(cairo::LineCap::Round);
+    cr.set_round_ends(true);
     for (i, (at, tall)) in [(0.3, 4.0), (0.52, 5.0), (0.74, 3.5)]
         .into_iter()
         .enumerate()
@@ -795,8 +786,8 @@ fn draw_moss(
             bx + lean,
             by - rise,
         );
-        let _ = cr.stroke();
-        disc(cr, bx + lean, by - rise, 0.9 * lift);
+        cr.stroke();
+        cr.disc(bx + lean, by - rise, 0.9 * lift);
     }
 }
 
@@ -813,7 +804,7 @@ struct Sprite {
 }
 
 /// The flame-topped teardrop body and its glow.
-fn draw_sprite(cr: &cairo::Context, s: Sprite) {
+fn draw_sprite(cr: &mut dyn Canvas, s: Sprite) {
     let Sprite {
         x,
         y,
@@ -829,36 +820,32 @@ fn draw_sprite(cr: &cairo::Context, s: Sprite) {
     if !dark {
         let ink = Rgb(0.15, 0.16, 0.14);
         let well = r * 2.8;
-        let _ = cr.set_source(radial(
+        cr.set_paint(Paint::glow(
             x,
             y,
             well,
             &[
-                (0.0, ink, WELL_DEPTH * presence),
-                (0.6, ink, WELL_DEPTH * 0.4 * presence),
-                (1.0, ink, 0.0),
+                stop(0.0, ink, WELL_DEPTH * presence),
+                stop(0.6, ink, WELL_DEPTH * 0.4 * presence),
+                stop(1.0, ink, 0.0),
             ],
         ));
-        disc(cr, x, y, well);
+        cr.disc(x, y, well);
     }
-    cr.set_operator(if dark {
-        cairo::Operator::Add
-    } else {
-        cairo::Operator::Over
-    });
+    cr.set_adding(dark);
     let halo = r * 2.4;
-    let _ = cr.set_source(radial(
+    cr.set_paint(Paint::glow(
         x,
         y,
         halo,
         &[
-            (0.0, look.glow, 0.55 * brightness * presence),
-            (0.45, look.glow, 0.24 * brightness * presence),
-            (1.0, look.glow, 0.0),
+            stop(0.0, look.glow, 0.55 * brightness * presence),
+            stop(0.45, look.glow, 0.24 * brightness * presence),
+            stop(1.0, look.glow, 0.0),
         ],
     ));
-    disc(cr, x, y, halo);
-    cr.set_operator(cairo::Operator::Over);
+    cr.disc(x, y, halo);
+    cr.set_adding(false);
 
     // A dim wisp is smaller and softer, never muddy: the body stays lit.
     let lit = (0.55 + 0.45 * brightness) * presence;
@@ -883,12 +870,16 @@ fn draw_sprite(cr: &cairo::Context, s: Sprite) {
         y,
     );
     cr.close_path();
-    let body = cairo::RadialGradient::new(x - r * 0.25, y - r * 0.3, r * 0.1, x, y, r * 1.35);
-    body.add_color_stop_rgba(0.0, look.core.0, look.core.1, look.core.2, lit);
-    body.add_color_stop_rgba(0.7, warm.0, warm.1, warm.2, lit);
-    body.add_color_stop_rgba(1.0, warm.0, warm.1, warm.2, lit * 0.9);
-    let _ = cr.set_source(body);
-    let _ = cr.fill();
+    cr.set_paint(Paint::Radial {
+        inner: (x - r * 0.25, y - r * 0.3, r * 0.1),
+        outer: (x, y, r * 1.35),
+        stops: &[
+            stop(0.0, look.core, lit),
+            stop(0.7, warm, lit),
+            stop(1.0, warm, lit * 0.9),
+        ],
+    });
+    cr.fill();
 }
 
 struct Face {
@@ -912,24 +903,27 @@ struct Face {
     presence: f64,
 }
 
-fn draw_face(cr: &cairo::Context, f: Face) {
+fn draw_face(cr: &mut dyn Canvas, f: Face) {
     let r = f.radius;
     let alpha = f.presence * f.ink;
     let eye_y = f.y - r * 0.08;
     let (eye_w, eye_h) = (r * 0.22, r * 0.38);
-    cr.set_line_cap(cairo::LineCap::Round);
+    cr.set_round_ends(true);
 
     for side in [-1.0, 1.0] {
         // Cheeks first, under the eyes.
         let cheek_x = f.x + side * r * 0.62;
         let cheek_y = f.y + r * 0.2;
-        let _ = cr.set_source(radial(
+        cr.set_paint(Paint::glow(
             cheek_x,
             cheek_y,
             r * 0.22,
-            &[(0.0, BLUSH, 0.45 * f.blush * f.presence), (1.0, BLUSH, 0.0)],
+            &[
+                stop(0.0, BLUSH, 0.45 * f.blush * f.presence),
+                stop(1.0, BLUSH, 0.0),
+            ],
         ));
-        disc(cr, cheek_x, cheek_y, r * 0.22);
+        cr.disc(cheek_x, cheek_y, r * 0.22);
 
         let eye_x = f.x + side * r * 0.4 + f.glance * r * 0.09;
 
@@ -939,7 +933,7 @@ fn draw_face(cr: &cairo::Context, f: Face) {
             let brow_y = eye_y - r * BROW_ABOVE - r * BROW_TRAVEL * f.brow;
             // Arched while the mood is bright, flat while it is heavy.
             let arch = r * BROW_ARCH * f.brow.max(0.0);
-            source(cr, FACE_INK, alpha * 0.8);
+            cr.set_paint(Paint::solid(FACE_INK, alpha * 0.8));
             cr.set_line_width(r * 0.062);
             cr.move_to(eye_x - eye_w * 0.85, brow_y);
             cr.curve_to(
@@ -950,12 +944,12 @@ fn draw_face(cr: &cairo::Context, f: Face) {
                 eye_x + eye_w * 0.85,
                 brow_y,
             );
-            let _ = cr.stroke();
+            cr.stroke();
         }
 
         if f.happy > 0.5 {
             // ^ ^
-            source(cr, FACE_INK, alpha);
+            cr.set_paint(Paint::solid(FACE_INK, alpha));
             cr.set_line_width(r * 0.09);
             cr.set_line_width(r * 0.11);
             cr.arc(
@@ -965,10 +959,10 @@ fn draw_face(cr: &cairo::Context, f: Face) {
                 PI * 1.1,
                 PI * 1.9,
             );
-            let _ = cr.stroke();
+            cr.stroke();
         } else if f.openness < 0.12 {
             // Closed and gently curved: asleep, or mid-blink.
-            source(cr, FACE_INK, alpha);
+            cr.set_paint(Paint::solid(FACE_INK, alpha));
             cr.set_line_width(r * 0.08);
             cr.arc(
                 eye_x,
@@ -977,44 +971,44 @@ fn draw_face(cr: &cairo::Context, f: Face) {
                 PI * 0.15,
                 PI * 0.85,
             );
-            let _ = cr.stroke();
+            cr.stroke();
         } else {
             // An oval with the lid lowered from the top.
-            let _ = cr.save();
+            cr.save();
             let lid = eye_y - eye_h / 2.0 + eye_h * (1.0 - f.openness);
             cr.rectangle(eye_x - eye_w, lid, eye_w * 2.0, eye_h * 1.2);
             cr.clip();
-            let _ = cr.save();
+            cr.save();
             cr.translate(eye_x, eye_y);
             cr.scale(eye_w / 2.0, eye_h / 2.0);
             cr.arc(0.0, 0.0, 1.0, 0.0, TAU);
-            let _ = cr.restore();
-            source(cr, FACE_INK, alpha);
-            let _ = cr.fill();
+            cr.restore();
+            cr.set_paint(Paint::solid(FACE_INK, alpha));
+            cr.fill();
             if f.openness > 0.5 {
-                source(cr, Rgb(1.0, 1.0, 1.0), 0.9 * f.presence);
-                disc(cr, eye_x - eye_w * 0.18, eye_y - eye_h * 0.2, eye_w * 0.2);
+                cr.set_paint(Paint::solid(Rgb(1.0, 1.0, 1.0), 0.9 * f.presence));
+                cr.disc(eye_x - eye_w * 0.18, eye_y - eye_h * 0.2, eye_w * 0.2);
             }
-            let _ = cr.restore();
+            cr.restore();
         }
     }
 
     // The mouth: a smile that flattens as the dose rises, and falls a little
     // open when the wisp is sleepy.
-    source(cr, FACE_INK, alpha * 0.9);
+    cr.set_paint(Paint::solid(FACE_INK, alpha * 0.9));
     let mouth_y = f.y + r * 0.32;
     if f.happy > 0.5 {
         cr.arc(f.x, mouth_y - r * 0.14, r * 0.26, PI * 0.1, PI * 0.9);
         cr.close_path();
-        let _ = cr.fill();
+        cr.fill();
     } else if f.sleepy > 0.6 {
         // A small oval, as if halfway through a yawn.
-        let _ = cr.save();
+        cr.save();
         cr.translate(f.x, mouth_y);
         cr.scale(r * 0.1, r * 0.13 * f.sleepy);
         cr.arc(0.0, 0.0, 1.0, 0.0, TAU);
-        let _ = cr.restore();
-        let _ = cr.fill();
+        cr.restore();
+        cr.fill();
     } else {
         cr.set_line_width(r * 0.085);
         let width = r * 0.15;
@@ -1028,7 +1022,7 @@ fn draw_face(cr: &cairo::Context, f: Face) {
             f.x + width,
             mouth_y,
         );
-        let _ = cr.stroke();
+        cr.stroke();
     }
 }
 
@@ -1054,7 +1048,7 @@ fn spawn(anim: &mut Anim, now: f64, x: f64, y: f64, kind: ParticleKind) {
 
 fn draw_particles(
     anim: &mut Anim,
-    cr: &cairo::Context,
+    cr: &mut dyn Canvas,
     now: f64,
     look: Look,
     dark: bool,
@@ -1068,23 +1062,23 @@ fn draw_particles(
         let fade = (1.0 - age) * presence;
         match p.kind {
             ParticleKind::Mote => {
-                source(cr, look.core, 0.85 * fade);
-                disc(cr, px, py, p.size * (1.0 - age * 0.5));
+                cr.set_paint(Paint::solid(look.core, 0.85 * fade));
+                cr.disc(px, py, p.size * (1.0 - age * 0.5));
             }
             ParticleKind::Smoke => {
                 let size = p.size * (1.0 + age * 1.6);
                 let grey = look.glow.mix(Rgb(0.6, 0.62, 0.66), 0.6);
-                let _ = cr.set_source(radial(
+                cr.set_paint(Paint::glow(
                     px,
                     py,
                     size,
                     &[
-                        (0.0, grey, 0.1 * fade),
-                        (0.6, grey, 0.04 * fade),
-                        (1.0, grey, 0.0),
+                        stop(0.0, grey, 0.1 * fade),
+                        stop(0.6, grey, 0.04 * fade),
+                        stop(1.0, grey, 0.0),
                     ],
                 ));
-                disc(cr, px, py, size);
+                cr.disc(px, py, size);
             }
             ParticleKind::Z => {
                 let ink = if dark {
@@ -1092,17 +1086,126 @@ fn draw_particles(
                 } else {
                     Rgb(0.17, 0.18, 0.16)
                 };
-                source(cr, ink, 0.45 * fade);
+                cr.set_paint(Paint::solid(ink, 0.45 * fade));
                 cr.set_line_width(1.1);
-                cr.set_line_cap(cairo::LineCap::Round);
-                cr.set_line_join(cairo::LineJoin::Round);
+                cr.set_round_ends(true);
                 let s = p.size * (1.0 + age * 0.5);
                 cr.move_to(px, py);
                 cr.line_to(px + s, py);
                 cr.line_to(px, py + s);
                 cr.line_to(px + s, py + s);
-                let _ = cr.stroke();
+                cr.stroke();
             }
         }
+    }
+}
+
+/// cairo, lending the wisp a surface to be drawn on.
+struct CairoCanvas<'a> {
+    cr: &'a cairo::Context,
+}
+
+impl CairoCanvas<'_> {
+    fn stops(gradient: &cairo::Gradient, stops: &[Stop]) {
+        for s in stops {
+            gradient.add_color_stop_rgba(
+                s.at,
+                s.colour.0,
+                s.colour.1,
+                s.colour.2,
+                s.alpha.clamp(0.0, 1.0),
+            );
+        }
+    }
+}
+
+impl Canvas for CairoCanvas<'_> {
+    fn save(&mut self) {
+        let _ = self.cr.save();
+    }
+    fn restore(&mut self) {
+        let _ = self.cr.restore();
+    }
+    fn translate(&mut self, dx: f64, dy: f64) {
+        self.cr.translate(dx, dy);
+    }
+    fn scale(&mut self, sx: f64, sy: f64) {
+        self.cr.scale(sx, sy);
+    }
+
+    fn move_to(&mut self, x: f64, y: f64) {
+        self.cr.move_to(x, y);
+    }
+    fn line_to(&mut self, x: f64, y: f64) {
+        self.cr.line_to(x, y);
+    }
+    fn curve_to(&mut self, c1x: f64, c1y: f64, c2x: f64, c2y: f64, x: f64, y: f64) {
+        self.cr.curve_to(c1x, c1y, c2x, c2y, x, y);
+    }
+    fn arc(&mut self, x: f64, y: f64, radius: f64, from: f64, to: f64) {
+        self.cr.arc(x, y, radius, from, to);
+    }
+    fn rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.cr.rectangle(x, y, width, height);
+    }
+    fn close_path(&mut self) {
+        self.cr.close_path();
+    }
+    fn new_path(&mut self) {
+        self.cr.new_path();
+    }
+
+    fn set_paint(&mut self, paint: Paint<'_>) {
+        match paint {
+            Paint::Solid { colour, alpha } => {
+                self.cr
+                    .set_source_rgba(colour.0, colour.1, colour.2, alpha.clamp(0.0, 1.0));
+            }
+            Paint::Radial {
+                inner,
+                outer,
+                stops,
+            } => {
+                let gradient = cairo::RadialGradient::new(
+                    inner.0, inner.1, inner.2, outer.0, outer.1, outer.2,
+                );
+                Self::stops(&gradient, stops);
+                let _ = self.cr.set_source(&gradient);
+            }
+            Paint::Linear { from, to, stops } => {
+                let gradient = cairo::LinearGradient::new(from.0, from.1, to.0, to.1);
+                Self::stops(&gradient, stops);
+                let _ = self.cr.set_source(&gradient);
+            }
+        }
+    }
+    fn set_line_width(&mut self, width: f64) {
+        self.cr.set_line_width(width);
+    }
+    fn set_round_ends(&mut self, round: bool) {
+        let (cap, join) = if round {
+            (cairo::LineCap::Round, cairo::LineJoin::Round)
+        } else {
+            (cairo::LineCap::Butt, cairo::LineJoin::Miter)
+        };
+        self.cr.set_line_cap(cap);
+        self.cr.set_line_join(join);
+    }
+    fn set_adding(&mut self, adding: bool) {
+        self.cr.set_operator(if adding {
+            cairo::Operator::Add
+        } else {
+            cairo::Operator::Over
+        });
+    }
+
+    fn fill(&mut self) {
+        let _ = self.cr.fill();
+    }
+    fn stroke(&mut self) {
+        let _ = self.cr.stroke();
+    }
+    fn clip(&mut self) {
+        self.cr.clip();
     }
 }

@@ -10,6 +10,7 @@
 pub mod asking;
 pub mod attention;
 pub mod bookmarks;
+pub mod canvas;
 pub mod diary;
 pub mod dose;
 pub mod feel_lab;
