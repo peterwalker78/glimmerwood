@@ -185,7 +185,8 @@ flatpak install --user glimmerwood-x86_64.flatpak
 Then open **Glimmerwood** from your applications, and choose it under *Default
 Applications* in your desktop's settings.
 
-[**Upgrading from Wisp, Windows and macOS, and what to do if something doesn't work →**](guide/install.md)
+**Glimmerwood is for Linux only.** There is no Windows or macOS version, and
+there is no plan for one.
 
 ## On the way
 
