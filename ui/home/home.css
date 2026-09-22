@@ -379,8 +379,57 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 /* This week: somewhere to find Tuesday's page again, a day at a time. */
 .week-note { margin: -6px 0 16px; color: var(--quiet); font-size: 0.85rem; }
-.days { display: flex; flex-direction: column; gap: 20px; }
-.day-name { margin: 0 0 6px; font: 400 1.05rem/1.3 var(--serif); }
+.days { display: flex; flex-direction: column; gap: 4px; }
+
+/* A day folds away behind its own name. Today's is open when the page
+   arrives; the rest wait to be asked. */
+.day-group > summary { list-style: none; }
+.day-group > summary::-webkit-details-marker { display: none; }
+.day-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: 10px;
+  font: 400 1.05rem/1.3 var(--serif);
+  cursor: default;
+}
+.day-group > summary:hover .day-name { background: var(--card); }
+.day-group > summary:focus-visible { outline: none; }
+.day-group > summary:focus-visible .day-name { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The mark turns from pointing at the day to pointing into it. */
+.day-name::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  border-right: 1.5px solid var(--quiet);
+  border-bottom: 1.5px solid var(--quiet);
+  transform: rotate(-45deg);
+  transform-origin: 60% 60%;
+  transition: transform 160ms ease;
+}
+.day-group[open] > summary .day-name::before { transform: rotate(45deg); }
+.day-count { color: var(--quiet); font-family: var(--sans); font-size: 0.85rem; }
+.day-group > .visits { margin: 0 0 10px; padding-left: 16px; }
+.more { padding: 4px 8px; }
+.more-link {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  font: 600 0.85rem/1.3 var(--sans);
+  cursor: default;
+}
+.more-link:hover { background: var(--hairline); }
+
+@media (prefers-reduced-motion: reduce) {
+  .day-name::before { transition: none; }
+}
 .visits {
   list-style: none;
   margin: 0;

@@ -147,29 +147,90 @@ function visit(page: Page): HTMLLIElement {
   return item;
 }
 
+// A week of pages at once is a wall. Each day is folded away behind its own
+// name, today's open, and a heavy day shows this many before it waits to be
+// asked for the rest — enough that a quiet day is never cut, and few enough
+// that a heavy one can't run away down the page.
+const FIRST_FEW = 12;
+
+// Which days have been opened and which closed, against a default of today
+// open and the rest away, and which have been asked for in full. The page is
+// redrawn whenever a page is remembered, and it should come back as it was
+// left.
+const opened = new Set<number>();
+const closed = new Set<number>();
+const unfolded = new Set<number>();
+
+function count(pages: number): string {
+  return pages === 1 ? "1 page" : `${pages} pages`;
+}
+
+function dayGroup(start: number, name: string, pages: Page[], today: boolean): HTMLDetailsElement {
+  const group = document.createElement("details");
+  group.className = "day-group";
+  group.open = today ? !closed.has(start) : opened.has(start);
+  group.addEventListener("toggle", () => {
+    const remember = group.open ? opened : closed;
+    const forget = group.open ? closed : opened;
+    remember.add(start);
+    forget.delete(start);
+  });
+
+  const summary = document.createElement("summary");
+  const heading = document.createElement("h3");
+  heading.className = "day-name";
+  heading.append(span("name", name), span("day-count", count(pages.length)));
+  summary.append(heading);
+
+  const list = document.createElement("ul");
+  list.className = "visits";
+  list.append(...pages.map(visit));
+
+  // The rest of a long day waits behind a word rather than a scroll.
+  const rest = pages.length - FIRST_FEW;
+  if (rest > 0 && !unfolded.has(start)) {
+    const hidden = Array.from(list.children).slice(FIRST_FEW) as HTMLLIElement[];
+    for (const item of hidden) item.hidden = true;
+    const more = document.createElement("li");
+    more.className = "more";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "more-link";
+    button.textContent = rest === 1 ? "Show the last one" : `Show the other ${rest}`;
+    button.addEventListener("click", () => {
+      unfolded.add(start);
+      for (const item of hidden) item.hidden = false;
+      more.remove();
+    });
+    more.append(button);
+    list.append(more);
+  }
+
+  group.append(summary, list);
+  return group;
+}
+
 // The pages arrive newest first, so a day is a run of neighbours.
 function showPages(pages: Page[]): void {
   thisWeek.hidden = pages.length === 0;
   const now = Date.now();
-  const groups: HTMLDivElement[] = [];
-  let day: number | null = null;
-  let list: HTMLUListElement | null = null;
+  const today = midnight(now);
+  const groups: HTMLDetailsElement[] = [];
+  let start: number | null = null;
+  let day: Page[] = [];
+  const close = (): void => {
+    if (start !== null && day.length > 0) groups.push(dayGroup(start, dayName(day[0]!.at, now), day, start === today));
+  };
   for (const page of pages) {
-    const start = midnight(page.at);
-    if (start !== day || !list) {
-      day = start;
-      list = document.createElement("ul");
-      list.className = "visits";
-      const group = document.createElement("div");
-      group.className = "day-group";
-      const heading = document.createElement("h3");
-      heading.className = "day-name";
-      heading.textContent = dayName(page.at, now);
-      group.append(heading, list);
-      groups.push(group);
+    const at = midnight(page.at);
+    if (at !== start) {
+      close();
+      start = at;
+      day = [];
     }
-    list.append(visit(page));
+    day.push(page);
   }
+  close();
   days.replaceChildren(...groups);
 }
 
