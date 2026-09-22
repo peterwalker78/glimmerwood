@@ -7,7 +7,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::asking::{self, Asker};
@@ -24,12 +24,13 @@ use crate::home::{self, Facts, PartOfDay, Topic, Words};
 use crate::host::{Host, Window};
 use crate::nav;
 use crate::nav::host_of;
+use crate::newsboat::{self, GoodNews};
 use crate::places::{self, PlaceCard, Pool};
 use crate::protocol::Page;
 use crate::protocol::{
     CaptionKind, CaptionLine, DayPart, HomeAbout, HomeBookmark, HomeData, HomeExplain, HomePlace,
-    HomePlant, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode, WispPhase,
-    WispTrend,
+    HomePlant, NewsFeed, PlantKind, Rating, SettingsData, TimeChoice, ToChrome, WispMode,
+    WispPhase, WispTrend,
 };
 use crate::ratings::{self, Action};
 use crate::reputation::{self, List, Lists};
@@ -85,6 +86,9 @@ pub struct Companion {
     last_typed: Cell<Option<Moment>>,
     /// What was last looked up on the Settings page.
     lookup: RefCell<String>,
+    /// Feeds for Newsboat, and what the last press of its button did.
+    good_news: GoodNews,
+    newsboat_done: RefCell<String>,
     pool: Pool,
     /// The good places picked for the current stretch of the day, and what
     /// they were picked for (stretch, part of day, the user's own places).
@@ -170,6 +174,8 @@ impl Companion {
             asker: RefCell::new(Asker::default()),
             last_typed: Cell::new(None),
             lookup: RefCell::new(String::new()),
+            good_news: GoodNews::bundled(),
+            newsboat_done: RefCell::new(String::new()),
             pool: Pool::bundled(),
             picked: RefCell::new(None),
             country: host.locale_country(),
@@ -394,9 +400,11 @@ impl Companion {
 
     // --- Settings -----------------------------------------------------------
 
-    /// A fresh Settings page starts without an old look-up.
+    /// A fresh Settings page starts without an old look-up, or word of
+    /// what the good news button last did.
     pub fn forget_lookup(&self) {
         self.lookup.borrow_mut().clear();
+        self.newsboat_done.borrow_mut().clear();
     }
 
     /// Everything the Settings page shows, right now.
@@ -415,6 +423,12 @@ impl Companion {
         let lookup = self.lookup.borrow();
         let found = reputation::site_of(&lookup, true);
         let settings = self.settings.borrow();
+        let home = self.host.home_dir();
+        let newsboat_file = newsboat::urls_file(&home, Path::is_dir);
+        let feeds_text = newsboat_file
+            .as_deref()
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .unwrap_or_default();
         let choices = |range| {
             settings::night_choices(range)
                 .into_iter()
@@ -440,14 +454,80 @@ impl Companion {
                 String::new()
             },
             ratings: entries.iter().map(|(site, _)| rated(site)).collect(),
-            ratings_file: tidy_path(&path, &self.host.home_dir()),
+            ratings_file: tidy_path(&path, &home),
             ratings_problem: problem,
             ask: settings.ask_about_new_places,
             night_starts: settings.night_starts.clone(),
             night_ends: settings.night_ends.clone(),
             night_start_choices: choices(settings::NIGHT_STARTS),
             night_end_choices: choices(settings::NIGHT_ENDS),
+            newsboat_file: newsboat_file
+                .as_deref()
+                .map(|path| tidy_path(path, &home))
+                .unwrap_or_default(),
+            good_news: self
+                .good_news
+                .feeds
+                .iter()
+                .zip(newsboat::present(&feeds_text, &self.good_news.feeds))
+                .map(|(feed, added)| NewsFeed {
+                    name: feed.name.clone(),
+                    site: feed.site.clone(),
+                    kind: feed.kind,
+                    added,
+                })
+                .collect(),
+            newsboat_done: self.newsboat_done.borrow().clone(),
         }
+    }
+
+    /// Put the good news feeds into Newsboat's list, or take them out, and
+    /// say what happened.
+    fn send_to_newsboat(&self, add: bool) {
+        let home = self.host.home_dir();
+        let Some(path) = newsboat::urls_file(&home, Path::is_dir) else {
+            self.newsboat_done
+                .replace("Newsboat hasn't been run on this computer yet.".into());
+            return;
+        };
+        let shown = tidy_path(&path, &home);
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(err) => {
+                self.newsboat_done
+                    .replace(format!("Couldn't read {shown}: {err}"));
+                return;
+            }
+        };
+        let feeds = &self.good_news.feeds;
+        let (text, done) = if add {
+            let added = newsboat::add(&text, feeds);
+            let done = match (added.added, added.already) {
+                (0, _) => format!("{shown} has every one of them already."),
+                (n, 0) => format!("Added {} to {shown}. {READ_THEM}", feeds_counted(n)),
+                (n, had) => format!(
+                    "Added {} to {shown}; it had {had} already. {READ_THEM}",
+                    feeds_counted(n)
+                ),
+            };
+            (added.text, done)
+        } else {
+            let (text, removed) = newsboat::remove(&text, feeds);
+            let done = match removed {
+                0 => format!("There was nothing of Glimmerwood's in {shown} to take out."),
+                n => format!(
+                    "Took {} out of {shown}. Your own feeds are as they were.",
+                    feeds_counted(n)
+                ),
+            };
+            (text, done)
+        };
+        let done = match std::fs::write(&path, text) {
+            Ok(()) => done,
+            Err(err) => format!("Couldn't write {shown}: {err}"),
+        };
+        self.newsboat_done.replace(done);
     }
 
     /// A control on the Settings page, as the link it followed, without
@@ -486,6 +566,7 @@ impl Companion {
                     Err(err) => eprintln!("glimmerwood: couldn't move the night: {err}"),
                 }
             }
+            Action::Newsboat { add } => self.send_to_newsboat(add),
         }
         self.refresh_pages();
     }
@@ -1130,6 +1211,19 @@ fn tidy_path(path: &std::path::Path, home: &std::path::Path) -> String {
     match path.strip_prefix(home) {
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.display().to_string(),
+    }
+}
+
+/// Said after good news goes into Newsboat's list: it fetches nothing until
+/// asked, and `R` fetches every feed.
+const READ_THEM: &str = "To read them, run newsboat in a terminal and press Shift+R.";
+
+/// "1 feed", "12 feeds".
+fn feeds_counted(n: usize) -> String {
+    if n == 1 {
+        "1 feed".into()
+    } else {
+        format!("{n} feeds")
     }
 }
 

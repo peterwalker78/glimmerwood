@@ -108,6 +108,15 @@ last 15 minutes, half hour, hour or two. It takes those pages, the finished
 downloads, and the sites out of the wisp's memory of that stretch. How the
 time felt stays — the wisp is only worth having if that part is true.
 
+## Good news in your terminal
+
+If you use [Newsboat](https://newsboat.org), Settings can add twelve good news
+feeds to its list: seven that report what's working on real problems, two
+light ones, and three for awe. They go at the end of `~/.newsboat/urls` (or
+`~/.config/newsboat/urls`), tagged `glimmerwood`, and *Take them out again*
+removes only those lines. Glimmerwood fetches nothing itself. Run Newsboat once
+first so its folder exists.
+
 ## A few more things it notices
 
 - **Sound counts as watching.** A tab playing in front of you keeps the wisp

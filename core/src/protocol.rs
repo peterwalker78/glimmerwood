@@ -488,6 +488,31 @@ record! {
     }
 }
 
+string_union! {
+    /// What kind of good news a feed brings.
+    #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum NewsKind {
+        /// What is working on real problems.
+        Working,
+        /// Feel-good, and labelled so.
+        Light,
+        /// Nature, space, art or human achievement.
+        Awe,
+    }
+}
+
+record! {
+    /// A good news feed as Settings shows it.
+    #[derive(Serialize, Clone, Debug, PartialEq)]
+    pub struct NewsFeed {
+        pub name: String,
+        pub site: String,
+        pub kind: NewsKind,
+        /// Newsboat's list has it, whoever added it.
+        pub added: bool,
+    }
+}
+
 record! {
     /// A choice in a list of times.
     #[derive(Serialize, Clone, Debug, PartialEq)]
@@ -517,6 +542,12 @@ record! {
         pub night_ends: String,
         pub night_start_choices: Vec<TimeChoice>,
         pub night_end_choices: Vec<TimeChoice>,
+        /// Where Newsboat keeps its list of feeds, or empty when it hasn't
+        /// been run on this computer.
+        pub newsboat_file: String,
+        pub good_news: Vec<NewsFeed>,
+        /// What the last press of a good news button did, in a sentence.
+        pub newsboat_done: String,
     }
 }
 
@@ -696,6 +727,8 @@ fn typescript() -> String {
         HomeData::declaration(),
         Rating::declaration(),
         SiteRating::declaration(),
+        NewsKind::declaration(),
+        NewsFeed::declaration(),
         TimeChoice::declaration(),
         SettingsData::declaration(),
         TabInfo::declaration(),

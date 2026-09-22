@@ -3,7 +3,7 @@
 // follows a link to glimmerwood://settings/do/..., which the core catches and
 // answers by handing the page its data again.
 
-import type { Rating, SettingsData, SiteRating, TimeChoice } from "../protocol.gen.js";
+import type { NewsFeed, NewsKind, Rating, SettingsData, SiteRating, TimeChoice } from "../protocol.gen.js";
 import { WORDS, setSlider, slider } from "./rating.js";
 
 declare global {
@@ -31,6 +31,13 @@ const file = element("ratings-file", HTMLElement);
 const ask = element("ask", HTMLInputElement);
 const nightStarts = element("night-starts", HTMLSelectElement);
 const nightEnds = element("night-ends", HTMLSelectElement);
+const news = element("news", HTMLDivElement);
+const newsActions = element("news-actions", HTMLDivElement);
+const newsSend = element("news-send", HTMLButtonElement);
+const newsRemove = element("news-remove", HTMLButtonElement);
+const newsWhere = element("news-where", HTMLParagraphElement);
+const newsDone = element("news-done", HTMLParagraphElement);
+const newsMissing = element("news-missing", HTMLParagraphElement);
 
 const DO = "glimmerwood://settings/do/";
 
@@ -122,6 +129,54 @@ function options(select: HTMLSelectElement, choices: TimeChoice[], chosen: strin
   select.value = chosen;
 }
 
+const KINDS: [NewsKind, string][] = [
+  ["working", "What's working"],
+  ["light", "Light"],
+  ["awe", "Awe"],
+];
+
+// The feeds by kind, each marked once Newsboat has it.
+function feeds(list: NewsFeed[], ready: boolean): void {
+  const key = JSON.stringify([list, ready]);
+  if (news.dataset["key"] === key) return;
+  news.dataset["key"] = key;
+  news.replaceChildren(
+    ...KINDS.map(([kind, heading]) => {
+      const group = document.createElement("div");
+      group.className = "news-kind";
+      const items = document.createElement("ul");
+      for (const feed of list.filter((f) => f.kind === kind)) {
+        const item = document.createElement("li");
+        item.append(text("name", feed.name), text("site", feed.site.split("/")[0] ?? feed.site));
+        if (ready && feed.added) item.append(text("in", "In Newsboat"));
+        items.append(item);
+      }
+      group.append(text("kind", heading), items);
+      return group;
+    }),
+  );
+}
+
+function showNews(data: SettingsData): void {
+  const ready = data.newsboat_file !== "";
+  const missing = data.good_news.filter((feed) => !feed.added).length;
+  feeds(data.good_news, ready);
+  newsActions.hidden = !ready;
+  newsMissing.hidden = ready;
+  newsSend.hidden = missing === 0;
+  newsSend.textContent = missing === data.good_news.length
+    ? "Send happy news to Newsboat"
+    : `Send the ${missing} it hasn't got`;
+  newsRemove.hidden = missing === data.good_news.length;
+  newsWhere.hidden = !ready;
+  newsWhere.replaceChildren(
+    "They go at the end of ",
+    Object.assign(document.createElement("code"), { textContent: data.newsboat_file }),
+    ", tagged glimmerwood, and only those lines ever come out again. Nothing is fetched until Newsboat fetches it.",
+  );
+  newsDone.textContent = data.newsboat_done;
+}
+
 function show(data: SettingsData): void {
   rows(lookupResult, data.lookup);
   lookupFailed.hidden = !data.lookup_failed;
@@ -138,6 +193,7 @@ function show(data: SettingsData): void {
   ask.checked = data.ask;
   options(nightStarts, data.night_start_choices, data.night_starts);
   options(nightEnds, data.night_end_choices, data.night_ends);
+  showNews(data);
 }
 
 lookupForm.addEventListener("submit", (event) => {
@@ -150,6 +206,8 @@ for (const select of [nightStarts, nightEnds]) {
     follow(`night/${encodeURIComponent(nightStarts.value)}/${encodeURIComponent(nightEnds.value)}`),
   );
 }
+newsSend.addEventListener("click", () => follow("newsboat/add"));
+newsRemove.addEventListener("click", () => follow("newsboat/remove"));
 
 window.wispSettings = { show };
 if (window.wispSettingsData) show(window.wispSettingsData);

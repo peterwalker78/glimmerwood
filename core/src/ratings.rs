@@ -75,6 +75,9 @@ pub enum Action {
     Ask(bool),
     /// `night/HH:MM/HH:MM`.
     Night { starts: String, ends: String },
+    /// `newsboat/add` or `newsboat/remove`: good news into Newsboat's list
+    /// of feeds, or out of it again.
+    Newsboat { add: bool },
 }
 
 impl Action {
@@ -103,6 +106,11 @@ impl Action {
                     ends: unescape(ends)?,
                 })
             }
+            "newsboat" => match rest {
+                "add" => Some(Action::Newsboat { add: true }),
+                "remove" => Some(Action::Newsboat { add: false }),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -224,12 +232,17 @@ mod tests {
                 ends: "06:00".into(),
             })
         );
+        assert_eq!(
+            Action::parse("newsboat/remove", unescape),
+            Some(Action::Newsboat { add: false })
+        );
         for bad in [
             "rate/shiny/a.com",
             "rate/neither/",
             "ask/maybe",
             "format/disk",
             "night/22:00",
+            "newsboat/",
         ] {
             assert_eq!(Action::parse(bad, unescape), None, "{bad}");
         }

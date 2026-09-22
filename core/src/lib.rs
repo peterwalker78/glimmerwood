@@ -22,6 +22,7 @@ pub mod home;
 pub mod host;
 pub mod look;
 pub mod nav;
+pub mod newsboat;
 pub mod oklab;
 pub mod pages;
 pub mod places;

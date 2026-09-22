@@ -1,0 +1,82 @@
+# Good news for a feed reader. Every feed was fetched on 22 September 2026:
+# RSS or Atom, updated that month, readable without a login.
+#
+#   site   the reputation-list entry its stories open under; it must be on a
+#          nourishing list (a test checks)
+#   url    the feed itself
+#   name   what the reader calls it
+#   kind   working  reports what is working on real problems
+#          light    feel-good, and labelled so
+#          awe      nature, space, art or human achievement
+
+[[feeds]]
+site = "squirrel-news.net"
+url = "https://squirrel-news.net/feed/"
+name = "Squirrel News"
+kind = "working"
+
+[[feeds]]
+site = "positive.news"
+url = "https://www.positive.news/feed/"
+name = "Positive News"
+kind = "working"
+
+[[feeds]]
+site = "fixthenews.com"
+url = "https://fixthenews.com/feed"
+name = "Fix the News"
+kind = "working"
+
+[[feeds]]
+site = "reasonstobecheerful.world"
+url = "https://reasonstobecheerful.world/feed/"
+name = "Reasons to be Cheerful"
+kind = "working"
+
+[[feeds]]
+site = "anthropocenemagazine.org"
+url = "https://www.anthropocenemagazine.org/feed/"
+name = "Anthropocene"
+kind = "working"
+
+[[feeds]]
+site = "yesmagazine.org"
+url = "https://www.yesmagazine.org/feed"
+name = "YES! Magazine"
+kind = "working"
+
+[[feeds]]
+site = "ourworldindata.org"
+url = "https://ourworldindata.org/atom.xml"
+name = "Our World in Data"
+kind = "working"
+
+[[feeds]]
+site = "goodnewsnetwork.org"
+url = "https://www.goodnewsnetwork.org/feed/"
+name = "Good News Network"
+kind = "light"
+
+[[feeds]]
+site = "optimistdaily.com"
+url = "https://www.optimistdaily.com/feed/"
+name = "The Optimist Daily"
+kind = "light"
+
+[[feeds]]
+site = "science.nasa.gov/earth/earth-observatory"
+url = "https://earthobservatory.nasa.gov/feeds/image-of-the-day.rss"
+name = "Earth Observatory: Image of the Day"
+kind = "awe"
+
+[[feeds]]
+site = "publicdomainreview.org"
+url = "https://publicdomainreview.org/rss.xml"
+name = "The Public Domain Review"
+kind = "awe"
+
+[[feeds]]
+site = "themarginalian.org"
+url = "https://www.themarginalian.org/feed/"
+name = "The Marginalian"
+kind = "awe"

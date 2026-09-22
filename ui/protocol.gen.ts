@@ -56,9 +56,13 @@ export type Rating = "drains_a_lot" | "drains_a_little" | "neither" | "restores_
 
 export type SiteRating = { site: string; rating: Rating; matched: string; yours: Rating | null; seed: Rating | null };
 
+export type NewsKind = "working" | "light" | "awe";
+
+export type NewsFeed = { name: string; site: string; kind: NewsKind; added: boolean };
+
 export type TimeChoice = { value: string; label: string };
 
-export type SettingsData = { lookup: SiteRating[]; lookup_failed: string; ratings: SiteRating[]; ratings_file: string; ratings_problem: string; ask: boolean; night_starts: string; night_ends: string; night_start_choices: TimeChoice[]; night_end_choices: TimeChoice[] };
+export type SettingsData = { lookup: SiteRating[]; lookup_failed: string; ratings: SiteRating[]; ratings_file: string; ratings_problem: string; ask: boolean; night_starts: string; night_ends: string; night_start_choices: TimeChoice[]; night_end_choices: TimeChoice[]; newsboat_file: string; good_news: NewsFeed[]; newsboat_done: string };
 
 export type TabInfo = { id: number; title: string; host: string; loading: boolean; sound: TabSound; asleep: boolean };
 
