@@ -113,9 +113,12 @@ time felt stays — the wisp is only worth having if that part is true.
 If you use [Newsboat](https://newsboat.org), Settings can add twelve good news
 feeds to its list: seven that report what's working on real problems, two
 light ones, and three for awe. They go at the end of `~/.newsboat/urls` (or
-`~/.config/newsboat/urls`), tagged `glimmerwood`, and *Take them out again*
-removes only those lines. Glimmerwood fetches nothing itself. Run Newsboat once
-first so its folder exists.
+`~/.config/newsboat/urls`), tagged `glimmerwood`. Newsboat's config gains
+`refresh-on-startup yes`, so they arrive as soon as it opens, and
+`browser xdg-open`, so `o` opens a story in your default browser; each only if
+your config doesn't already set it. *Take them out again* removes only those lines.
+Glimmerwood fetches nothing itself. Run Newsboat once first so its folder
+exists.
 
 ## A few more things it notices
 

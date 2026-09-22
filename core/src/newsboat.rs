@@ -19,6 +19,18 @@ pub const TAG: &str = "glimmerwood";
 /// The comment above the feeds Glimmerwood adds.
 const HEADER: &str = "# Good news from Glimmerwood. Its Settings can take these out again.";
 
+/// The comment above the settings Glimmerwood adds to Newsboat's config.
+const CONFIG_HEADER: &str =
+    "# Added by Glimmerwood with its good news. Its Settings can take these out again.";
+
+/// What Glimmerwood sets in Newsboat's config, each only when the config
+/// doesn't already say: fetch every feed as it starts, since otherwise a
+/// fresh list opens empty, and open links in the desktop's default browser,
+/// since Newsboat's own default is lynx, which few have installed.
+pub const REFRESH: &str = "refresh-on-startup";
+pub const BROWSER: &str = "browser";
+const SETTINGS: [(&str, &str); 2] = [(REFRESH, "yes"), (BROWSER, "xdg-open")];
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Feed {
@@ -53,6 +65,93 @@ pub fn urls_file(home: &Path, is_dir: impl Fn(&Path) -> bool) -> Option<PathBuf>
     .into_iter()
     .find(|dir| is_dir(dir))
     .map(|dir| dir.join("urls"))
+}
+
+/// Newsboat's config, which sits beside its list.
+pub fn config_file(urls: &Path) -> PathBuf {
+    urls.with_file_name("config")
+}
+
+/// What the config sets `name` to, if anything. The last line wins.
+fn setting<'a>(config: &'a str, name: &str) -> Option<&'a str> {
+    config
+        .lines()
+        .filter_map(|line| {
+            let mut words = words(line);
+            (words.next()? == name).then(|| words.next().unwrap_or(""))
+        })
+        .next_back()
+}
+
+/// Whether Newsboat fetches every feed as it starts.
+pub fn fetches_on_start(config: &str) -> bool {
+    matches!(setting(config, REFRESH), Some("yes" | "true"))
+}
+
+/// Whether the config already says everything Glimmerwood would set.
+pub fn configured(config: &str) -> bool {
+    SETTINGS
+        .iter()
+        .all(|(name, _)| setting(config, name).is_some())
+}
+
+/// `config` with Glimmerwood's settings added under a comment, and the names
+/// of those it added; `None` when the config already says all of them,
+/// because those choices are the user's.
+pub fn configure(config: &str) -> Option<(String, Vec<&'static str>)> {
+    let missing: Vec<(&str, &str)> = SETTINGS
+        .into_iter()
+        .filter(|(name, _)| setting(config, name).is_none())
+        .collect();
+    if missing.is_empty() {
+        return None;
+    }
+    let mut out = config.to_owned();
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    if !out.trim().is_empty() && !out.ends_with("\n\n") {
+        out.push('\n');
+    }
+    out.push_str(CONFIG_HEADER);
+    out.push('\n');
+    for (name, value) in &missing {
+        out.push_str(&format!("{name} {value}\n"));
+    }
+    Some((out, missing.into_iter().map(|(name, _)| name).collect()))
+}
+
+/// `config` without the settings Glimmerwood added, or `None` if it has
+/// none: its comment and the lines right after it that are its own.
+pub fn unconfigure(config: &str) -> Option<String> {
+    let lines: Vec<&str> = config.lines().collect();
+    let at = lines.iter().position(|&line| line == CONFIG_HEADER)?;
+    let ours: Vec<String> = SETTINGS
+        .iter()
+        .map(|(name, value)| format!("{name} {value}"))
+        .collect();
+    let after = at
+        + 1
+        + lines[at + 1..]
+            .iter()
+            .take_while(|line| ours.iter().any(|our| our == *line))
+            .count();
+    let mut kept = lines[..at].to_vec();
+    kept.extend(&lines[after..]);
+    Some(tidy_end(&kept))
+}
+
+/// Lines joined, without blank lines at the end.
+fn tidy_end(lines: &[&str]) -> String {
+    let end = lines
+        .iter()
+        .rposition(|line| !line.trim().is_empty())
+        .map_or(0, |last| last + 1);
+    let mut out = lines[..end].join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
 }
 
 /// What adding the feeds did.
@@ -111,15 +210,7 @@ pub fn remove(text: &str, feeds: &[Feed]) -> (String, usize) {
     if removed == 0 {
         return (text.to_owned(), 0);
     }
-    let end = kept
-        .iter()
-        .rposition(|line| !line.trim().is_empty())
-        .map_or(0, |last| last + 1);
-    let mut out = kept[..end].join("\n");
-    if !out.is_empty() {
-        out.push('\n');
-    }
-    (out, removed)
+    (tidy_end(&kept), removed)
 }
 
 /// Which of `feeds` the list has, in order, whoever added them.
@@ -269,6 +360,45 @@ mod tests {
     fn knows_which_feeds_are_there() {
         let text = "  https://b.example/rss\n#https://a.example/feed\n";
         assert_eq!(present(text, &two()), vec![false, true]);
+    }
+
+    #[test]
+    fn sets_only_what_the_config_leaves_unsaid() {
+        let (set, added) = configure("").expect("an empty config says nothing");
+        assert_eq!(
+            set,
+            format!("{CONFIG_HEADER}\nrefresh-on-startup yes\nbrowser xdg-open\n")
+        );
+        assert_eq!(added, vec![REFRESH, BROWSER]);
+        assert!(fetches_on_start(&set));
+        assert_eq!(configure(&set), None);
+        assert!(configured(&set) && !configured(""));
+
+        let theirs = "browser firefox\nrefresh-on-startup no\n";
+        assert!(!fetches_on_start(theirs));
+        assert_eq!(configure(theirs), None);
+
+        let (set, added) = configure("browser \"firefox %u\"").expect("fetching unsaid");
+        assert_eq!(added, vec![REFRESH]);
+        assert!(set.ends_with(&format!("{CONFIG_HEADER}\nrefresh-on-startup yes\n")));
+        assert!(!fetches_on_start("# refresh-on-startup yes"));
+    }
+
+    #[test]
+    fn takes_back_only_its_own_settings() {
+        let mine = "color background white black\n";
+        let (set, _) = configure(mine).expect("nothing said yet");
+        let later = format!("{set}bind-key j down\n");
+        assert_eq!(
+            unconfigure(&later),
+            Some("color background white black\n\nbind-key j down\n".to_owned())
+        );
+        assert_eq!(unconfigure(&set), Some(mine.to_owned()));
+        assert_eq!(unconfigure("refresh-on-startup yes\n"), None);
+        assert_eq!(
+            config_file(Path::new("/h/.newsboat/urls")),
+            Path::new("/h/.newsboat/config")
+        );
     }
 
     #[test]

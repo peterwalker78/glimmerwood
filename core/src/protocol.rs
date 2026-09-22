@@ -546,6 +546,9 @@ record! {
         /// been run on this computer.
         pub newsboat_file: String,
         pub good_news: Vec<NewsFeed>,
+        /// Newsboat's config already says whether to fetch as it starts and
+        /// which browser to open, so there's nothing to set there.
+        pub newsboat_configured: bool,
         /// What the last press of a good news button did, in a sentence.
         pub newsboat_done: String,
     }

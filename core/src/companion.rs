@@ -429,6 +429,10 @@ impl Companion {
             .as_deref()
             .and_then(|path| std::fs::read_to_string(path).ok())
             .unwrap_or_default();
+        let config_text = newsboat_file
+            .as_deref()
+            .and_then(|path| std::fs::read_to_string(newsboat::config_file(path)).ok())
+            .unwrap_or_default();
         let choices = |range| {
             settings::night_choices(range)
                 .into_iter()
@@ -477,6 +481,7 @@ impl Companion {
                     added,
                 })
                 .collect(),
+            newsboat_configured: newsboat::configured(&config_text),
             newsboat_done: self.newsboat_done.borrow().clone(),
         }
     }
@@ -501,13 +506,15 @@ impl Companion {
             }
         };
         let feeds = &self.good_news.feeds;
+        let config = newsboat::config_file(&path);
+        let config_text = std::fs::read_to_string(&config).unwrap_or_default();
         let (text, done) = if add {
             let added = newsboat::add(&text, feeds);
             let done = match (added.added, added.already) {
-                (0, _) => format!("{shown} has every one of them already."),
-                (n, 0) => format!("Added {} to {shown}. {READ_THEM}", feeds_counted(n)),
+                (0, _) => format!("{shown} had every one of them already."),
+                (n, 0) => format!("Added {} to {shown}.", feeds_counted(n)),
                 (n, had) => format!(
-                    "Added {} to {shown}; it had {had} already. {READ_THEM}",
+                    "Added {} to {shown}; it had {had} already.",
                     feeds_counted(n)
                 ),
             };
@@ -523,10 +530,35 @@ impl Companion {
             };
             (text, done)
         };
-        let done = match std::fs::write(&path, text) {
-            Ok(()) => done,
-            Err(err) => format!("Couldn't write {shown}: {err}"),
+        if let Err(err) = std::fs::write(&path, text) {
+            self.newsboat_done
+                .replace(format!("Couldn't write {shown}: {err}"));
+            return;
+        }
+        let after = if add {
+            let (config_text, added) = match newsboat::configure(&config_text) {
+                Some((set, added)) if std::fs::write(&config, &set).is_ok() => (set, added),
+                _ => (config_text, Vec::new()),
+            };
+            let run = if newsboat::fetches_on_start(&config_text) {
+                "Run newsboat in a terminal: it fetches them as it starts."
+            } else {
+                PRESS_R
+            };
+            if added.contains(&newsboat::BROWSER) {
+                format!("{run} Its o key opens a story in your default browser.")
+            } else {
+                run.to_owned()
+            }
+        } else {
+            match newsboat::unconfigure(&config_text) {
+                Some(unset) if std::fs::write(&config, &unset).is_ok() => {
+                    "The settings it came with are gone from Newsboat's config too.".to_owned()
+                }
+                _ => String::new(),
+            }
         };
+        let done = format!("{done} {after}").trim_end().to_owned();
         self.newsboat_done.replace(done);
     }
 
@@ -1214,9 +1246,9 @@ fn tidy_path(path: &std::path::Path, home: &std::path::Path) -> String {
     }
 }
 
-/// Said after good news goes into Newsboat's list: it fetches nothing until
-/// asked, and `R` fetches every feed.
-const READ_THEM: &str = "To read them, run newsboat in a terminal and press Shift+R.";
+/// Said when Newsboat won't fetch the feeds by itself: `R` fetches every
+/// feed.
+const PRESS_R: &str = "Run newsboat in a terminal and press Shift+R to fetch them.";
 
 /// "1 feed", "12 feeds".
 fn feeds_counted(n: usize) -> String {

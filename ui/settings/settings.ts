@@ -31,8 +31,9 @@ const file = element("ratings-file", HTMLElement);
 const ask = element("ask", HTMLInputElement);
 const nightStarts = element("night-starts", HTMLSelectElement);
 const nightEnds = element("night-ends", HTMLSelectElement);
-const news = element("news", HTMLDivElement);
-const newsActions = element("news-actions", HTMLDivElement);
+const newsSummary = element("news-summary", HTMLSpanElement);
+const newsList = element("news-list", HTMLSpanElement);
+const newsActions = element("news-actions", HTMLSpanElement);
 const newsSend = element("news-send", HTMLButtonElement);
 const newsRemove = element("news-remove", HTMLButtonElement);
 const newsWhere = element("news-where", HTMLParagraphElement);
@@ -129,29 +130,37 @@ function options(select: HTMLSelectElement, choices: TimeChoice[], chosen: strin
   select.value = chosen;
 }
 
-const KINDS: [NewsKind, string][] = [
-  ["working", "What's working"],
-  ["light", "Light"],
-  ["awe", "Awe"],
+// Each kind as the list heads it, and as the line counts it.
+const KINDS: [NewsKind, string, string][] = [
+  ["working", "What's working", "on what's working"],
+  ["light", "Light", "light"],
+  ["awe", "Awe", "for awe"],
 ];
 
-// The feeds by kind, each marked once Newsboat has it.
+// One line counting the feeds by kind, and the whole list, marked where
+// Newsboat has them, in a tooltip over it.
 function feeds(list: NewsFeed[], ready: boolean): void {
   const key = JSON.stringify([list, ready]);
-  if (news.dataset["key"] === key) return;
-  news.dataset["key"] = key;
-  news.replaceChildren(
-    ...KINDS.map(([kind, heading]) => {
-      const group = document.createElement("div");
+  if (newsList.dataset["key"] === key) return;
+  newsList.dataset["key"] = key;
+
+  const kinds = KINDS.map(([kind, heading, counted]) => ({ heading, counted, feeds: list.filter((f) => f.kind === kind) }));
+  const added = list.filter((feed) => feed.added).length;
+  const counts = kinds.map(({ counted, feeds }) => `${feeds.length} ${counted}`).join(", ");
+  const where = !ready || added === 0 ? "" : added === list.length ? " · all in Newsboat" : ` · ${added} in Newsboat`;
+  newsSummary.textContent = `${list.length} feeds: ${counts}${where}`;
+
+  newsList.replaceChildren(
+    ...kinds.map(({ heading, feeds }) => {
+      const group = document.createElement("span");
       group.className = "news-kind";
-      const items = document.createElement("ul");
-      for (const feed of list.filter((f) => f.kind === kind)) {
-        const item = document.createElement("li");
+      group.append(text("kind", heading));
+      for (const feed of feeds) {
+        const item = text("feed", "");
         item.append(text("name", feed.name), text("site", feed.site.split("/")[0] ?? feed.site));
-        if (ready && feed.added) item.append(text("in", "In Newsboat"));
-        items.append(item);
+        if (ready && feed.added) item.append(text("in", "added"));
+        group.append(item);
       }
-      group.append(text("kind", heading), items);
       return group;
     }),
   );
@@ -163,16 +172,18 @@ function showNews(data: SettingsData): void {
   feeds(data.good_news, ready);
   newsActions.hidden = !ready;
   newsMissing.hidden = ready;
-  newsSend.hidden = missing === 0;
+  newsSend.hidden = missing === 0 && data.newsboat_configured;
   newsSend.textContent = missing === data.good_news.length
     ? "Send happy news to Newsboat"
-    : `Send the ${missing} it hasn't got`;
+    : missing === 0
+      ? "Set Newsboat to fetch them as it starts"
+      : `Send the ${missing} it hasn't got`;
   newsRemove.hidden = missing === data.good_news.length;
   newsWhere.hidden = !ready;
   newsWhere.replaceChildren(
     "They go at the end of ",
     Object.assign(document.createElement("code"), { textContent: data.newsboat_file }),
-    ", tagged glimmerwood, and only those lines ever come out again. Nothing is fetched until Newsboat fetches it.",
+    ", tagged glimmerwood. Unless your Newsboat config already says, it's also set to fetch feeds as it starts and to open stories in your default browser. Taking them out undoes all of it and nothing else. Glimmerwood itself fetches nothing.",
   );
   newsDone.textContent = data.newsboat_done;
 }

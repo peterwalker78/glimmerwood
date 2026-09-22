@@ -55,10 +55,15 @@
     <section aria-labelledby="news-heading">
       <h2 id="news-heading">Good news in your terminal</h2>
       <p class="intro">Newsboat reads feeds in a terminal: words only, and when you've read what's new, it's done. Glimmerwood can give it these. Most report what's working on real problems; the light ones are simply cheerful.</p>
-      <div id="news" class="news"></div>
-      <div id="news-actions" class="news-actions">
-        <button id="news-send" type="button"></button>
-        <button id="news-remove" type="button">Take them out again</button>
+      <div class="news-row">
+        <span class="news-feeds" tabindex="0" aria-describedby="news-list">
+          <span id="news-summary"></span>
+          <span id="news-list" class="news-list" role="tooltip"></span>
+        </span>
+        <span id="news-actions" class="news-actions">
+          <button id="news-send" type="button"></button>
+          <button id="news-remove" type="button">Take them out again</button>
+        </span>
       </div>
       <p id="news-where" class="note"></p>
       <p id="news-done" class="done" role="status"></p>

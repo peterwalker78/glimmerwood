@@ -62,7 +62,7 @@ export type NewsFeed = { name: string; site: string; kind: NewsKind; added: bool
 
 export type TimeChoice = { value: string; label: string };
 
-export type SettingsData = { lookup: SiteRating[]; lookup_failed: string; ratings: SiteRating[]; ratings_file: string; ratings_problem: string; ask: boolean; night_starts: string; night_ends: string; night_start_choices: TimeChoice[]; night_end_choices: TimeChoice[]; newsboat_file: string; good_news: NewsFeed[]; newsboat_done: string };
+export type SettingsData = { lookup: SiteRating[]; lookup_failed: string; ratings: SiteRating[]; ratings_file: string; ratings_problem: string; ask: boolean; night_starts: string; night_ends: string; night_start_choices: TimeChoice[]; night_end_choices: TimeChoice[]; newsboat_file: string; good_news: NewsFeed[]; newsboat_configured: boolean; newsboat_done: string };
 
 export type TabInfo = { id: number; title: string; host: string; loading: boolean; sound: TabSound; asleep: boolean };
 
