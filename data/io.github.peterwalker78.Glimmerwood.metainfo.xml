@@ -47,6 +47,18 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.11.0" date="2026-09-29">
+      <description>
+        <p>The wisp hums along, and good news for your feed reader.</p>
+        <ul>
+          <li>While the page in front plays sound, small notes drift up from beside the wisp</li>
+          <li>Settings can add twelve good news feeds to Newsboat, and take them out again</li>
+          <li>This week's pages fold a day at a time, with today open</li>
+          <li>The wisp's breath no longer skips a beat when it slows at night or as it dozes</li>
+          <li>A smaller program: 2.3 MB, down from 3.8 MB</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.10.0" date="2026-09-16">
       <description>
         <p>Glimmerwood is a Linux browser.</p>

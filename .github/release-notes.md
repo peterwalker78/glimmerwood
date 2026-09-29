@@ -1,14 +1,22 @@
-**Glimmerwood is a Linux browser.** The macOS and Windows builds are withdrawn
-from 0.10.0. Both were working browsers — tabs, bookmarks, find, zoom,
-downloads, a restored session and the wisp in its nook — but neither could be
-developed against on a Linux machine, and three engines that agree on little
-past `Navigate` meant every browser feature was written three times.
-[`docs/ports/`](https://github.com/peterwalker78/glimmerwood/tree/main/docs/ports)
-is the record: what each engine gives you, the faults that cost a release each
-to find, and what picking either up again would take.
+The wisp hums along, and good news for your feed reader.
 
-Nothing else changes. The Linux build is the same browser, the same wisp and
-the same lists.
+- **The wisp hums along.** While the page in front of you plays sound, a
+  small note drifts up from beside the wisp every few seconds, in the same ink
+  as its z's. It stops when the sound does.
+- **Good news in Newsboat.** If you read feeds in
+  [Newsboat](https://newsboat.org), Settings can add twelve good news feeds:
+  seven that report what's working, two light ones and three for awe. They go
+  at the end of your `urls` file, tagged `glimmerwood`, and one click takes out
+  exactly those lines again. Glimmerwood fetches nothing itself.
+- **This week's pages fold a day at a time.** Today is open, every other day
+  waits behind its name and page count, and a heavy day shows its first twelve
+  pages with the rest a click away.
+- **The wisp's breath keeps its rhythm** when it slows at night or as the wisp
+  dozes, where before it jumped to a different point in the breath.
+- **A smaller program**: 2.3 MB, down from 3.8 MB.
+- **Slipstream installs Glimmerwood again.** Releases carry
+  `glimmerwood-x86_64.flatpak.sha256` beside `SHA256SUMS`, which is the file
+  Slipstream's installer checks the download against.
 
 ## Getting it
 
