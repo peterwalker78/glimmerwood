@@ -65,7 +65,7 @@ pub struct Companion {
     host: Rc<dyn Host>,
     last_input: Cell<Option<Moment>>,
     last_recorded_minute: Cell<i64>,
-    last_sent: RefCell<String>,
+    last_sent: RefCell<Option<ToChrome>>,
     /// Set when playing a scripted day instead of watching the user.
     lab: RefCell<Option<Lab>>,
     lab_title: RefCell<String>,
@@ -156,7 +156,7 @@ impl Companion {
             host: host.clone(),
             last_input: Cell::new(None),
             last_recorded_minute: Cell::new(i64::MIN),
-            last_sent: RefCell::new(String::new()),
+            last_sent: RefCell::new(None),
             lab: RefCell::new(lab),
             lab_title: RefCell::new(String::new()),
             away_since: Cell::new(None),
@@ -196,7 +196,7 @@ impl Companion {
     /// A chrome has (re)loaded and missed everything sent before: send the
     /// current state again even if nothing changed.
     pub fn chrome_ready(self: &Rc<Self>) {
-        self.last_sent.borrow_mut().clear();
+        self.last_sent.take();
         self.refresh();
     }
 
@@ -1109,14 +1109,13 @@ impl Companion {
 
         let message = wisp_message(&engine, now, &site, other_tabs, welcome, care);
         self.push_care(windows, care);
-        let json = serde_json::to_string(&message).expect("wisp messages serialise");
-        if *self.last_sent.borrow() == json {
+        if self.last_sent.borrow().as_ref() == Some(&message) {
             return;
         }
         for window in windows {
             window.send_to_chrome(&message);
         }
-        self.last_sent.replace(json);
+        self.last_sent.replace(Some(message));
     }
 
     fn record(&self, now: Moment) {

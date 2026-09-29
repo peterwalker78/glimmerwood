@@ -126,11 +126,11 @@ pub struct Window {
     toolbar_cover: Cell<i32>,
     /// What each chrome page was last sent that it would redraw for, so an
     /// update that changes nothing it shows isn't sent at all.
-    sent_tabs: RefCell<String>,
+    sent_tabs: RefCell<Option<ToChrome>>,
     /// The tabs as they were last written down, so the same session isn't
     /// written twice.
-    kept_session: RefCell<String>,
-    sent_wisp: RefCell<String>,
+    kept_session: RefCell<Option<Session>>,
+    sent_wisp: RefCell<Option<ToChrome>>,
     /// The site the wisp's question was last sent about, if any.
     sent_ask: RefCell<Option<Option<String>>>,
     /// Whether the note offering someone to talk to was last sent open.
@@ -188,9 +188,9 @@ impl Window {
             next_id: Cell::new(1),
             state_queued: Cell::new(false),
             toolbar_cover: Cell::new(INITIAL_TOOLBAR_HEIGHT),
-            sent_tabs: RefCell::new(String::new()),
-            kept_session: RefCell::new(String::new()),
-            sent_wisp: RefCell::new(String::new()),
+            sent_tabs: RefCell::new(None),
+            kept_session: RefCell::new(None),
+            sent_wisp: RefCell::new(None),
             sent_ask: RefCell::new(None),
             sent_care: Cell::new(None),
             zooms: RefCell::new(zoom::Zooms::load(&prefs::zooms_path())),
@@ -371,22 +371,19 @@ impl Window {
         }
         // The native wisp takes every change of dose; the chrome only shows
         // words, so it hears about the rest.
-        let skip_same = |sent: &RefCell<String>, key: String| sent.replace(key.clone()) == key;
-        match message {
-            ToChrome::Wisp { .. } => {
-                let mut value = serde_json::to_value(message).expect("chrome messages serialise");
-                value["dose"] = serde_json::Value::Null;
-                if skip_same(&self.sent_wisp, value.to_string()) {
-                    return;
-                }
+        let sent = match message {
+            ToChrome::Wisp { .. } => Some(&self.sent_wisp),
+            ToChrome::Tabs { .. } => Some(&self.sent_tabs),
+            _ => None,
+        };
+        if let Some(sent) = sent {
+            let mut key = message.clone();
+            if let ToChrome::Wisp { dose, .. } = &mut key {
+                *dose = 0.0;
             }
-            ToChrome::Tabs { .. } => {
-                let key = serde_json::to_string(message).expect("chrome messages serialise");
-                if skip_same(&self.sent_tabs, key) {
-                    return;
-                }
+            if sent.replace(Some(key.clone())).as_ref() == Some(&key) {
+                return;
             }
-            _ => {}
         }
         let view = match message {
             ToChrome::Tabs { .. } | ToChrome::TabIcon { .. } => &self.sidebar,
@@ -703,8 +700,7 @@ impl Window {
     /// their place.
     fn keep_session(&self) {
         let session = self.session();
-        let key = serde_json::to_string(&session).expect("the session serialises");
-        if self.kept_session.replace(key.clone()) == key {
+        if self.kept_session.replace(Some(session.clone())).as_ref() == Some(&session) {
             return;
         }
         self.companion.keep_session(&session);
@@ -726,7 +722,7 @@ impl Window {
             ToCore::Ready {
                 view: ChromeView::Sidebar,
             } => {
-                self.sent_tabs.borrow_mut().clear();
+                self.sent_tabs.take();
                 self.push_tabs();
                 for tab in self.tabs.borrow().iter() {
                     self.push_icon(tab);
@@ -738,7 +734,7 @@ impl Window {
                 self.push_state();
                 self.push_window();
                 self.push_downloads();
-                self.sent_wisp.borrow_mut().clear();
+                self.sent_wisp.take();
                 self.sent_ask.replace(None);
                 self.sent_care.set(None);
                 self.companion.chrome_ready();

@@ -624,7 +624,7 @@ messages! {
 
 messages! {
     /// Sent to the chrome.
-    #[derive(Serialize, Debug, PartialEq)]
+    #[derive(Serialize, Clone, Debug, PartialEq)]
     pub enum ToChrome {
         /// Everything the toolbar shows about the current tab.
         State {
