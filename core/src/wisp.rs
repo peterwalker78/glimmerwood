@@ -70,6 +70,8 @@ const BURST_FPS: f64 = 20.0;
 const MOTE_EVERY_MS: f64 = 1400.0;
 /// Clouded and drained: faint smoke.
 const SMOKE_EVERY_MS: f64 = 2200.0;
+/// Humming along to sound from the page: a note drifts up now and then.
+const NOTE_EVERY_MS: f64 = 4200.0;
 /// Dozing: a small z drifts up now and then.
 const Z_EVERY_MS: f64 = 3200.0;
 /// Drained: out toward the window edge, pause, back, rest.
@@ -124,6 +126,8 @@ enum ParticleKind {
     Mote,
     Smoke,
     Z,
+    /// A little note, drifting up while it hums along.
+    Note,
 }
 
 /// Everything the wisp is doing, and everything it is about to do.
@@ -166,6 +170,8 @@ pub struct Wisp {
     last_mote: f64,
     last_smoke: f64,
     last_z: f64,
+    humming: bool,
+    last_note: f64,
     seed: u64,
     width: f64,
     height: f64,
@@ -205,6 +211,8 @@ impl Wisp {
             last_mote: 0.0,
             last_smoke: 0.0,
             last_z: 0.0,
+            humming: false,
+            last_note: 0.0,
             seed: 0x9e37_79b9_7f4a_7c15,
             width,
             height,
@@ -246,6 +254,12 @@ impl Wisp {
         self.night = night;
         self.welcome = welcome;
         true
+    }
+
+    /// Whether the page in front is playing sound, which the wisp hums
+    /// along to. Says whether that changed.
+    pub fn set_humming(&mut self, humming: bool) -> bool {
+        std::mem::replace(&mut self.humming, humming) != humming
     }
 
     /// Draw one frame, at `now` milliseconds. `moving` is whether the
@@ -468,6 +482,20 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
             wisp.last_smoke = now;
             spawn(wisp, now, x, y - radius * 1.4, ParticleKind::Smoke);
         }
+        if wisp.humming
+            && awake > 0.5
+            && wisp.privacy < 0.1
+            && now - wisp.last_note > NOTE_EVERY_MS * (0.7 + random(wisp) * 0.6)
+        {
+            wisp.last_note = now;
+            spawn(
+                wisp,
+                now,
+                x + radius * 1.1,
+                y + radius * 0.2,
+                ParticleKind::Note,
+            );
+        }
         if wisp.sleep > 0.8 && wisp.privacy < 0.1 && now - wisp.last_z > Z_EVERY_MS {
             wisp.last_z = now;
             spawn(
@@ -558,7 +586,11 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         || settling(privacy)
         || settling(wisp.sleep)
         || settling(wisp.happy);
-    let lively = wisp.particles.iter().any(|p| p.kind != ParticleKind::Z)
+    // Z's and notes drift slowly enough for the resting pace.
+    let lively = wisp
+        .particles
+        .iter()
+        .any(|p| matches!(p.kind, ParticleKind::Mote | ParticleKind::Smoke))
         || nourishing
         || dose >= 0.45
         || engaged > 0.2;
@@ -963,6 +995,7 @@ fn spawn(wisp: &mut Wisp, now: f64, x: f64, y: f64, kind: ParticleKind) {
         ParticleKind::Mote => (900.0, spread * 8.0, -16.0, 1.4),
         ParticleKind::Smoke => (2600.0, spread * 4.0, -12.0, 5.0),
         ParticleKind::Z => (2600.0, 6.0, -14.0, 3.2),
+        ParticleKind::Note => (3400.0, 7.0 + spread * 6.0, -18.0, 4.2),
     };
     wisp.particles.push(Particle {
         born: now,
@@ -985,6 +1018,12 @@ fn draw_particles(
     presence: f64,
 ) {
     wisp.particles.retain(|p| now - p.born < p.life);
+    // Z's and notes are written in the chrome's own ink, not the wisp's light.
+    let ink = if dark {
+        Rgb(0.85, 0.86, 0.83)
+    } else {
+        Rgb(0.17, 0.18, 0.16)
+    };
     for p in &wisp.particles {
         let age = (now - p.born) / p.life;
         let px = p.x + p.dx * age;
@@ -1010,12 +1049,33 @@ fn draw_particles(
                 ));
                 cr.disc(px, py, size);
             }
+            ParticleKind::Note => {
+                // A quaver: a round head, a stem and a flag, swaying a little.
+                let sway = (age * TAU).sin() * 1.5;
+                let (hx, hy) = (px + sway, py);
+                let s = p.size;
+                cr.set_paint(Paint::solid(ink, 0.45 * fade));
+                cr.save();
+                cr.translate(hx, hy);
+                cr.scale(s * 0.5, s * 0.38);
+                cr.arc(0.0, 0.0, 1.0, 0.0, TAU);
+                cr.restore();
+                cr.fill();
+                cr.set_line_width(0.8);
+                cr.set_round_ends(true);
+                cr.move_to(hx + s * 0.45, hy);
+                cr.line_to(hx + s * 0.45, hy - s * 1.7);
+                cr.curve_to(
+                    hx + s * 0.9,
+                    hy - s * 1.3,
+                    hx + s * 1.1,
+                    hy - s * 1.0,
+                    hx + s * 0.8,
+                    hy - s * 0.6,
+                );
+                cr.stroke();
+            }
             ParticleKind::Z => {
-                let ink = if dark {
-                    Rgb(0.85, 0.86, 0.83)
-                } else {
-                    Rgb(0.17, 0.18, 0.16)
-                };
                 cr.set_paint(Paint::solid(ink, 0.45 * fade));
                 cr.set_line_width(1.1);
                 cr.set_round_ends(true);
@@ -1100,5 +1160,29 @@ mod tests {
         let mut wisp = Wisp::new(NOOK.0, NOOK.1);
         assert!(wisp.update(0.5, Mode::Draining, Trend::Rising, false, false, false));
         assert!(!wisp.update(0.5, Mode::Draining, Trend::Rising, false, false, false));
+    }
+    fn notes_after(private: bool) -> usize {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        wisp.update(0.1, Mode::Holding, Trend::Steady, private, false, false);
+        assert!(wisp.set_humming(true));
+        assert!(!wisp.set_humming(true));
+        let mut notes = 0;
+        for frame in 0..1000 {
+            let mut canvas = SvgCanvas::new(NOOK.0, NOOK.1);
+            wisp.draw(frame as f64 * 16.0, true, false, &mut canvas);
+            notes = notes.max(
+                wisp.particles
+                    .iter()
+                    .filter(|p| p.kind == ParticleKind::Note)
+                    .count(),
+            );
+        }
+        notes
+    }
+
+    #[test]
+    fn it_hums_along_to_sound_but_not_while_giving_privacy() {
+        assert!(notes_after(false) > 0);
+        assert_eq!(notes_after(true), 0);
     }
 }

@@ -98,6 +98,13 @@ impl WispView {
             self.area.queue_draw();
         }
     }
+
+    /// `humming`: the page in front is playing sound.
+    pub fn set_humming(&self, humming: bool) {
+        if self.wisp.borrow_mut().set_humming(humming) {
+            self.area.queue_draw();
+        }
+    }
 }
 
 fn animations_enabled() -> bool {

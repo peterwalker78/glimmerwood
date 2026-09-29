@@ -300,6 +300,13 @@ impl Window {
         self.selected_tab().is_some_and(|tab| audible(&tab.view))
     }
 
+    /// The wisp hums along to whatever the tab on screen is playing.
+    fn hum(&self) {
+        if let Some(wisp) = self.wisp.borrow().as_ref() {
+            wisp.set_humming(self.sound_on_screen());
+        }
+    }
+
     /// The addresses of the tabs other than the one on screen. A tab still
     /// asleep is one of them, but it names no address: where it would go is
     /// not somewhere the user has been.
@@ -480,6 +487,7 @@ impl Window {
         }
         // Home's greeting depends on the moment it's seen.
         self.push_page(&tab);
+        self.hum();
         self.companion.refresh();
     }
 
@@ -1098,6 +1106,7 @@ impl Window {
                 return;
             };
             this.push_tabs();
+            this.hum();
             this.companion.refresh();
         };
         view.connect_is_playing_audio_notify(glib::clone!(
