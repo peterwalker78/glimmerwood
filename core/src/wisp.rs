@@ -160,6 +160,8 @@ pub struct Wisp {
     next_glance: f64,
     next_blink: f64,
     particles: Vec<Particle>,
+    /// Where in its breath it is, 0-1.
+    breath: f64,
     last_tick: Option<f64>,
     last_mote: f64,
     last_smoke: f64,
@@ -198,6 +200,7 @@ impl Wisp {
             next_glance: 0.0,
             next_blink: 0.0,
             particles: Vec::new(),
+            breath: 0.0,
             last_tick: None,
             last_mote: 0.0,
             last_smoke: 0.0,
@@ -296,9 +299,8 @@ fn along(points: &[(f64, f64)], dose: f64) -> f64 {
 
 /// Draw one frame. Returns how long until the next one is wanted.
 fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas) -> Option<f64> {
-    let dt = wisp
-        .last_tick
-        .map_or(16.0, |last| (now - last).clamp(0.0, 250.0));
+    let elapsed = wisp.last_tick.map_or(0.0, |last| (now - last).max(0.0));
+    let dt = wisp.last_tick.map_or(16.0, |_| elapsed.min(250.0));
     wisp.last_tick = Some(now);
 
     let asleep = wisp.mode == Mode::Away;
@@ -406,7 +408,9 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
 
     if moving {
         let slow = (1.0 + wisp.sleep * 0.4) * (1.0 + (NIGHT_BREATH - 1.0) * wisp.night_mix);
-        let breath = (now / (BREATH_MS * slow) * TAU).sin();
+        // Kept as a running phase, so a change of pace never skips a beat.
+        wisp.breath = (wisp.breath + elapsed / (BREATH_MS * slow)).fract();
+        let breath = (wisp.breath * TAU).sin();
         radius *= (1.0 + breath * BREATH_DEPTH) * (1.0 + WELCOME_BIGGER * wisp.welcome_mix);
         y -= ((now / 2400.0 * TAU).sin() * 0.5 + 0.5) * 2.0 * rested * awake;
         x += wander(now, 1.3) * ROAM_X * engaged * awake;
