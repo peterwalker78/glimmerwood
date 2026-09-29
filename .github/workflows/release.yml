@@ -41,7 +41,11 @@ jobs:
           merge-multiple: true
           path: built
       - name: Checksums
-        run: cd built && sha256sum * > SHA256SUMS
+        # The bundle's own .sha256 is what Slipstream's installer fetches beside it.
+        run: |
+          cd built
+          sha256sum * > SHA256SUMS
+          sha256sum glimmerwood-x86_64.flatpak > glimmerwood-x86_64.flatpak.sha256
       - uses: softprops/action-gh-release@v2
         with:
           files: built/*
