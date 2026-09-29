@@ -2,3 +2,11 @@
 members = ["core", "app", "raster"]
 default-members = ["app"]
 resolver = "3"
+
+# Whole-program optimisation in one unit: slower to build, but a smaller and
+# slightly quicker binary. Stripping the symbol table takes off most of the
+# rest; a panic still names the file and line it came from.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
