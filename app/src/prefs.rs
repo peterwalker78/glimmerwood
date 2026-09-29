@@ -11,12 +11,12 @@ use gtk::glib;
 const GROUP: &str = "window";
 const TAB_COLUMN_WIDTH: &str = "tab-column-width";
 
-// The width the column starts at and may be dragged between is the core's,
-// so every platform agrees about it.
-pub use glimmerwood_core::tabs::{
-    COLUMN_DEFAULT as DEFAULT_TAB_COLUMN_WIDTH, COLUMN_MAX as MAX_TAB_COLUMN_WIDTH,
-    COLUMN_MIN as MIN_TAB_COLUMN_WIDTH,
-};
+/// How wide the tab column may be dragged, and where it starts. Narrow by
+/// default: just wide enough for each site's mark, with titles appearing
+/// once someone drags it out far enough to want them.
+pub const DEFAULT_TAB_COLUMN_WIDTH: i32 = 48;
+pub const MIN_TAB_COLUMN_WIDTH: i32 = 48;
+pub const MAX_TAB_COLUMN_WIDTH: i32 = 360;
 
 fn path() -> PathBuf {
     glib::user_config_dir()

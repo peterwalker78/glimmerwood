@@ -81,8 +81,10 @@ withdrawal:
    the clock always asked for.
 
 What was never done is step 3 of the plan: a `WebView` trait with the engines
-behind it. The shells were written without it, sharing `core/src/tabs.rs`,
-`core/src/failure.rs` and `core/src/zoom.rs` instead. A third copy of the
+behind it. The shells were written without it, sharing `core/src/failure.rs`,
+`core/src/zoom.rs` and a tab model in `core/src/tabs.rs` instead (the GTK
+window keeps its own tabs, so that file went with the shells; `git show
+367d4fb^:core/src/tabs.rs` has it). A third copy of the
 navigation plumbing is exactly the cost that trait would have saved, and
 anyone picking this up should write it first rather than last.
 

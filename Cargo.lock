@@ -376,10 +376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "glimmerwood-embed"
-version = "0.10.0"
-
-[[package]]
 name = "glimmerwood-raster"
 version = "0.10.0"
 dependencies = [

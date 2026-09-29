@@ -1,4 +1,4 @@
 [workspace]
-members = ["core", "app", "embed", "raster"]
+members = ["core", "app", "raster"]
 default-members = ["app"]
 resolver = "3"
