@@ -124,8 +124,9 @@ exists.
 
 - **Sound counts as watching.** A tab playing in front of you keeps the wisp
   awake for up to half an hour after you last touched anything, so falling
-  asleep to rain sounds is rest, not screen time. Tabs you aren't looking at
-  never count, however many you have open.
+  asleep to rain sounds is rest, not screen time. While it plays, small notes
+  drift up from beside the wisp. Tabs you aren't looking at never count,
+  however many you have open.
 - **Coming back after two hours away,** the wisp greets you visibly brighter.
 
 <br>
