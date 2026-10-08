@@ -121,17 +121,21 @@ evenings are always like that.*
 Most tools for "digital wellbeing" lean on blocking, timers and guilt. They
 work for a week, then you find the switch that turns them off.
 
-- 🪞 **Noticing, not nagging.** Simply keeping track of how you use the web
-  leaves people less anxious and less afraid of missing out. The wisp does the
-  noticing, so the choice stays yours.
-- 🌱 **Kindness over shame.** Guilt makes people hide from the problem.
+- **Noticing, not nagging.** In one study, students who did nothing but keep
+  track of their social media use came out less anxious and less afraid of
+  missing out ([Hunt and others, 2018](https://doi.org/10.1521/jscp.2018.37.10.751)).
+  The wisp does the noticing, so the choice stays yours.
+- **Kindness over shame.** Guilt makes people hide from the problem.
   Glimmerwood celebrates good days out loud and never lectures you about the rest.
-- 🚪 **You're always in charge.** No page is ever blocked, nothing pops up to
-  warn you, and every site stays one click away.
-- ☀️ **Time away counts the most.** The best thing for your wisp isn't a
+- **You're always in charge.** No page is ever blocked, nothing pops up to
+  warn you, and every site stays one click away. There's
+  [a test](app/tests/bridge_troll.rs) that fails the build if the chrome ever
+  grows a pop-up dialog or anything red.
+- **Time away counts the most.** The best thing for your wisp isn't a
   "good" website: it's closing the laptop.
-- 🌙 **Your evenings matter.** Late screens are one of the clearest links
-  between life online and poor sleep, so after 11pm the wisp winds down with you.
+- **Your evenings matter.** Bright screens late in the evening push sleep later
+  ([Chang and others, 2015](https://doi.org/10.1073/pnas.1418490112)), so after
+  11pm the wisp winds down with you.
 
 [**How the wisp actually works →**](guide/how-it-works.md)
 
@@ -212,7 +216,7 @@ and say why.
 | [**Building it**](guide/building.md) | the workspace, the scripts and what it needs |
 | [**Ports**](docs/ports) | the withdrawn Windows and macOS shells, and what they taught us |
 
-AI coding tools are used in writing Glimmerwood's code.
+AI coding tools are used in writing Glimmerwood's code. Every change is built and tested in CI.
 
 ## Licence
 
