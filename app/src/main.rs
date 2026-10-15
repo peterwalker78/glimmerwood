@@ -11,6 +11,7 @@ mod wisp_view;
 
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::feel_lab;
+use glimmerwood_core::nav;
 
 use std::cell::OnceCell;
 use std::rc::Rc;
@@ -84,20 +85,41 @@ fn main() -> glib::ExitCode {
         }
     ));
 
-    // Arguments are taken as if typed into the address field, one tab each.
-    // GApplication's "open" would turn a bare `example.org` into a file path.
+    // Arguments are taken as if typed into the address field, one tab each,
+    // except files, which open as themselves: a file manager hands over an
+    // HTML file as a `file:` URI. GApplication's "open" would turn a bare
+    // `example.org` into a file path.
     app.connect_command_line(move |app, command_line| {
         let companion = companion.get().expect("set at startup");
         let window = window::Window::new(app, companion, &host);
         let args = command_line.arguments();
         for (i, arg) in args.iter().skip(1).enumerate() {
-            window.open(&arg.to_string_lossy(), i > 0);
+            let arg = arg.to_string_lossy();
+            let target = local_file(command_line, &arg).or_else(|| nav::resolve(&arg));
+            window.open(target, i > 0);
         }
         window.present();
         glib::ExitCode::SUCCESS
     });
 
     app.run_with_args(&args)
+}
+
+/// The page a file argument names: a `file:` URI, or the path of a file
+/// that exists.
+fn local_file(command_line: &gio::ApplicationCommandLine, arg: &str) -> Option<nav::Target> {
+    let file = command_line.create_file_for_arg(arg);
+    let named = arg
+        .get(..5)
+        .is_some_and(|s| s.eq_ignore_ascii_case("file:"));
+    let found = || {
+        file.query_file_type(gio::FileQueryInfoFlags::NONE, gio::Cancellable::NONE)
+            == gio::FileType::Regular
+    };
+    (file.has_uri_scheme("file") && (named || found())).then(|| nav::Target {
+        uri: file.uri().into(),
+        fallback: None,
+    })
 }
 
 /// Take `--feel-lab`, `--from=HH:MM`, `--speed=N` and `--show-caption` out

@@ -269,14 +269,14 @@ impl Window {
 
     /// Open something the user asked for from outside the window, such as a
     /// link handed over by another app.
-    pub fn open(self: &Rc<Self>, input: &str, new_tab: bool) {
+    pub fn open(self: &Rc<Self>, target: Option<nav::Target>, new_tab: bool) {
         let tab = if new_tab {
             Some(self.add_tab(None, false))
         } else {
             self.selected_tab()
         };
         if let Some(tab) = tab {
-            self.navigate(&tab, input);
+            self.load(&tab, target);
         }
     }
 
