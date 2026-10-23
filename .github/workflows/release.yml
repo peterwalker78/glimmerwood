@@ -46,6 +46,20 @@ jobs:
           cd built
           sha256sum * > SHA256SUMS
           sha256sum glimmerwood-x86_64.flatpak > glimmerwood-x86_64.flatpak.sha256
+      - name: Sign
+        # Slipstream checks the bundle against this signature once its file for this app names
+        # the public key. Without the secret the release still goes out, unsigned.
+        env:
+          EXTRA_SIGNING_KEY: ${{ secrets.EXTRA_SIGNING_KEY }}
+        run: |
+          if [ -z "$EXTRA_SIGNING_KEY" ]; then
+            echo "::warning::EXTRA_SIGNING_KEY isn't set, so the bundle goes out unsigned"
+            exit 0
+          fi
+          key=$(mktemp)
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$EXTRA_SIGNING_KEY" >"$key"
+          ssh-keygen -q -Y sign -f "$key" -n slipstream-extra built/glimmerwood-x86_64.flatpak
       - uses: softprops/action-gh-release@v2
         with:
           files: built/*
