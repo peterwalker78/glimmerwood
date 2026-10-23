@@ -53,8 +53,8 @@ jobs:
           EXTRA_SIGNING_KEY: ${{ secrets.EXTRA_SIGNING_KEY }}
         run: |
           if [ -z "$EXTRA_SIGNING_KEY" ]; then
-            echo "::warning::EXTRA_SIGNING_KEY isn't set, so the bundle goes out unsigned"
-            exit 0
+            echo "::error::EXTRA_SIGNING_KEY isn't set, and Slipstream refuses an unsigned bundle"
+            exit 1
           fi
           key=$(mktemp)
           trap 'rm -f "$key"' EXIT
