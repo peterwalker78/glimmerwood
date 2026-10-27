@@ -192,6 +192,10 @@ desktop built so that nothing on your screen is competing for you.
 Slipstream installs Glimmerwood and keeps it up to date. Glimmerwood is its
 own project, though, and just as happy on any other Linux desktop.
 
+The wisp has a third home too: in
+[Westering](https://github.com/peterwalker78/westering) it comes out for the
+night, for a few quiet minutes under tonight's real sky at the end of the day.
+
 ## On the way
 
 - A short **daily read** in the garden: something good, then done. No feed.
