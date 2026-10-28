@@ -1,13 +1,8 @@
-A way to say how it's going, and files open as themselves.
+How did it feel? has moved to the top of Settings.
 
-- **How did it feel?** Settings has a new section with a link to a short form
-  on GitHub, to say how your days with Glimmerwood went, good or bad. It opens
-  in a new tab, and you'll need a GitHub account.
-- **Files open as themselves.** An HTML file opened from a file manager, or
-  named on the command line, now loads directly. Before, it was taken as
-  something typed into the address field and searched for.
-- **Signed bundles.** The release carries a signature beside the bundle, so
-  Slipstream's installer can check who made it.
+- **Easier to find.** The link for saying how your days with Glimmerwood went
+  now sits beside the Settings title, where before it was near the bottom of
+  the page. It still opens a short form on GitHub in a new tab.
 
 ## Getting it
 
