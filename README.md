@@ -219,6 +219,7 @@ and say why.
 | [**Installing**](guide/install.md) | the Flatpak, upgrading from Wisp, and when something breaks |
 | [**Building it**](guide/building.md) | the workspace, the scripts and what it needs |
 | [**Ports**](docs/ports) | the withdrawn Windows and macOS shells, and what they taught us |
+| [**How did it feel?**](https://github.com/peterwalker78/glimmerwood/discussions/new?category=how-did-it-feel) | after a few days, say how they went, good or bad (Settings has the same link) |
 
 AI coding tools are used in writing Glimmerwood's code. Every change is built and tested in CI.
 
