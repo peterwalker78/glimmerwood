@@ -47,6 +47,15 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.12.0" date="2026-10-28">
+      <description>
+        <p>A way to say how it's going, and files open as themselves.</p>
+        <ul>
+          <li>Settings has a link to a short form on GitHub, to say how your days with Glimmerwood went</li>
+          <li>An HTML file opened from a file manager loads as the file, where before it was searched for</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.11.0" date="2026-09-29">
       <description>
         <p>The wisp hums along, and good news for your feed reader.</p>
