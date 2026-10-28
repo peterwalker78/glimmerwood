@@ -1,0 +1,21 @@
+title: "How it went"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good or bad, short or long. A few lines after a day or two is plenty.
+  - type: textarea
+    id: time
+    attributes:
+      label: Did you spend your time online any differently?
+    validations:
+      required: true
+  - type: textarea
+    id: wisp
+    attributes:
+      label: How did the wisp come across?
+      description: Company, a nag, or something you barely noticed.
+  - type: textarea
+    id: back
+    attributes:
+      label: What sent you back to your old browser, if anything?

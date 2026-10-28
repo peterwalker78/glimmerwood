@@ -1,0 +1,25 @@
+name: Something broke
+description: It crashed, froze, showed a page wrong or lost something.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: before
+    attributes:
+      label: What were you doing just before?
+      description: The site, if it's one you're happy to name.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`flatpak info io.github.peterwalker78.Glimmerwood` shows it."
+  - type: input
+    id: system
+    attributes:
+      label: Distribution and desktop
+      placeholder: Fedora 44, GNOME
