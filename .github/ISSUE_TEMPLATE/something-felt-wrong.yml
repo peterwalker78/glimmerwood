@@ -1,0 +1,21 @@
+name: Something felt wrong
+description: Nothing broke, but a moment felt off, like a nagging wisp, an unfair rating or something confusing.
+labels: [feedback]
+body:
+  - type: textarea
+    id: moment
+    attributes:
+      label: Which moment?
+      description: What was on screen, and what you'd just done.
+    validations:
+      required: true
+  - type: textarea
+    id: felt
+    attributes:
+      label: How did it feel?
+    validations:
+      required: true
+  - type: textarea
+    id: instead
+    attributes:
+      label: What would have felt right?
