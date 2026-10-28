@@ -50,6 +50,16 @@ html, body {
   margin: 0;
   font: 400 2.4rem/1.1 var(--serif);
 }
+.head .title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.feel {
+  padding: 4px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+.feel:hover { background: var(--press); }
 .head p { margin: 0.4em 0 0; color: var(--quiet); font: italic 400 1.1rem/1.45 var(--serif); }
 
 h2 {
