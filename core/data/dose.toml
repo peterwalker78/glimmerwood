@@ -43,18 +43,14 @@ ends_at = "05:00"
 # Draining time counts this much more at night.
 draining_factor = 1.5
 # At night ordinary sites hold instead of resting, and nourishing sites rest
-# at the ordinary daytime rate. Night-time draining load counts this much more
-# in the next day's carry-over.
+# at the ordinary daytime rate. Night-time draining counts this much more
+# toward the day's load.
 carry_factor = 2.0
 
 [day]
-# Local time a new day begins.
+# Local time a new day begins. A new day starts fresh; nothing from the
+# previous day carries into it.
 starts_at = "05:00"
-# A new day starts at carry_max x min(1, yesterday's draining load / carry_full_load),
-# where load is minutes present on draining sites, each weighted by |weight|,
-# night-time minutes counting night.carry_factor times.
-carry_max = 0.1
-carry_full_load = 180.0
 
 [presence]
 # Input within this many seconds counts as being present.

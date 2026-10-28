@@ -23,8 +23,7 @@ up to 0.5, clouded up to 0.75, and sleepy beyond.
   Everyday sites (your bank, your email, a map) recover it more slowly still.
 - **Late at night** (11pm to 5am, or your own hours in Settings) draining time
   counts one and a half times, and everyday sites stop counting as rest.
-- **A new day** starts fresh at 5am, carrying over at most a little of a very
-  heavy yesterday.
+- **A new day** starts fresh at 5am: nothing from yesterday carries over.
 
 Glimmerwood only counts time you're actually there: if you haven't touched the
 keyboard or mouse for four minutes, it treats you as away (unless you're
