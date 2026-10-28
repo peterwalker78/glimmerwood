@@ -104,8 +104,6 @@ pub struct Night {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Day {
     pub starts_at: String,
-    pub carry_max: f64,
-    pub carry_full_load: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -727,9 +725,8 @@ impl Engine {
     }
 
     fn start_day(&mut self) {
-        let carry =
-            self.rates.day.carry_max * (self.day_load / self.rates.day.carry_full_load).min(1.0);
-        self.dose = carry;
+        // A new day starts fresh: nothing from the previous day carries over.
+        self.dose = 0.0;
         self.day_load = 0.0;
         self.news_today = 0.0;
     }
@@ -901,7 +898,6 @@ mod tests {
             (0.2, 0.5, 0.75)
         );
         assert_eq!(r.day.starts_at, "05:00");
-        assert_eq!(r.day.carry_max, 0.1);
         assert_eq!(
             (r.night.starts_at.as_str(), r.night.ends_at.as_str()),
             ("23:00", "05:00")
@@ -1155,31 +1151,15 @@ mod tests {
     // --- Days ----------------------------------------------------------------
 
     #[test]
-    fn a_new_day_starts_at_five_with_a_small_carry_over() {
-        // 3 hours fully draining in the evening: full carry of 0.1.
+    fn a_new_day_starts_fresh_after_a_heavy_evening() {
+        // A brutal evening leaves nothing on the next day: the day starts fresh.
         let mut engine = Engine::new(Rates::bundled(), at("18:00"));
         engine.set_activity(at("18:00"), site("tiktok.com", -1.0, at("21:00")));
         engine.set_activity(at("21:00"), Activity::Away);
         engine.advance(at("1/04:59"));
         assert!(engine.dose() < 0.01, "rest overnight: {}", engine.dose());
         engine.advance(at("1/05:00"));
-        assert_near(engine.dose(), 0.1, 1e-9);
-    }
-
-    #[test]
-    fn carry_over_scales_with_yesterdays_load_and_night_counts_double() {
-        // 90 weighted minutes in the evening: half the maximum carry.
-        let mut evening = Engine::new(Rates::bundled(), at("18:00"));
-        evening.set_activity(at("18:00"), site("tiktok.com", -1.0, at("19:30")));
-        evening.set_activity(at("19:30"), Activity::Away);
-        evening.advance(at("1/05:00"));
-        assert_near(evening.dose(), 0.05, 1e-9);
-        // The same 90 minutes late at night: the full carry.
-        let mut late = Engine::new(Rates::bundled(), at("23:00"));
-        late.set_activity(at("23:00"), site("tiktok.com", -1.0, at("1/00:30")));
-        late.set_activity(at("1/00:30"), Activity::Away);
-        late.advance(at("1/05:00"));
-        assert_near(late.dose(), 0.1, 1e-9);
+        assert_eq!(engine.dose(), 0.0);
     }
 
     #[test]
