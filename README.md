@@ -156,8 +156,8 @@ Glimmerwood is private by design, not by promise.
   about those visits is named, and they never reach the history. A tab you
   leave open is still restored like any other, so close it if you'd rather it
   didn't come back.
-- **Trackers are blocked** before they can load, and every site is asked for a
-  secure connection first.
+- **Cross-site tracking is limited** by the browser engine's tracking
+  prevention, and every site is asked for a secure connection first.
 
 ## And on your phone
 
@@ -221,7 +221,7 @@ and say why.
 | [**Ports**](docs/ports) | the withdrawn Windows and macOS shells, and what they taught us |
 | [**How did it feel?**](https://github.com/peterwalker78/glimmerwood/discussions/new?category=how-did-it-feel) | after a few days, say how they went, good or bad (Settings has the same link) |
 
-AI coding tools are used in writing Glimmerwood's code. Every change is built and tested in CI.
+AI tools are used in writing Glimmerwood's code and its words. Every change is built and tested in CI.
 
 ## Licence
 
