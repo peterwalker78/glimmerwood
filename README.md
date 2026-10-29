@@ -156,8 +156,8 @@ Glimmerwood is private by design, not by promise.
   about those visits is named, and they never reach the history. A tab you
   leave open is still restored like any other, so close it if you'd rather it
   didn't come back.
-- **Trackers are blocked** before they can load, and every site is asked for a
-  secure connection first.
+- **Cross-site tracking is limited** by the browser engine's tracking
+  prevention, and every site is asked for a secure connection first.
 
 ## And on your phone
 
