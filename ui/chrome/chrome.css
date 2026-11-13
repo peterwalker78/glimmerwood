@@ -404,7 +404,7 @@ span.icon {
   cursor: help;
 }
 
-/* Something is arriving. It says that much and no more: no count, no bar,
+/* A download waiting on Home. It says that much and no more: no count, no bar,
    and nothing that pulls at the eye beside the wisp. */
 .downloads {
   flex: none;

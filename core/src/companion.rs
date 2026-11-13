@@ -628,6 +628,7 @@ impl Companion {
             eprintln!("glimmerwood: couldn't forget the week's pages: {err}");
         }
         self.downloads.borrow_mut().forget_finished();
+        self.push_downloads();
         let rates = self.engine.borrow().rates().clone();
         self.engine.replace(Engine::new(rates, self.now()));
         self.last_recorded_minute.set(i64::MIN);
@@ -755,6 +756,7 @@ impl Companion {
                     return false;
                 }
                 self.downloads.borrow_mut().forget_finished();
+                self.push_downloads();
                 true
             }
             _ => false,
@@ -850,8 +852,9 @@ impl Companion {
 
     fn push_downloads(self: &Rc<Self>) {
         let running = self.downloads.borrow().running() as u32;
+        let listed = self.downloads.borrow().showing().len() as u32;
         for window in self.host.windows() {
-            window.send_to_chrome(&ToChrome::Downloads { running });
+            window.send_to_chrome(&ToChrome::Downloads { running, listed });
         }
     }
 

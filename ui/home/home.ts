@@ -9,7 +9,7 @@ import { letter, placeCard, span } from "./place.js";
 
 declare global {
   interface Window {
-    wispHome: { show(data: HomeData): void; reveal(): void; showDownloads(files: Download[]): void };
+    wispHome: { show(data: HomeData): void; reveal(part?: string): void; showDownloads(files: Download[]): void };
     // Left by the core in case it arrives before this script has run.
     wispHomeData?: HomeData;
   }
@@ -107,15 +107,17 @@ function show(data: HomeData): void {
   drawGarden(garden, data.part, data.plants, data.seed);
   showDiary(diary, data.wisp);
 
-  // Opened by clicking the wisp: once the history is drawn, go to it.
-  if (!shown && location.hash === "#wisp") reveal();
+  // Opened by clicking the wisp or the download mark: once the page is
+  // drawn, go to that part of it.
+  if (!shown && location.hash) reveal(location.hash.slice(1));
   shown = true;
 }
 let shown = false;
 
-function reveal(): void {
+function reveal(part = "wisp"): void {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  diary.section.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" });
+  const target = part === "downloads" && !arriving.hidden ? arriving : diary.section;
+  target.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" });
 }
 
 // --- This week ----------------------------------------------------------------

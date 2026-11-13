@@ -266,7 +266,7 @@ impl Window {
             },
             move || {
                 if let Some(this) = weak_click.upgrade() {
-                    this.show_wisp();
+                    this.show_on_home("wisp");
                 }
             },
         );
@@ -617,9 +617,9 @@ impl Window {
         }
     }
 
-    /// The wisp's history on Home: the tab on screen if it's
-    /// Home, else the window's first Home tab, else a new one.
-    fn show_wisp(self: &Rc<Self>) {
+    /// A part of Home (`wisp`, its history, or `downloads`): in the tab on
+    /// screen if it's Home, else the window's first Home tab, else a new one.
+    fn show_on_home(self: &Rc<Self>, part: &str) {
         let is_home = |tab: &Tab| tab.view.uri().is_some_and(|uri| pages::is_home(&uri));
         let existing = self
             .selected_tab()
@@ -631,7 +631,9 @@ impl Window {
                     self.select_tab(tab.id);
                 }
                 tab.view.evaluate_javascript(
-                    "if (location.href.startsWith('glimmerwood://home/')) window.wispHome?.reveal()",
+                    &format!(
+                        "if (location.href.startsWith('glimmerwood://home/')) window.wispHome?.reveal('{part}')"
+                    ),
                     None,
                     None,
                     None::<&gio::Cancellable>,
@@ -641,7 +643,7 @@ impl Window {
             }
             None => {
                 let tab = self.add_tab(None, true);
-                tab.view.load_uri(HOME_WISP);
+                tab.view.load_uri(&format!("{HOME}#{part}"));
                 tab
             }
         };
@@ -926,7 +928,8 @@ impl Window {
                 }
             }
             ToCore::SelectTab { id } => self.select_tab(id),
-            ToCore::ShowWisp => self.show_wisp(),
+            ToCore::ShowWisp => self.show_on_home("wisp"),
+            ToCore::ShowDownloads => self.show_on_home("downloads"),
             ToCore::RateSite { site, rating } => self.companion.rate_site(&site, Some(rating)),
             ToCore::NotNow { site } => self.companion.not_now(&site),
             ToCore::CloseCare => self.companion.close_care(),
@@ -1715,13 +1718,13 @@ impl Window {
     /// A toolbar that has just loaded hasn't heard about the files still
     /// on their way.
     fn push_downloads(&self) {
-        let running = self
-            .companion
-            .downloads_showing()
+        let showing = self.companion.downloads_showing();
+        let running = showing
             .iter()
             .filter(|download| download.progress == Progress::Running)
             .count() as u32;
-        self.send_to_chrome(&ToChrome::Downloads { running });
+        let listed = showing.len() as u32;
+        self.send_to_chrome(&ToChrome::Downloads { running, listed });
     }
 
     fn push_icon(&self, tab: &Tab) {
@@ -1875,7 +1878,6 @@ impl Window {
 /// Where new tabs start, and where its buttons point.
 const HOME: &str = "glimmerwood://home/";
 const HOME_ACTIONS: &str = "glimmerwood://home/do/";
-const HOME_WISP: &str = "glimmerwood://home/#wisp";
 const SETTINGS: &str = "glimmerwood://settings/";
 /// Where the care note leads: an international directory of free, confidential
 /// helplines, and Samaritans in the UK and Ireland.

@@ -598,6 +598,8 @@ messages! {
         /// The wisp was clicked, or pressed from the keyboard: show its
         /// history on Home.
         ShowWisp,
+        /// The download mark was pressed: show the downloads on Home.
+        ShowDownloads,
         /// The user answered the wisp's question about a site.
         RateSite { site: String, rating: Rating },
         /// The question closed without an answer: "not now", or it faded.
@@ -658,9 +660,9 @@ messages! {
         TabIcon { id: u32, icon: Option<String> },
         /// Put the caret in the address field and select its contents.
         FocusAddress,
-        /// How many files are arriving: a quiet mark in the toolbar while
-        /// any are, and nothing at all when none are.
-        Downloads { running: u32 },
+        /// Files on their way, and files Home still lists: a quiet mark in
+        /// the toolbar while Home has any, and nothing at all when it has none.
+        Downloads { running: u32, listed: u32 },
         /// A site would like to use something: a quiet line in the bar,
         /// or none when `site` is null.
         Permission { id: u32, site: Option<String>, wants: Vec<Want> },

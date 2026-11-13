@@ -22,7 +22,7 @@ const find = element("find", HTMLInputElement);
 const findSummary = element("find-summary", HTMLSpanElement);
 const star = element("bookmark", HTMLButtonElement);
 const progress = element("progress", HTMLDivElement);
-const downloads = element("downloads", HTMLSpanElement);
+const downloads = element("downloads", HTMLButtonElement);
 const windowButtons = element("window-buttons", HTMLDivElement);
 const nook = element("wisp", HTMLButtonElement);
 const caption = element("caption", HTMLElement);
@@ -119,6 +119,7 @@ nook.addEventListener("focus", () => {
 });
 // The native wisp takes pointer clicks; this is Enter or Space on the nook.
 nook.addEventListener("click", () => send({ type: "show_wisp" }));
+downloads.addEventListener("click", () => send({ type: "show_downloads" }));
 nook.addEventListener("blur", () => {
   focused = false;
   showCaption();
@@ -317,8 +318,10 @@ receive((message) => {
       if (message.query === find.value) findSummary.textContent = message.summary;
       break;
     case "downloads":
-      // A mark while anything is on its way, and nothing once it has landed.
-      downloads.hidden = message.running === 0;
+      // A mark while Home lists a download, and nothing once it's opened.
+      downloads.hidden = message.listed === 0;
+      downloads.title = message.running > 0 ? "Something is arriving. See it on Home" : "See your download on Home";
+      downloads.setAttribute("aria-label", downloads.title);
       reportLayout();
       break;
     case "permission":
