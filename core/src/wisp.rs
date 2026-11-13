@@ -35,6 +35,9 @@ const PRIVACY_MS: f64 = 1200.0;
 /// Noticing a change of site: a glance toward the page and a small hop, so
 /// the user sees at once that the wisp registered where they went.
 const NOTICE_MS: f64 = 1100.0;
+/// How long after the user leaves before the wisp dozes off, so a glance
+/// at another window doesn't send it to sleep.
+const DOZE_AFTER_MS: f64 = 60_000.0;
 const NOTICE_HOP: f64 = 3.0;
 /// How strongly the kind of site shows on its face, independent of the
 /// dose: wary on draining sites (lids a little lower, the smile flattened,
@@ -156,6 +159,8 @@ pub struct Wisp {
     /// The mode the wisp last reacted to, and when it noticed the change.
     noticed: Mode,
     notice_start: f64,
+    /// When the user last left.
+    away_since: f64,
     /// 0-1, eased: how wary, calm or curious it looks.
     wary: f64,
     calm: f64,
@@ -199,6 +204,7 @@ impl Wisp {
             sleep: 1.0,
             noticed: Mode::Away,
             notice_start: f64::NEG_INFINITY,
+            away_since: f64::NEG_INFINITY,
             wary: 0.0,
             calm: 0.0,
             curious: 0.0,
@@ -318,7 +324,12 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
     let dt = wisp.last_tick.map_or(16.0, |_| elapsed.min(250.0));
     wisp.last_tick = Some(now);
 
-    let asleep = wisp.mode == Mode::Away;
+    let away = wisp.mode == Mode::Away;
+    if away && wisp.noticed != Mode::Away {
+        wisp.away_since = now;
+    }
+    let dozing_in = wisp.away_since + DOZE_AFTER_MS - now;
+    let asleep = away && dozing_in <= 0.0;
     let nourishing = wisp.mode == Mode::Nourishing;
     let as_f64 = |b: bool| f64::from(u8::from(b));
 
@@ -327,7 +338,7 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
     if wisp.mode != wisp.noticed {
         let woke = wisp.noticed == Mode::Away;
         wisp.noticed = wisp.mode;
-        if !asleep {
+        if !away {
             wisp.notice_start = now;
             just_noticed = true;
             // Look toward the page, where the user went.
@@ -602,6 +613,10 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         );
     }
 
+    if !moving && away && !asleep {
+        // Without motion there are no frames to notice the minute passing.
+        return Some(dozing_in);
+    }
     if !moving || still {
         return None;
     }
@@ -1209,6 +1224,25 @@ mod tests {
             }
         }
         false
+    }
+
+    #[test]
+    fn a_glance_at_another_window_doesnt_send_it_to_sleep() {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        wisp.update(0.3, Mode::Resting, Trend::Steady, false, false, false);
+        let mut now = 0.0;
+        let frame = |wisp: &mut Wisp, now: &mut f64, until: f64| {
+            while *now < until {
+                let mut canvas = SvgCanvas::new(NOOK.0, NOOK.1);
+                *now += wisp.draw(*now, true, false, &mut canvas).unwrap_or(250.0);
+            }
+        };
+        frame(&mut wisp, &mut now, 5_000.0);
+        wisp.update(0.3, Mode::Away, Trend::Steady, false, false, false);
+        frame(&mut wisp, &mut now, 40_000.0);
+        assert!(wisp.sleep < 0.02, "still awake 35 s after leaving");
+        frame(&mut wisp, &mut now, 70_000.0);
+        assert!(wisp.sleep > 0.98, "dozing a minute after leaving");
     }
 
     #[test]
