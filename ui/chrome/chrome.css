@@ -404,8 +404,9 @@ span.icon {
   cursor: help;
 }
 
-/* A download waiting on Home. It says that much and no more: no count, no bar,
-   and nothing that pulls at the eye beside the wisp. */
+/* Downloads: always here. Quiet with nothing new; while a file arrives the
+   arrow keeps dropping into the tray; once one has landed it settles with a
+   bounce and a dot stays until the file is opened. No count, no bar. */
 .downloads {
   flex: none;
   display: grid;
@@ -414,16 +415,37 @@ span.icon {
   height: 30px;
   color: var(--quiet);
 }
-.downloads[hidden] { display: none; }
+.downloads:hover { color: var(--ink); }
 .downloads svg {
   display: block;
   width: 16px;
   height: 16px;
+  overflow: visible;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.downloads .dot { fill: currentColor; stroke: none; opacity: 0; transition: opacity 300ms ease-out; }
+.downloads[data-state="arriving"],
+.downloads[data-state="landed"] { color: var(--ink); }
+.downloads[data-state="arriving"] .arrow { animation: arriving 1.4s ease-in infinite; }
+.downloads[data-state="landed"] .dot { opacity: 1; }
+.downloads.landing .arrow { animation: landing 600ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes arriving {
+  0% { transform: translateY(-6px); opacity: 0; }
+  30% { opacity: 1; }
+  70% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(2px); opacity: 0; }
+}
+@keyframes landing {
+  0% { transform: translateY(-4px); }
+  60% { transform: translateY(1.5px); }
+  100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .downloads .arrow { animation: none !important; }
 }
 
 .star[hidden] { display: none; }

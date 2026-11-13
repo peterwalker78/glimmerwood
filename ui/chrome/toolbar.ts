@@ -120,6 +120,23 @@ nook.addEventListener("focus", () => {
 // The native wisp takes pointer clicks; this is Enter or Space on the nook.
 nook.addEventListener("click", () => send({ type: "show_wisp" }));
 downloads.addEventListener("click", () => send({ type: "show_downloads" }));
+
+const DOWNLOAD_WORDS = {
+  idle: "Open your Downloads folder",
+  arriving: "Something is arriving. See it on Home",
+  landed: "See your download on Home",
+};
+
+function showDownloads(running: number, listed: number): void {
+  const state = running > 0 ? "arriving" : listed > 0 ? "landed" : "idle";
+  const was = downloads.dataset["state"];
+  if (state === was) return;
+  downloads.dataset["state"] = state;
+  downloads.title = DOWNLOAD_WORDS[state];
+  downloads.setAttribute("aria-label", downloads.title);
+  // A file that has just arrived settles into the tray once.
+  downloads.classList.toggle("landing", was === "arriving" && state === "landed");
+}
 nook.addEventListener("blur", () => {
   focused = false;
   showCaption();
@@ -318,11 +335,7 @@ receive((message) => {
       if (message.query === find.value) findSummary.textContent = message.summary;
       break;
     case "downloads":
-      // A mark while Home lists a download, and nothing once it's opened.
-      downloads.hidden = message.listed === 0;
-      downloads.title = message.running > 0 ? "Something is arriving. See it on Home" : "See your download on Home";
-      downloads.setAttribute("aria-label", downloads.title);
-      reportLayout();
+      showDownloads(message.running, message.listed);
       break;
     case "permission":
       showPermission(message);

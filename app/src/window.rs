@@ -929,7 +929,13 @@ impl Window {
             }
             ToCore::SelectTab { id } => self.select_tab(id),
             ToCore::ShowWisp => self.show_on_home("wisp"),
-            ToCore::ShowDownloads => self.show_on_home("downloads"),
+            ToCore::ShowDownloads => {
+                if self.companion.downloads_showing().is_empty() {
+                    host::open_folder(&crate::downloads::downloads_dir());
+                } else {
+                    self.show_on_home("downloads");
+                }
+            }
             ToCore::RateSite { site, rating } => self.companion.rate_site(&site, Some(rating)),
             ToCore::NotNow { site } => self.companion.not_now(&site),
             ToCore::CloseCare => self.companion.close_care(),

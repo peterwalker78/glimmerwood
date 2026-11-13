@@ -120,7 +120,7 @@ fn fraction(download: &webkit::Download) -> Option<f64> {
 
 /// Where files land, falling back to the home folder on a machine with no
 /// Downloads folder at all.
-fn downloads_dir() -> PathBuf {
+pub fn downloads_dir() -> PathBuf {
     glib::user_special_dir(glib::UserDirectory::Downloads).unwrap_or_else(glib::home_dir)
 }
 

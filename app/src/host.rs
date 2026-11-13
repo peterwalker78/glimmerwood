@@ -2,7 +2,7 @@
 //! of where files live, and a timer.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
@@ -158,6 +158,30 @@ pub fn open_file(path: &str) -> bool {
         },
     );
     true
+}
+
+/// Show a folder in the desktop's file manager. Should the portal refuse to
+/// open a folder itself, show it from its parent instead.
+pub fn open_folder(path: &Path) {
+    let file = gio::File::for_path(path);
+    let launcher = gtk::FileLauncher::new(Some(&file));
+    launcher.launch(
+        None::<&gtk::Window>,
+        gio::Cancellable::NONE,
+        move |result| {
+            if result.is_err() {
+                gtk::FileLauncher::new(Some(&file)).open_containing_folder(
+                    None::<&gtk::Window>,
+                    gio::Cancellable::NONE,
+                    |result| {
+                        if let Err(err) = result {
+                            eprintln!("glimmerwood: couldn't show the folder: {err}");
+                        }
+                    },
+                );
+            }
+        },
+    );
 }
 
 impl host::Window for Window {
