@@ -113,6 +113,7 @@ impl History {
             .execute("DELETE FROM visits WHERE at >= ?1", params![now.ms - ms])
     }
 
+    /// The whole week, gone.
     pub fn forget_everything(&self) -> rusqlite::Result<()> {
         self.conn.execute_batch("DELETE FROM visits;")
     }
