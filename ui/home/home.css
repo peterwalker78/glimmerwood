@@ -91,6 +91,9 @@ html, body {
   overflow: hidden;
   background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
 }
+/* Until the script has said what part of the day it is, the daytime sky
+   would flash pale in a dark window: show the page's own paper instead. */
+body:not([data-part]) .scene { background: var(--paper); }
 
 .garden {
   position: absolute;
