@@ -3,6 +3,7 @@ mod clock;
 mod downloads;
 mod failure;
 mod host;
+mod permissions;
 mod prefs;
 mod scheme;
 mod tabs;
@@ -65,7 +66,9 @@ fn main() -> glib::ExitCode {
                     data.set_favicons_enabled(true);
                 }
             }
+            check_spelling();
             follow_system_colour_scheme();
+            style_seams();
             window::install_accels(app);
             let started = Companion::new(host.clone(), lab.borrow_mut().take());
             host.attach(&started);
@@ -169,4 +172,87 @@ fn follow_system_colour_scheme() {
     };
     apply(&settings);
     settings.connect_gtk_interface_color_scheme_notify(apply);
+}
+
+/// Underline misspellings in whatever languages the person reads, as the
+/// system's locale lists them.
+fn check_spelling() {
+    let Some(context) = webkit::WebContext::default() else {
+        return;
+    };
+    context.set_spell_checking_enabled(true);
+    let names = glib::language_names();
+    let languages = spelling_languages(names.iter().map(|name| name.as_str()));
+    // With none to name, the spell checker keeps to its own default.
+    if !languages.is_empty() {
+        let languages: Vec<&str> = languages.iter().map(String::as_str).collect();
+        context.set_spell_checking_languages(&languages);
+    }
+}
+
+/// Real language names only: `en_GB` and `en`, not `C`, `POSIX` or the
+/// `en_GB.UTF-8` and `de_DE@euro` spellings of a name already listed.
+fn spelling_languages<'a>(names: impl Iterator<Item = &'a str>) -> Vec<String> {
+    let mut languages: Vec<String> = Vec::new();
+    for name in names {
+        let real = !matches!(name, "" | "C" | "POSIX") && !name.contains(['.', '@']);
+        if real && !languages.iter().any(|known| known == name) {
+            languages.push(name.to_owned());
+        }
+    }
+    languages
+}
+
+/// The window behind the chrome and the divider beside the tab column, in
+/// the chrome's own paper and hairline (`ui/chrome/chrome.css`) rather than
+/// the desktop theme's colours.
+fn style_seams() {
+    let (Some(display), Some(settings)) = (gtk::gdk::Display::default(), gtk::Settings::default())
+    else {
+        return;
+    };
+    let provider = gtk::CssProvider::new();
+    gtk::style_context_add_provider_for_display(
+        &display,
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+    let apply = move |_: &gtk::Settings| {
+        let dark = tabs::dark();
+        let hairline = if dark {
+            "rgba(217, 218, 213, 0.09)"
+        } else {
+            "rgba(42, 43, 40, 0.1)"
+        };
+        provider.load_from_string(&format!(
+            "window.background:not(.dialog) {{ background-color: {paper}; }}\n\
+             window.background:not(.dialog) paned > separator {{ \
+             background: none; background-color: {hairline}; }}\n",
+            paper = tabs::paper_for(dark).to_str(),
+        ));
+    };
+    apply(&settings);
+    // Deprecated in GTK 4.20, but it is the setting the pages follow too.
+    #[allow(deprecated)]
+    settings.connect_gtk_application_prefer_dark_theme_notify(apply);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::spelling_languages;
+
+    #[test]
+    fn spelling_keeps_only_real_language_names() {
+        let names = [
+            "en_GB.UTF-8",
+            "en_GB.utf8",
+            "en_GB",
+            "en.UTF-8",
+            "en",
+            "de_DE@euro",
+            "C",
+            "POSIX",
+        ];
+        assert_eq!(spelling_languages(names.into_iter()), ["en_GB", "en"]);
+    }
 }

@@ -37,6 +37,7 @@ fn follow(companion: &Rc<Companion>, download: &webkit::Download) {
 
     let weak = Rc::downgrade(companion);
     let deciding = Rc::clone(&id);
+    let refused = Rc::clone(&ended);
     download.connect_decide_destination(move |download, suggested| {
         let Some(companion) = weak.upgrade() else {
             return false;
@@ -47,7 +48,14 @@ fn follow(companion: &Rc<Companion>, download: &webkit::Download) {
         let dir = downloads_dir();
         if let Err(err) = std::fs::create_dir_all(&dir) {
             eprintln!("glimmerwood: couldn't make {}: {err}", dir.display());
-            return false;
+            // Shown on Home as a file that didn't arrive, rather than
+            // vanishing without a word.
+            let id = companion.download_started(&file_name(suggested), "");
+            deciding.set(Some(id));
+            refused.set(true);
+            companion.download_finished(id, Progress::Failed, None);
+            download.cancel();
+            return true;
         }
         let path = free_path(&dir, suggested);
         let name = path

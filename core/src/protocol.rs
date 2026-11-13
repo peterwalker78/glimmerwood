@@ -253,6 +253,13 @@ string_union! {
     pub enum Progress { Running, Saved, Stopped, Failed }
 }
 
+string_union! {
+    /// What a site asked to use. Notifications are not among them: those are
+    /// refused without asking.
+    #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum Want { Camera, Microphone, Screen, Location }
+}
+
 record! {
     /// A file arriving, or one that just arrived and hasn't been opened.
     #[derive(Serialize, Clone, Debug, PartialEq)]
@@ -601,6 +608,9 @@ messages! {
         OpenSettings,
         /// Open a file that has finished downloading, and take it off Home.
         OpenDownload { id: u32 },
+        /// The person answered a site's request to use the camera, the
+        /// microphone, the screen or their location.
+        AnswerPermission { id: u32, allow: bool },
         /// The toolbar's size: `height` is the bar pages sit below;
         /// `overlay_height` is the full height it needs, including the hover
         /// caption when open, which floats over the page. The nook is where
@@ -647,6 +657,9 @@ messages! {
         /// How many files are arriving: a quiet mark in the toolbar while
         /// any are, and nothing at all when none are.
         Downloads { running: u32 },
+        /// A site would like to use something: a quiet line in the bar,
+        /// or none when `site` is null.
+        Permission { id: u32, site: Option<String>, wants: Vec<Want> },
         /// Open the find bar with the caret in it, or close it (another tab
         /// was selected, or the page moved on).
         Find { open: bool },
@@ -706,6 +719,7 @@ fn typescript() -> String {
         ChromeView::declaration(),
         TabSound::declaration(),
         Progress::declaration(),
+        Want::declaration(),
         Download::declaration(),
         Page::declaration(),
         WispPhase::declaration(),

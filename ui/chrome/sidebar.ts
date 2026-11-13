@@ -41,6 +41,7 @@ receive((message) => {
     case "state":
     case "focus_address":
     case "downloads":
+    case "permission":
     case "find":
     case "found":
     case "window":

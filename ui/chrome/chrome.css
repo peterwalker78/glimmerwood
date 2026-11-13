@@ -455,3 +455,42 @@ span.icon {
 @media (prefers-reduced-motion: reduce) {
   .progress { transition: none; }
 }
+
+/* A site asking to use the camera, the microphone, the screen or the
+   person's location: a line in the bar, never over the page. */
+.permission {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  height: 34px;
+  margin: 0 4px;
+  padding: 0 3px 0 12px;
+  border-radius: 8px;
+  background: var(--field);
+}
+.permission[hidden] { display: none; }
+.permission-words {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 4px;
+}
+.permission-words strong { font-weight: 600; }
+.permission button {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: default;
+}
+.permission .permission-not-now { color: var(--quiet); }
+.permission .permission-not-now:hover { background: var(--press); color: var(--ink); }
+.permission .permission-allow { background: var(--lift); border: 1px solid var(--hairline); font-weight: 600; }
+.permission .permission-allow:hover { background: var(--field-focus); }
+.permission button:focus-visible { outline: 1.5px solid var(--quiet); outline-offset: -1.5px; }

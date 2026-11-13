@@ -9,6 +9,7 @@
     <file alias="chrome/shared.js">dist/chrome/shared.js</file>
     <file alias="chrome/caption.js">dist/chrome/caption.js</file>
     <file alias="chrome/tabs.js">dist/chrome/tabs.js</file>
+    <file alias="chrome/permission.js">dist/chrome/permission.js</file>
     <file alias="chrome/rating.js">dist/common/rating.js</file>
     <file>pages/failed.html</file>
     <file>home/index.html</file>
