@@ -31,6 +31,7 @@ const ask = element("ask", HTMLElement);
 const askSite = element("ask-site", HTMLElement);
 const care = element("care", HTMLElement);
 const careSamaritans = element("care-samaritans", HTMLButtonElement);
+const hung = element("hung", HTMLDivElement);
 
 let current: State | null = null;
 // Once the user has typed in the address field, the page loading underneath
@@ -192,9 +193,13 @@ element("care-find", HTMLButtonElement).addEventListener("click", () =>
 );
 careSamaritans.addEventListener("click", () => send({ type: "find_support", samaritans: true }));
 
+// A page that has stopped responding can be stopped from here.
+element("hung-stop", HTMLButtonElement).addEventListener("click", () => send({ type: "stop_page" }));
+
 function render(state: State): void {
   back.disabled = !state.can_go_back;
   forward.disabled = !state.can_go_forward;
+  hung.hidden = !state.hung;
 
   reload.classList.toggle("loading", state.loading);
   reload.setAttribute("aria-label", state.loading ? "Stop" : "Reload");

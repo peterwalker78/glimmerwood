@@ -85,6 +85,7 @@ export type ToCore =
   | { type: "find"; query: string }
   | { type: "find_next"; backwards: boolean }
   | { type: "close_find" }
+  | { type: "stop_page" }
   | { type: "select_tab"; id: number }
   | { type: "show_wisp" }
   | { type: "rate_site"; site: string; rating: Rating }
@@ -101,7 +102,7 @@ export type ToCore =
   | { type: "begin_move" };
 
 export type ToChrome =
-  | { type: "state"; uri: string; title: string; loading: boolean; progress: number; can_go_back: boolean; can_go_forward: boolean; security: Security; can_bookmark: boolean; bookmarked: boolean }
+  | { type: "state"; uri: string; title: string; loading: boolean; progress: number; can_go_back: boolean; can_go_forward: boolean; security: Security; can_bookmark: boolean; bookmarked: boolean; hung: boolean }
   | { type: "tabs"; tabs: TabInfo[]; selected: number }
   | { type: "tab_icon"; id: number; icon: string | null }
   | { type: "focus_address" }

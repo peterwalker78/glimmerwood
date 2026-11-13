@@ -592,6 +592,8 @@ messages! {
         FindNext { backwards: bool },
         /// The find bar closed: clear the highlights and go back to the page.
         CloseFind,
+        /// Stop the page on screen, which has stopped responding.
+        StopPage,
         SelectTab { id: u32 },
         /// The wisp was clicked, or pressed from the keyboard: show its
         /// history on Home.
@@ -636,7 +638,8 @@ messages! {
     /// Sent to the chrome.
     #[derive(Serialize, Clone, Debug, PartialEq)]
     pub enum ToChrome {
-        /// Everything the toolbar shows about the current tab.
+        /// Everything the toolbar shows about the current tab. `hung`: the
+        /// page has stopped responding for a while.
         State {
             uri: String,
             title: String,
@@ -647,6 +650,7 @@ messages! {
             security: Security,
             can_bookmark: bool,
             bookmarked: bool,
+            hung: bool,
         },
         Tabs { tabs: Vec<TabInfo>, selected: u32 },
         /// A tab's site icon as a `data:` URL, or none. Sent only when it
@@ -824,6 +828,7 @@ mod tests {
             security: Security::NotSecure,
             can_bookmark: true,
             bookmarked: false,
+            hung: false,
         })
         .expect("state serialises");
         assert!(json.starts_with(r#"{"type":"state","#), "{json}");
