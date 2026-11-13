@@ -152,8 +152,9 @@ Glimmerwood is private by design, not by promise.
 - **The history is an ordinary one, and it only keeps a week.** Addresses and
   titles, on your computer, so you can find Tuesday's page again; after seven
   days they're deleted. Nothing is ever uploaded.
-- **On *certain* sites, the wisp closes its eyes and turns away.** Nothing
-  about those visits is named, and they never reach the history. A tab you
+- **On adult sites, and any you set to Private, the wisp closes its eyes and
+  turns away.** Nothing about those visits is counted or kept, and they never
+  reach the history. A tab you
   leave open is still restored like any other, so close it if you'd rather it
   didn't come back.
 - **Cross-site tracking is limited** by the browser engine's tracking
@@ -207,8 +208,8 @@ night, for a few quiet minutes under tonight's real sky at the end of the day.
 - **Sleeping tabs**, freeing what an hour of being unseen doesn't need.
 - **Full-screen video** that hides the chrome, and `file://` pages.
 
-Have a site you think is on the wrong list? That's exactly the kind of help
-Glimmerwood needs: please [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
+Think a site is on the wrong list? Rate it yourself in Settings (Ctrl+,). If
+it's wrong for everyone, [open an issue](https://github.com/peterwalker78/glimmerwood/issues)
 and say why.
 
 ## More
