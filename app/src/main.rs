@@ -3,6 +3,7 @@ mod clock;
 mod downloads;
 mod failure;
 mod host;
+mod permissions;
 mod prefs;
 mod scheme;
 mod tabs;

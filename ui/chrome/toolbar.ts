@@ -4,6 +4,7 @@
 
 import type { Rating, ToChrome } from "../protocol.gen.js";
 import { renderCaption } from "./caption.js";
+import { showPermission } from "./permission.js";
 import { atPosition, setSlider, slider } from "./rating.js";
 import { dragFrom, element, receive, send } from "./shared.js";
 
@@ -314,6 +315,9 @@ receive((message) => {
       // A mark while anything is on its way, and nothing once it has landed.
       downloads.hidden = message.running === 0;
       reportLayout();
+      break;
+    case "permission":
+      showPermission(message);
       break;
     case "window":
       windowButtons.hidden = !message.floating;

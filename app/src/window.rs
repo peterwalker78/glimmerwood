@@ -135,6 +135,8 @@ pub struct Window {
     sent_ask: RefCell<Option<Option<String>>>,
     /// Whether the note offering someone to talk to was last sent open.
     sent_care: Cell<Option<(bool, bool)>>,
+    /// A site's request to use the camera, microphone, screen or location.
+    pub(crate) asking: crate::permissions::Asking,
     /// How large each site is drawn, kept between runs.
     zooms: RefCell<zoom::Zooms>,
     /// The find bar is open, and what it last searched for.
@@ -193,6 +195,7 @@ impl Window {
             sent_wisp: RefCell::new(None),
             sent_ask: RefCell::new(None),
             sent_care: Cell::new(None),
+            asking: Default::default(),
             zooms: RefCell::new(zoom::Zooms::load(&prefs::zooms_path())),
             finding: Cell::new(false),
             find_query: RefCell::new(String::new()),
@@ -399,6 +402,7 @@ impl Window {
             | ToChrome::Find { .. }
             | ToChrome::Found { .. }
             | ToChrome::Downloads { .. }
+            | ToChrome::Permission { .. }
             | ToChrome::Window { .. }
             | ToChrome::Caption { .. }
             | ToChrome::Ask { .. }
@@ -424,6 +428,7 @@ impl Window {
         let id = self.next_id.get();
         self.next_id.set(id + 1);
         let view = tabs::new_view(related);
+        crate::permissions::watch(&view, Rc::downgrade(self));
         let tab = Rc::new(Tab {
             id,
             view,
@@ -800,6 +805,7 @@ impl Window {
                     host::open_file(&path);
                 }
             }
+            ToCore::AnswerPermission { id, allow } => self.asking.answer(self, id, allow),
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
             ToCore::CloseFind => self.close_find(true),

@@ -8,6 +8,8 @@ export type TabSound = "silent" | "playing" | "muted";
 
 export type Progress = "running" | "saved" | "stopped" | "failed";
 
+export type Want = "camera" | "microphone" | "screen" | "location";
+
 export type Download = { id: number; name: string; path: string; progress: Progress; fraction: number | null };
 
 export type Page = { at: number; url: string; title: string; host: string };
@@ -91,6 +93,7 @@ export type ToCore =
   | { type: "find_support"; samaritans: boolean }
   | { type: "open_settings" }
   | { type: "open_download"; id: number }
+  | { type: "answer_permission"; id: number; allow: boolean }
   | { type: "toolbar_layout"; height: number; overlay_height: number; nook_right: number; nook_top: number; nook_width: number; nook_height: number }
   | { type: "minimize" }
   | { type: "toggle_maximize" }
@@ -103,6 +106,7 @@ export type ToChrome =
   | { type: "tab_icon"; id: number; icon: string | null }
   | { type: "focus_address" }
   | { type: "downloads"; running: number }
+  | { type: "permission"; id: number; site: string | null; wants: Want[] }
   | { type: "find"; open: boolean }
   | { type: "found"; query: string; summary: string }
   | { type: "window"; floating: boolean }

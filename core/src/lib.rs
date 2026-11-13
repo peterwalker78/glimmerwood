@@ -25,6 +25,7 @@ pub mod nav;
 pub mod newsboat;
 pub mod oklab;
 pub mod pages;
+pub mod permissions;
 pub mod places;
 pub mod protocol;
 pub mod ratings;
