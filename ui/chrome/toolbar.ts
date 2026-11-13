@@ -207,7 +207,7 @@ function render(state: State): void {
   star.title = state.bookmarked ? "Remove bookmark (Ctrl+D)" : "Bookmark (Ctrl+D)";
 
   progress.hidden = !state.loading;
-  progress.style.width = state.loading ? `${Math.max(0.04, state.progress) * 100}%` : "0";
+  progress.style.transform = `scaleX(${state.loading ? Math.max(0.04, state.progress) : 0})`;
 
   document.title = state.title || "Glimmerwood";
 }

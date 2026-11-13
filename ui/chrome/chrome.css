@@ -7,7 +7,7 @@
   --field: #f6f6f3;
   --field-focus: #fbfbf9;
   --ink: #2a2b28;
-  --quiet: #797b75;
+  --quiet: #676963;
   --hairline: rgb(42 43 40 / 0.1);
   --press: rgb(42 43 40 / 0.07);
   --lift: #f6f6f3;
@@ -436,16 +436,19 @@ span.icon {
 .window-buttons .step:hover { color: var(--ink); }
 
 /* A hairline under the bar that follows the load. It only ever moves because
-   the user asked for a page. */
+   the user asked for a page. It spans the bar and is scaled, so following the
+   load never lays the bar out again. */
 .progress {
   position: fixed;
   left: 0;
   top: 64px;
   height: 1px;
-  width: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
   background: var(--ink);
   opacity: 0.35;
-  transition: width 160ms ease-out;
+  transition: transform 160ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

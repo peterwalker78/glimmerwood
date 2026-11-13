@@ -6,7 +6,7 @@
   --card: #f7f6f2;
   --card-hover: #fbfaf7;
   --ink: #2a2b28;
-  --quiet: #6f716b;
+  --quiet: #676963;
   --hairline: rgb(42 43 40 / 0.1);
   --tile: #dfe4d6;
   --tile-ink: #4d5c43;
@@ -514,7 +514,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 /* Settle in once, then stay still. */
 @media (prefers-reduced-motion: no-preference) {
-  .greeting, .about, .page { animation: arrive 420ms ease-out both; }
+  .greeting, .about, .page { animation: arrive 420ms ease-out backwards; }
   .page { animation-delay: 60ms; }
 }
 @keyframes arrive {
