@@ -13,6 +13,8 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --socket=pulseaudio
+  # Where downloads land.
+  - --filesystem=xdg-download
   # Newsboat's feed list, for Settings' good news. Neither is created: they
   # only appear once Newsboat has been run.
   - --filesystem=~/.newsboat
