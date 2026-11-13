@@ -312,6 +312,28 @@ if (window.wispHomeData) {
   drawGarden(garden, part, [], 1);
 }
 
+// Forgetting everything takes a second word, said in place.
+{
+  const ask = document.getElementById("forget-all");
+  const sure = document.getElementById("forget-all-sure");
+  if (ask instanceof HTMLAnchorElement && sure instanceof HTMLSpanElement) {
+    const asking = (on: boolean): void => {
+      ask.hidden = on;
+      sure.hidden = !on;
+    };
+    ask.addEventListener("click", (event) => {
+      event.preventDefault();
+      asking(true);
+    });
+    for (const answer of sure.querySelectorAll("a")) {
+      answer.addEventListener("click", (event) => {
+        if (answer.id === "forget-all-no") event.preventDefault();
+        asking(false);
+      });
+    }
+  }
+}
+
 // The forget link points at whichever stretch the drop-down is showing.
 {
   const choice = document.getElementById("forget-since");

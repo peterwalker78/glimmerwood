@@ -565,6 +565,10 @@ impl Companion {
     /// A control on the Settings page, as the link it followed, without
     /// `glimmerwood://settings/do/`.
     pub fn settings_action(self: &Rc<Self>, action: &str) {
+        if action == "forget-everything" {
+            self.forget_everything();
+            return;
+        }
         let unescape = |text: &str| Some(nav::unescape(text));
         let Some(action) = Action::parse(action, unescape) else {
             eprintln!("glimmerwood: Settings asked for something unknown: {action}");
@@ -607,6 +611,34 @@ impl Companion {
         if let Err(err) = settings::save(&self.settings.borrow(), &settings_path(&self.host)) {
             eprintln!("glimmerwood: couldn't save the settings: {err}");
         }
+    }
+
+    /// How the days felt, the garden and the week of pages, gone in one go,
+    /// and the wisp starts again from rested. Bookmarks, ratings and
+    /// settings are the user's own and stay.
+    pub fn forget_everything(self: &Rc<Self>) {
+        if let Some(store) = &self.store
+            && let Err(err) = store.forget_everything()
+        {
+            eprintln!("glimmerwood: couldn't forget how the days felt: {err}");
+        }
+        if let Some(history) = &self.history
+            && let Err(err) = history.forget_everything()
+        {
+            eprintln!("glimmerwood: couldn't forget the week's pages: {err}");
+        }
+        self.downloads.borrow_mut().forget_finished();
+        let rates = self.engine.borrow().rates().clone();
+        self.engine.replace(Engine::new(rates, self.now()));
+        self.last_recorded_minute.set(i64::MIN);
+        self.away_since.set(None);
+        self.welcome_until.set(None);
+        self.returned.set(None);
+        self.home_memory.borrow_mut().clear();
+        self.met.borrow_mut().clear();
+        self.picked.replace(None);
+        self.refresh();
+        self.refresh_pages();
     }
 
     // --- Home ---------------------------------------------------------
@@ -693,6 +725,10 @@ impl Companion {
                 },
                 Err(_) => false,
             },
+            None if action == "forget-everything" => {
+                self.forget_everything();
+                true
+            }
             // A way out of somewhere you didn't mean to go: the pages, the
             // finished downloads, and the sites out of the wisp's own memory
             // of that stretch. What it never touches is how the time felt —
@@ -1392,5 +1428,100 @@ fn wisp_message(
             })
             .collect(),
         other_tabs,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dose::Mode;
+
+    struct Machine {
+        dir: PathBuf,
+        now: Moment,
+    }
+
+    impl Host for Machine {
+        fn windows(&self) -> Vec<Rc<dyn Window>> {
+            Vec::new()
+        }
+        fn now(&self) -> Moment {
+            self.now
+        }
+        fn data_dir(&self) -> PathBuf {
+            self.dir.join("data")
+        }
+        fn config_dir(&self) -> PathBuf {
+            self.dir.join("config")
+        }
+        fn home_dir(&self) -> PathBuf {
+            self.dir.clone()
+        }
+        fn locale_country(&self) -> Option<String> {
+            None
+        }
+        fn wake_in(&self, _ms: u64) {}
+        fn noise(&self) -> u32 {
+            7
+        }
+    }
+
+    #[test]
+    fn forgetting_everything_starts_the_wisp_and_garden_again_and_keeps_bookmarks() {
+        let dir = std::env::temp_dir().join(format!("glimmerwood-forget-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let now = Moment {
+            ms: 1_800_000_000_000,
+            utc_offset_s: 0,
+        };
+        let host = Rc::new(Machine {
+            dir: dir.clone(),
+            now,
+        });
+        // A heavy hour, a day in the garden, and a page from this week.
+        {
+            let store = open_store(&host.data_dir()).expect("store");
+            store
+                .record(&Sample {
+                    at: Moment {
+                        ms: now.ms - 60_000,
+                        ..now
+                    },
+                    dose: 0.6,
+                    day_load: 40.0,
+                    mode: Mode::Draining,
+                    place: None,
+                })
+                .unwrap();
+            store
+                .record_garden_day(&GardenDay {
+                    day: 1,
+                    plant: None,
+                    fireflies: true,
+                })
+                .unwrap();
+        }
+        let companion = Companion::new(host.clone(), None);
+        assert!(companion.engine.borrow().dose() > 0.5);
+        companion.visited("https://moss.example/a", "Moss");
+        companion.toggle_bookmark("https://moss.example/a", "Moss");
+        assert!(!companion.week_of_pages().is_empty());
+
+        assert!(companion.home_action("forget-everything"));
+
+        assert_eq!(companion.engine.borrow().dose(), 0.0);
+        let store = companion.store.as_ref().expect("store");
+        assert!(store.garden().unwrap().is_empty());
+        let since = Moment { ms: 0, ..now };
+        assert!(
+            store
+                .samples_since(since)
+                .unwrap()
+                .iter()
+                .all(|s| s.dose == 0.0)
+        );
+        assert!(companion.week_of_pages().is_empty());
+        assert!(companion.is_bookmarked("https://moss.example/a"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

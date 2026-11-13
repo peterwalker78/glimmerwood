@@ -181,6 +181,10 @@ button:hover, select:hover { background: var(--field); }
 .night { display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .night label { display: flex; align-items: center; gap: 10px; }
 
+/* --- What's kept --- */
+
+.forget-all { margin: 0; }
+
 /* --- Good news --- */
 
 .news-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }

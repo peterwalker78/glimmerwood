@@ -18,6 +18,22 @@
       <p>Changes apply straight away, and everything here stays on this computer.</p>
     </header>
 
+    <section aria-labelledby="wisp-heading">
+      <h2 id="wisp-heading">The wisp</h2>
+      <label class="switch">
+        <input id="ask" type="checkbox">
+        <span>Ask how sites I haven't rated leave you</span>
+      </label>
+      <p class="note">After a little while on a site that's on none of the lists. At most three questions a day, never at night, and never while you're typing.</p>
+
+      <h3>The night</h3>
+      <p class="intro">At night the wisp glows warmer and slows down with you. Feeds weigh on it more, and time away rests it best. Set it to when you'd like to be heading to sleep.</p>
+      <div class="night">
+        <label>Starts at <select id="night-starts"></select></label>
+        <label>Ends at <select id="night-ends"></select></label>
+      </div>
+    </section>
+
     <section id="ratings" aria-labelledby="ratings-heading">
       <h2 id="ratings-heading">Site ratings</h2>
       <p class="intro">How each site counts for the wisp. Rate a site by how it tends to leave you, not by how you'd like it to: only you see this, and the wisp can only look after you if it's true.</p>
@@ -34,25 +50,19 @@
       <p id="ratings-problem" class="problem" hidden></p>
       <ul id="yours" class="ratings"></ul>
       <p id="no-ratings" class="note" hidden>Nothing yet. When the wisp asks about a site, or you rate one above, it's kept here.</p>
+      <p class="note">News: a little each day is light, then it wears. Private: the wisp looks away and keeps nothing. Unrated: it holds steady and won't ask about it.</p>
       <p class="note file">Kept in <code id="ratings-file"></code>, which you can also edit by hand.</p>
     </section>
 
-    <section aria-labelledby="wisp-heading">
-      <h2 id="wisp-heading">The wisp</h2>
-      <label class="switch">
-        <input id="ask" type="checkbox">
-        <span>Ask how sites I haven't rated leave you</span>
-      </label>
-      <p class="note">After a little while on a site that's on none of the lists. At most three questions a day, never at night, and never while you're typing.</p>
-    </section>
-
-    <section aria-labelledby="night-heading">
-      <h2 id="night-heading">The night</h2>
-      <p class="intro">At night the wisp winds down with you: late scrolling weighs a little more, and restful pages rest a little less. Set it to when you'd like to be heading to sleep.</p>
-      <div class="night">
-        <label>Starts at <select id="night-starts"></select></label>
-        <label>Ends at <select id="night-ends"></select></label>
-      </div>
+    <section aria-labelledby="kept-heading">
+      <h2 id="kept-heading">What's kept</h2>
+      <p class="forget-all">
+        <a id="forget-all" href="#">Forget everything</a>
+        <span id="forget-all-sure" hidden>Forget everything?
+          <a href="glimmerwood://settings/do/forget-everything">Yes</a> /
+          <a id="forget-all-no" href="#">No</a></span>
+      </p>
+      <p class="note">The wisp forgets how your days felt and this week's pages, and the garden starts again. Your bookmarks and ratings stay.</p>
     </section>
 
     <section aria-labelledby="news-heading">
@@ -75,21 +85,37 @@
 
     <section aria-labelledby="keys-heading">
       <h2 id="keys-heading">Keyboard</h2>
+      <h3>Pages</h3>
       <dl class="keys">
         <dt><kbd>Ctrl</kbd> <kbd>L</kbd></dt><dd>Go to the address field (also <kbd>Alt</kbd> <kbd>D</kbd>, <kbd>F6</kbd>)</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>Enter</kbd></dt><dd>In the address field, add .com to a single word</dd>
+        <dt><kbd>Alt</kbd> <kbd>←</kbd></dt><dd>Back</dd>
+        <dt><kbd>Alt</kbd> <kbd>→</kbd></dt><dd>Forward</dd>
+        <dt>Two-finger swipe</dt><dd>Back or forward</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>R</kbd></dt><dd>Reload (also <kbd>F5</kbd>)</dd>
+        <dt><kbd>Alt</kbd> <kbd>Home</kbd></dt><dd>Home</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>D</kbd></dt><dd>Bookmark the page, or remove its bookmark</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>P</kbd></dt><dd>Print or save as PDF</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>,</kbd></dt><dd>Settings</dd>
+      </dl>
+      <h3>Tabs</h3>
+      <dl class="keys">
         <dt><kbd>Ctrl</kbd> <kbd>T</kbd></dt><dd>New tab</dd>
         <dt><kbd>Ctrl</kbd> <kbd>W</kbd></dt><dd>Close the tab (also <kbd>Ctrl</kbd> <kbd>F4</kbd>)</dd>
         <dt><kbd>Ctrl</kbd> <kbd>Tab</kbd></dt><dd>Next tab (also <kbd>Ctrl</kbd> <kbd>Page Down</kbd>)</dd>
         <dt><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Tab</kbd></dt><dd>Previous tab (also <kbd>Ctrl</kbd> <kbd>Page Up</kbd>)</dd>
-        <dt><kbd>Ctrl</kbd> <kbd>1</kbd>–<kbd>8</kbd></dt><dd>That tab; <kbd>Ctrl</kbd> <kbd>9</kbd> is the last</dd>
-        <dt><kbd>Alt</kbd> <kbd>←</kbd></dt><dd>Back</dd>
-        <dt><kbd>Alt</kbd> <kbd>→</kbd></dt><dd>Forward</dd>
-        <dt><kbd>Ctrl</kbd> <kbd>R</kbd></dt><dd>Reload (also <kbd>F5</kbd>)</dd>
-        <dt><kbd>Alt</kbd> <kbd>Home</kbd></dt><dd>Home</dd>
-        <dt><kbd>Ctrl</kbd> <kbd>D</kbd></dt><dd>Bookmark the page, or remove its bookmark</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>1</kbd> to <kbd>8</kbd></dt><dd>That tab; <kbd>Ctrl</kbd> <kbd>9</kbd> is the last</dd>
+        <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>In the tab column, move between tabs (<kbd>Home</kbd> and <kbd>End</kbd> for the first and last)</dd>
+        <dt><kbd>Delete</kbd></dt><dd>In the tab column, close the tab</dd>
+      </dl>
+      <h3>Find and zoom</h3>
+      <dl class="keys">
         <dt><kbd>Ctrl</kbd> <kbd>F</kbd></dt><dd>Find in page</dd>
         <dt><kbd>Ctrl</kbd> <kbd>G</kbd></dt><dd>Next match (also <kbd>F3</kbd>; add <kbd>Shift</kbd> for the previous)</dd>
-        <dt><kbd>Ctrl</kbd> <kbd>,</kbd></dt><dd>Settings</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Close find</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>+</kbd></dt><dd>Zoom in</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>-</kbd></dt><dd>Zoom out</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>0</kbd></dt><dd>Back to the usual size</dd>
       </dl>
     </section>
   </main>

@@ -21,7 +21,8 @@ function mood(wisp: Wisp): string {
   }
 }
 
-function words(line: CaptionLine): { label: string; effect: string } {
+// Everyday sites let the wisp settle by day and hold it steady at night.
+function words(line: CaptionLine, night: boolean): { label: string; effect: string } {
   const label = line.label;
   switch (line.kind) {
     case "wearing":
@@ -29,7 +30,7 @@ function words(line: CaptionLine): { label: string; effect: string } {
     case "restoring":
       return { label, effect: "restoring" };
     case "ordinary_sites":
-      return { label: line.label || "ordinary sites", effect: "resting" };
+      return { label: line.label || "everyday sites", effect: night ? "holding steady" : "settling" };
     case "private":
       return { label: "giving you some privacy", effect: "" };
     case "care":
@@ -66,8 +67,8 @@ function row(label: string, effect: string, bars: number | null): HTMLLIElement 
   return item;
 }
 
-function lineRow(line: CaptionLine, bars: boolean): HTMLLIElement {
-  const { label, effect } = words(line);
+function lineRow(line: CaptionLine, bars: boolean, night: boolean): HTMLLIElement {
+  const { label, effect } = words(line, night);
   return row(label, effect, bars ? line.bars : null);
 }
 
@@ -92,11 +93,11 @@ function plural(n: number, one: string, many: string): string {
 // "Now" first, so a change of site shows at once.
 export function renderCaption(list: HTMLElement, wisp: Wisp): void {
   list.replaceChildren();
-  list.append(heading("Now"), note(mood(wisp), "mood"), lineRow(wisp.now, false));
+  list.append(heading("Now"), note(mood(wisp), "mood"), lineRow(wisp.now, false, wisp.night));
 
   list.append(heading("Last 15 minutes"));
   if (wisp.caption.length === 0) list.append(note("Steady", "steady"));
-  for (const line of wisp.caption) list.append(lineRow(line, true));
+  for (const line of wisp.caption) list.append(lineRow(line, true, wisp.night));
 
   if (wisp.other_tabs > 0) {
     list.append(heading("Other tabs"));

@@ -39,6 +39,8 @@ const newsRemove = element("news-remove", HTMLButtonElement);
 const newsWhere = element("news-where", HTMLParagraphElement);
 const newsDone = element("news-done", HTMLParagraphElement);
 const newsMissing = element("news-missing", HTMLParagraphElement);
+const forgetAll = element("forget-all", HTMLAnchorElement);
+const forgetAllSure = element("forget-all-sure", HTMLSpanElement);
 
 const DO = "glimmerwood://settings/do/";
 
@@ -219,6 +221,22 @@ for (const select of [nightStarts, nightEnds]) {
 }
 newsSend.addEventListener("click", () => follow("newsboat/add"));
 newsRemove.addEventListener("click", () => follow("newsboat/remove"));
+
+// Forgetting everything takes a second word, said in place.
+function sure(asking: boolean): void {
+  forgetAll.hidden = asking;
+  forgetAllSure.hidden = !asking;
+}
+forgetAll.addEventListener("click", (event) => {
+  event.preventDefault();
+  sure(true);
+});
+for (const answer of forgetAllSure.querySelectorAll("a")) {
+  answer.addEventListener("click", (event) => {
+    if (answer.id === "forget-all-no") event.preventDefault();
+    sure(false);
+  });
+}
 
 window.wispSettings = { show };
 if (window.wispSettingsData) show(window.wispSettingsData);

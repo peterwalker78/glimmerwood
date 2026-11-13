@@ -83,7 +83,7 @@
     <!-- The pages of the last seven days, newest first. Absent when there
          are none. -->
     <section id="this-week" aria-labelledby="this-week-heading" hidden>
-      <h2 id="this-week-heading">This week</h2>
+      <h2 id="this-week-heading">Pages from this week</h2>
       <p class="week-note">I keep a week of these, and no more. Anything older has already gone.</p>
       <div id="days" class="days"></div>
       <div class="forget">
@@ -97,10 +97,9 @@
           </select>
           <a id="forget" class="forget-do" href="glimmerwood://home/do/forget-since/60">Forget</a>
         </p>
-        <p class="forget-note">Sometimes a stretch of time goes somewhere you&rsquo;d rather not meet again
-          here. This takes those pages off this page, along with any downloads that have finished, and
-          takes the sites out of what I remember of it. What stays with me is how the time felt &mdash;
-          restoring, ordinary or wearing &mdash; and not where you were.</p>
+        <p class="forget-note">Gone somewhere you&rsquo;d rather not see here again? This takes those pages
+          and any finished downloads off this page, and the sites out of my memory. I keep how the time
+          felt, not where you were.</p>
       </div>
     </section>
 
@@ -134,6 +133,17 @@
       <div id="earlier-wrap" class="diary-part">
         <h3>Earlier</h3>
         <ol id="earlier" class="earlier"></ol>
+      </div>
+
+      <div class="forget">
+        <p class="forget-line">
+          <a id="forget-all" href="#">Forget everything</a>
+          <span id="forget-all-sure" hidden>Forget everything?
+            <a href="glimmerwood://home/do/forget-everything">Yes</a> /
+            <a id="forget-all-no" href="#">No</a></span>
+        </p>
+        <p class="forget-note">I&rsquo;ll forget how your days felt and this week&rsquo;s pages, and the garden
+          starts again. Your bookmarks and ratings stay.</p>
       </div>
     </section>
 

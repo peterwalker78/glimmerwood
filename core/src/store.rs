@@ -229,9 +229,6 @@ impl Store {
             .execute("DELETE FROM sessions WHERE minute < ?1", [cutoff])
     }
 
-    /// Everything the dose engine and garden know, gone in one action. Every
-    /// table is emptied, including any added after this was written.
-    #[allow(dead_code, reason = "not reachable from the interface yet")]
     /// Take the sites out of the last `ms`, leaving how the time felt. The
     /// dose, the day's load and the weight stay exactly as they were: this
     /// forgets where you were, not that the hour happened.
@@ -242,6 +239,8 @@ impl Store {
         )
     }
 
+    /// Everything the dose engine and garden know, gone in one action. Every
+    /// table is emptied, including any added after this was written.
     pub fn forget_everything(&self) -> rusqlite::Result<()> {
         let tables: Vec<String> = self
             .conn
@@ -465,6 +464,13 @@ mod tests {
         store.record(&sample(0, 0.1)).unwrap();
         store.set_home_value("visits", 3).unwrap();
         store
+            .record_garden_day(&GardenDay {
+                day: 0,
+                plant: None,
+                fireflies: true,
+            })
+            .unwrap();
+        store
             .conn
             .execute_batch(
                 "CREATE TABLE later_feature (seed INTEGER); INSERT INTO later_feature VALUES (7);",
@@ -473,11 +479,15 @@ mod tests {
         store.forget_everything().unwrap();
         assert_eq!(store.latest().unwrap(), None);
         assert_eq!(store.home_value("visits").unwrap(), None);
-        let garden: i64 = store
+        assert!(
+            store.garden().unwrap().is_empty(),
+            "the garden starts again"
+        );
+        let later: i64 = store
             .conn
             .query_row("SELECT COUNT(*) FROM later_feature", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(garden, 0);
+        assert_eq!(later, 0);
     }
 
     #[test]
