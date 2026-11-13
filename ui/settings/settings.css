@@ -219,7 +219,7 @@ button:hover, select:hover { background: var(--field); }
 
 .keys {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: 8.75rem 1fr;
   gap: 8px 20px;
   margin: 0;
 }
