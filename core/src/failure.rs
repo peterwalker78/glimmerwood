@@ -42,7 +42,7 @@ impl Reason {
             ),
             Reason::Offline => (
                 "Not connected".into(),
-                "Glimmerwood can’t reach the network at the moment.".into(),
+                "This computer isn’t connected to the internet right now.".into(),
             ),
             Reason::Untrusted => (
                 format!("Can’t make a private connection to {host}"),
@@ -50,7 +50,19 @@ impl Reason {
                  could be read by someone else."
                     .into(),
             ),
-            Reason::Other(message) => (format!("Couldn’t open {host}"), message.clone()),
+            Reason::Other(_) => (
+                format!("Couldn’t open {host}"),
+                "Something went wrong on the way. Trying again often works.".into(),
+            ),
+        }
+    }
+
+    /// The engine's own words, when they are all there is to go on: kept
+    /// small beneath, for anyone who wants them.
+    fn why(&self) -> &str {
+        match self {
+            Reason::Other(message) => message,
+            _ => "",
         }
     }
 }
@@ -61,6 +73,7 @@ pub fn fill(template: &str, uri: &str, reason: &Reason) -> String {
     template
         .replace("{{title}}", &escape(&title))
         .replace("{{detail}}", &escape(&detail))
+        .replace("{{why}}", &escape(reason.why()))
         .replace("{{uri}}", &escape(uri))
 }
 
@@ -96,7 +109,7 @@ fn escape(text: &str) -> String {
 mod tests {
     use super::*;
 
-    const TEMPLATE: &str = "<h1>{{title}}</h1><p>{{detail}}</p><a href=\"{{uri}}\">Try again</a>";
+    const TEMPLATE: &str = "<h1>{{title}}</h1><p>{{detail}}</p><small>{{why}}</small><a href=\"{{uri}}\">Try again</a>";
 
     #[test]
     fn a_silent_server_is_named_rather_than_blamed_on_a_cancellation() {
@@ -117,9 +130,23 @@ mod tests {
     }
 
     #[test]
-    fn other_errors_keep_the_engines_words() {
+    fn other_errors_say_try_again_and_keep_the_engines_words_small() {
         let page = fill(TEMPLATE, "https://x/", &Reason::Other("Odd thing".into()));
-        assert!(page.contains("Odd thing"), "{page}");
+        assert!(
+            page.contains("<p>Something went wrong on the way. Trying again often works.</p>"),
+            "{page}"
+        );
+        assert!(page.contains("<small>Odd thing</small>"), "{page}");
+    }
+
+    #[test]
+    fn offline_says_the_computer_isnt_connected() {
+        let page = fill(TEMPLATE, "https://x/", &Reason::Offline);
+        assert!(
+            page.contains("This computer isn’t connected to the internet right now."),
+            "{page}"
+        );
+        assert!(page.contains("<small></small>"), "{page}");
     }
 
     #[test]

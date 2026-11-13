@@ -15,6 +15,8 @@
     main { max-width: 34rem; padding-bottom: 12vh; }
     h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; overflow-wrap: anywhere; }
     p { margin: 0 0 22px; color: var(--quiet); }
+    small { display: block; margin: -14px 0 22px; color: var(--quiet); font-size: 12px; overflow-wrap: anywhere; }
+    small:empty { display: none; }
     a { color: var(--ink); text-decoration: none; border: 1px solid var(--hairline); border-radius: 7px; padding: 6px 14px; }
     a:hover, a:focus-visible { border-color: var(--quiet); outline: none; }
   </style>
@@ -23,6 +25,7 @@
   <main>
     <h1>{{title}}</h1>
     <p>{{detail}}</p>
+    <small>{{why}}</small>
     <a href="{{uri}}">Try again</a>
   </main>
 </body>
