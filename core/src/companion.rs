@@ -721,7 +721,7 @@ impl Companion {
             },
             Some(("open-download", id)) => match id.parse::<u32>() {
                 Ok(id) => match self.open_download(id) {
-                    Some(path) => self.host.open_file(&path),
+                    Some(path) => self.host.show_file(&path),
                     None => false,
                 },
                 Err(_) => false,
