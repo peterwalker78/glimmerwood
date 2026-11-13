@@ -61,7 +61,8 @@ const WELCOME_BIGGER: f64 = 0.08;
 /// Frames per second by what the wisp is doing. Each frame per second costs
 /// about 0.11% of a core. A dozing wisp breathes at 2; resting, 4;
 /// drifting, smoking or releasing motes, 6. Blinks, slipping away and catching
-/// up with a changed dose get short bursts of 20.
+/// up with a changed dose get short bursts of 20. Fast asleep or out of
+/// sight, it stops drawing altogether until something changes.
 const DOZING_FPS: f64 = 2.0;
 const RESTING_FPS: f64 = 4.0;
 const LIVELY_FPS: f64 = 6.0;
@@ -412,6 +413,7 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
     let mut brightness = (look.brightness * (1.0 + WELCOME_BRIGHTER * wisp.welcome_mix)).min(1.0);
     let mut sway = 0.0;
     let mut blink = 0.0;
+    let mut unsteady = 0.0;
 
     let since_notice = now - wisp.notice_start;
     let noticing = moving && (0.0..NOTICE_MS).contains(&since_notice);
@@ -436,7 +438,7 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         brightness *= 1.0 - flick * clouded * 0.45 * awake;
         // Drained: unsteady, drifting toward the edge as if ready to leave.
         if drained > 0.0 {
-            brightness *= 1.0 - wander(now * 5.0, 2.9).abs() * 0.25 * drained;
+            unsteady = wander(now * 5.0, 2.9).abs() * 0.25 * drained;
             let phase = (now % DRIFT_CYCLE_MS) / DRIFT_CYCLE_MS;
             let out = if phase < 0.3 {
                 phase / 0.3
@@ -508,8 +510,36 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         }
     }
 
-    // Giving privacy: turn, slip toward the edge, fade.
     let privacy = wisp.privacy;
+    wisp.particles.retain(|p| now - p.born < p.life);
+    let settling = |v: f64| v > 0.02 && v < 0.98;
+    let bursting = blink > 0.0
+        || noticing
+        || settling(wisp.wary)
+        || settling(wisp.calm)
+        || settling(wisp.curious)
+        || settling(wisp.welcome_mix)
+        || (wisp.target - wisp.shown).abs() > 0.002
+        || settling(privacy)
+        || settling(wisp.sleep)
+        || settling(wisp.happy);
+    // Nothing left that would change on screen: fast asleep with the last Z
+    // gone and the sky arrived, or out of sight with only the moss showing.
+    // This frame is the last until something wakes it, so it is drawn at a
+    // steady moment rather than mid-waver.
+    let still = moving
+        && !bursting
+        && ((wisp.sleep > 0.9
+            && wisp.particles.is_empty()
+            && !settling(wisp.recovering)
+            && !settling(wisp.wearing)
+            && !settling(wisp.night_mix))
+            || privacy > 0.99);
+    if !still {
+        brightness *= 1.0 - unsteady;
+    }
+
+    // Giving privacy: turn, slip toward the edge, fade.
     x += privacy * privacy * home_x;
     let presence = (1.0 - privacy * 1.4).clamp(0.0, 1.0);
     if nourishing {
@@ -572,20 +602,9 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         );
     }
 
-    if !moving {
+    if !moving || still {
         return None;
     }
-    let settling = |v: f64| v > 0.02 && v < 0.98;
-    let bursting = blink > 0.0
-        || noticing
-        || settling(wisp.wary)
-        || settling(wisp.calm)
-        || settling(wisp.curious)
-        || settling(wisp.welcome_mix)
-        || (wisp.target - wisp.shown).abs() > 0.002
-        || settling(privacy)
-        || settling(wisp.sleep)
-        || settling(wisp.happy);
     // Z's and notes drift slowly enough for the resting pace.
     let lively = wisp
         .particles
@@ -596,7 +615,7 @@ fn draw(wisp: &mut Wisp, now: f64, moving: bool, dark: bool, cr: &mut dyn Canvas
         || engaged > 0.2;
     let fps = if bursting {
         BURST_FPS
-    } else if wisp.sleep > 0.9 || privacy > 0.99 {
+    } else if wisp.sleep > 0.9 {
         DOZING_FPS
     } else if lively {
         LIVELY_FPS
@@ -1010,14 +1029,13 @@ fn spawn(wisp: &mut Wisp, now: f64, x: f64, y: f64, kind: ParticleKind) {
 }
 
 fn draw_particles(
-    wisp: &mut Wisp,
+    wisp: &Wisp,
     cr: &mut dyn Canvas,
     now: f64,
     look: Look,
     dark: bool,
     presence: f64,
 ) {
-    wisp.particles.retain(|p| now - p.born < p.life);
     // Z's and notes are written in the chrome's own ink, not the wisp's light.
     let ink = if dark {
         Rgb(0.85, 0.86, 0.83)
@@ -1178,6 +1196,46 @@ mod tests {
             );
         }
         notes
+    }
+
+    /// Follows the frames the wisp asks for, from `now` on, until it asks
+    /// for none. Says whether it got there within a couple of thousand.
+    fn settles(wisp: &mut Wisp, now: &mut f64) -> bool {
+        for _ in 0..2000 {
+            let mut canvas = SvgCanvas::new(NOOK.0, NOOK.1);
+            match wisp.draw(*now, true, false, &mut canvas) {
+                Some(delay) => *now += delay,
+                None => return true,
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn a_wisp_left_alone_falls_asleep_and_stops_drawing() {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        // Awake on a draining site first, so it has something to settle from.
+        wisp.update(0.9, Mode::Draining, Trend::Rising, false, false, false);
+        let mut now = 0.0;
+        assert!(
+            !settles(&mut wisp, &mut now),
+            "an awake wisp keeps breathing"
+        );
+        wisp.update(0.9, Mode::Away, Trend::Steady, false, false, false);
+        assert!(settles(&mut wisp, &mut now));
+        assert!(wisp.particles.is_empty());
+        assert!(wisp.sleep > 0.98);
+        // Woken by a redraw some time later while still away, it settles again.
+        now += 60_000.0;
+        assert!(settles(&mut wisp, &mut now));
+    }
+
+    #[test]
+    fn out_of_sight_it_stops_drawing() {
+        let mut wisp = Wisp::new(NOOK.0, NOOK.1);
+        wisp.update(0.62, Mode::Draining, Trend::Rising, true, false, false);
+        assert!(settles(&mut wisp, &mut 0.0));
+        assert!(wisp.privacy > 0.99);
     }
 
     #[test]

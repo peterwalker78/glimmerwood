@@ -56,6 +56,8 @@ impl WispView {
             }
         });
 
+        watch_for_wakes(&area);
+
         let hover = Rc::new(on_hover);
         let motion = gtk::EventControllerMotion::new();
         motion.connect_enter(glib::clone!(
@@ -105,6 +107,48 @@ impl WispView {
             self.area.queue_draw();
         }
     }
+}
+
+/// A resting wisp stops asking for frames, so whatever else the drawing
+/// depends on asks for one when it changes: the window coming to the front,
+/// and the animation and dark-mode settings (main.rs keeps the dark one in
+/// step with the desktop).
+fn watch_for_wakes(area: &gtk::DrawingArea) {
+    let watching: Rc<RefCell<Vec<(glib::Object, glib::SignalHandlerId)>>> = Rc::default();
+    let redraw = |area: &gtk::DrawingArea| {
+        let weak = area.downgrade();
+        move || {
+            if let Some(area) = weak.upgrade() {
+                area.queue_draw();
+            }
+        }
+    };
+    area.connect_realize(glib::clone!(
+        #[strong]
+        watching,
+        move |area| {
+            let mut watching = watching.borrow_mut();
+            if let Some(window) = area.root().and_downcast::<gtk::Window>() {
+                let wake = redraw(area);
+                let id = window.connect_is_active_notify(move |_| wake());
+                watching.push((window.upcast(), id));
+            }
+            if let Some(settings) = gtk::Settings::default() {
+                let wake = redraw(area);
+                let id = settings.connect_gtk_enable_animations_notify(move |_| wake());
+                watching.push((settings.clone().upcast(), id));
+                let wake = redraw(area);
+                #[allow(deprecated, reason = "the setting dark() reads")]
+                let id = settings.connect_gtk_application_prefer_dark_theme_notify(move |_| wake());
+                watching.push((settings.upcast(), id));
+            }
+        }
+    ));
+    area.connect_unrealize(move |_| {
+        for (object, id) in watching.borrow_mut().drain(..) {
+            object.disconnect(id);
+        }
+    });
 }
 
 fn animations_enabled() -> bool {
