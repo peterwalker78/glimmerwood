@@ -121,18 +121,15 @@ nook.addEventListener("focus", () => {
 nook.addEventListener("click", () => send({ type: "show_wisp" }));
 downloads.addEventListener("click", () => send({ type: "show_downloads" }));
 
-const DOWNLOAD_WORDS = {
-  idle: "Open your Downloads folder",
-  arriving: "Something is arriving. See it on Home",
-  landed: "See your download on Home",
-};
-
-function showDownloads(running: number, listed: number): void {
-  const state = running > 0 ? "arriving" : listed > 0 ? "landed" : "idle";
+function showDownloads(running: number, waiting: number, listed: number): void {
+  const state = running > 0 ? "arriving" : waiting > 0 ? "landed" : "idle";
   const was = downloads.dataset["state"];
-  if (state === was) return;
   downloads.dataset["state"] = state;
-  downloads.title = DOWNLOAD_WORDS[state];
+  downloads.title =
+    state === "arriving" ? "Something is arriving. See it on Home"
+    : state === "landed" ? "See your download on Home"
+    : listed > 0 ? "See your downloads on Home"
+    : "Open your Downloads folder";
   downloads.setAttribute("aria-label", downloads.title);
   // A file that has just arrived settles into the tray once.
   downloads.classList.toggle("landing", was === "arriving" && state === "landed");
@@ -335,7 +332,7 @@ receive((message) => {
       if (message.query === find.value) findSummary.textContent = message.summary;
       break;
     case "downloads":
-      showDownloads(message.running, message.listed);
+      showDownloads(message.running, message.waiting, message.listed);
       break;
     case "permission":
       showPermission(message);

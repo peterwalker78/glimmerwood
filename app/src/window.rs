@@ -15,9 +15,7 @@ use crate::{chrome, prefs, tabs};
 use glimmerwood_core::companion::Companion;
 use glimmerwood_core::dose::{Mode, Trend};
 use glimmerwood_core::pages;
-use glimmerwood_core::protocol::{
-    ChromeView, Progress, Security, TabInfo, TabSound, ToChrome, ToCore,
-};
+use glimmerwood_core::protocol::{ChromeView, Security, TabInfo, TabSound, ToChrome, ToCore};
 use glimmerwood_core::session::{Session, Sleeper};
 use glimmerwood_core::{find, nav, zoom};
 
@@ -931,8 +929,9 @@ impl Window {
             ToCore::ShowWisp => self.show_on_home("wisp"),
             ToCore::ShowDownloads => {
                 if self.companion.downloads_showing().is_empty() {
-                    host::open_folder(&crate::downloads::downloads_dir());
+                    host::show_in_folder(&crate::downloads::latest_or_folder());
                 } else {
+                    self.companion.downloads_seen();
                     self.show_on_home("downloads");
                 }
             }
@@ -947,7 +946,7 @@ impl Window {
             ToCore::OpenSettings => self.open_settings(),
             ToCore::OpenDownload { id } => {
                 if let Some(path) = self.companion.open_download(id) {
-                    host::open_file(&path);
+                    host::show_in_folder(std::path::Path::new(&path));
                 }
             }
             ToCore::AnswerPermission { id, allow } => self.asking.answer(self, id, allow),
@@ -1724,13 +1723,7 @@ impl Window {
     /// A toolbar that has just loaded hasn't heard about the files still
     /// on their way.
     fn push_downloads(&self) {
-        let showing = self.companion.downloads_showing();
-        let running = showing
-            .iter()
-            .filter(|download| download.progress == Progress::Running)
-            .count() as u32;
-        let listed = showing.len() as u32;
-        self.send_to_chrome(&ToChrome::Downloads { running, listed });
+        self.send_to_chrome(&self.companion.downloads_now());
     }
 
     fn push_icon(&self, tab: &Tab) {

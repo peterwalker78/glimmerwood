@@ -850,11 +850,26 @@ impl Companion {
         self.downloads.borrow().showing()
     }
 
+    /// What the toolbar's downloads button shows.
+    pub fn downloads_now(&self) -> ToChrome {
+        let downloads = self.downloads.borrow();
+        ToChrome::Downloads {
+            running: downloads.running() as u32,
+            waiting: downloads.waiting() as u32,
+            listed: downloads.showing().len() as u32,
+        }
+    }
+
+    /// The user went to look at the downloads.
+    pub fn downloads_seen(self: &Rc<Self>) {
+        self.downloads.borrow_mut().seen();
+        self.push_downloads();
+    }
+
     fn push_downloads(self: &Rc<Self>) {
-        let running = self.downloads.borrow().running() as u32;
-        let listed = self.downloads.borrow().showing().len() as u32;
+        let now = self.downloads_now();
         for window in self.host.windows() {
-            window.send_to_chrome(&ToChrome::Downloads { running, listed });
+            window.send_to_chrome(&now);
         }
     }
 

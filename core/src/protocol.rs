@@ -660,9 +660,9 @@ messages! {
         TabIcon { id: u32, icon: Option<String> },
         /// Put the caret in the address field and select its contents.
         FocusAddress,
-        /// Files on their way, and files Home still lists: a quiet mark in
-        /// the toolbar while Home has any, and nothing at all when it has none.
-        Downloads { running: u32, listed: u32 },
+        /// For the toolbar's downloads button: files on their way, files
+        /// finished since the user last looked, and files Home lists.
+        Downloads { running: u32, waiting: u32, listed: u32 },
         /// A site would like to use something: a quiet line in the bar,
         /// or none when `site` is null.
         Permission { id: u32, site: Option<String>, wants: Vec<Want> },

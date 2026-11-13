@@ -120,7 +120,25 @@ fn fraction(download: &webkit::Download) -> Option<f64> {
 
 /// Where files land, falling back to the home folder on a machine with no
 /// Downloads folder at all.
-pub fn downloads_dir() -> PathBuf {
+/// The newest file in the Downloads folder, so showing it opens the folder
+/// itself; the folder when it's empty.
+pub fn latest_or_folder() -> PathBuf {
+    let dir = downloads_dir();
+    std::fs::read_dir(&dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
+        .filter(|(_, path)| {
+            !path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        })
+        .max_by_key(|(modified, _)| *modified)
+        .map_or(dir, |(_, path)| path)
+}
+
+fn downloads_dir() -> PathBuf {
     glib::user_special_dir(glib::UserDirectory::Downloads).unwrap_or_else(glib::home_dir)
 }
 

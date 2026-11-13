@@ -107,7 +107,7 @@ export type ToChrome =
   | { type: "tabs"; tabs: TabInfo[]; selected: number }
   | { type: "tab_icon"; id: number; icon: string | null }
   | { type: "focus_address" }
-  | { type: "downloads"; running: number; listed: number }
+  | { type: "downloads"; running: number; waiting: number; listed: number }
   | { type: "permission"; id: number; site: string | null; wants: Want[] }
   | { type: "find"; open: boolean }
   | { type: "found"; query: string; summary: string }

@@ -1,19 +1,19 @@
 //! What is being saved, and what was saved a moment ago.
 //!
 //! Deliberately thin. A download is a file arriving on your machine, not a
-//! second inbox: there is a quiet mark in the toolbar while one is running
-//! and a line on Home until it has been opened, and then it is gone from
-//! here. Nothing is kept between runs, because a list of everything ever
-//! downloaded is a place to browse rather than a thing to use.
+//! second inbox: the toolbar's button moves while one is running and carries
+//! a dot until it has been looked at, and Home lists the latest few for the
+//! rest of the run. Nothing is kept between runs, because a list of
+//! everything ever downloaded is a place to browse rather than a thing to use.
 
 pub use crate::protocol::{Download, Progress};
 
-/// A download and whether it has been opened, which is ours to know and not
-/// something the pages need told.
+/// A download and whether the user has looked at it since it finished,
+/// which is ours to know and not something the pages need told.
 #[derive(Clone, Debug, PartialEq)]
 struct Kept {
     download: Download,
-    opened: bool,
+    seen: bool,
 }
 
 #[derive(Debug, Default)]
@@ -39,7 +39,7 @@ impl Downloads {
                 progress: Progress::Running,
                 fraction: None,
             },
-            opened: false,
+            seen: false,
         });
         id
     }
@@ -72,14 +72,31 @@ impl Downloads {
         true
     }
 
-    /// The user opened it, so Home has nothing left to say about it.
+    /// The user asked to see it: where it is. It stays on Home, so the list
+    /// doesn't move under them.
     pub fn opened(&mut self, id: u32) -> Option<String> {
-        let path = self.find_kept(id).map(|kept| {
-            kept.opened = true;
+        self.find_kept(id).map(|kept| {
+            kept.seen = true;
             kept.download.path.clone()
-        })?;
-        self.kept.retain(|kept| !kept.opened);
-        Some(path)
+        })
+    }
+
+    /// The user went to look at the downloads: none of the finished ones are
+    /// new any more.
+    pub fn seen(&mut self) {
+        for kept in &mut self.kept {
+            if kept.download.progress != Progress::Running {
+                kept.seen = true;
+            }
+        }
+    }
+
+    /// How many have finished since the user last looked: the button's dot.
+    pub fn waiting(&self) -> usize {
+        self.kept
+            .iter()
+            .filter(|kept| !kept.seen && kept.download.progress != Progress::Running)
+            .count()
     }
 
     /// How many are still arriving: the toolbar's mark.
@@ -92,12 +109,8 @@ impl Downloads {
 
     /// What Home shows: newest first, and never a long list.
     pub fn showing(&self) -> Vec<Download> {
-        let mut showing: Vec<Download> = self
-            .kept
-            .iter()
-            .filter(|kept| !kept.opened)
-            .map(|kept| kept.download.clone())
-            .collect();
+        let mut showing: Vec<Download> =
+            self.kept.iter().map(|kept| kept.download.clone()).collect();
         showing.reverse();
         showing.truncate(SHOWN);
         showing
@@ -137,12 +150,27 @@ mod tests {
     }
 
     #[test]
-    fn opening_it_takes_it_off_home() {
+    fn showing_it_keeps_it_on_home_but_clears_the_dot() {
         let mut downloads = Downloads::new();
         let id = downloads.started("moss.pdf", "/tmp/moss.pdf");
+        assert_eq!(downloads.waiting(), 0, "still arriving");
         downloads.finished(id, Progress::Saved, None);
+        assert_eq!(downloads.waiting(), 1);
         assert_eq!(downloads.opened(id).as_deref(), Some("/tmp/moss.pdf"));
-        assert!(downloads.showing().is_empty());
+        assert_eq!(downloads.showing().len(), 1);
+        assert_eq!(downloads.waiting(), 0);
+    }
+
+    #[test]
+    fn looking_at_the_downloads_clears_the_dot_but_not_what_is_arriving() {
+        let mut downloads = Downloads::new();
+        let done = downloads.started("moss.pdf", "/tmp/moss.pdf");
+        downloads.finished(done, Progress::Failed, None);
+        let running = downloads.started("fern.pdf", "/tmp/fern.pdf");
+        downloads.seen();
+        assert_eq!(downloads.waiting(), 0);
+        downloads.finished(running, Progress::Saved, None);
+        assert_eq!(downloads.waiting(), 1);
     }
 
     #[test]
