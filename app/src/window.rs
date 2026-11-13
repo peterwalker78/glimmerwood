@@ -598,6 +598,25 @@ impl Window {
         }
     }
 
+    /// Bring the downloads on every Home tab up to date, and nothing else.
+    pub fn refresh_downloads(&self) {
+        let json = serde_json::to_string(&self.companion.downloads_showing())
+            .expect("downloads serialise");
+        let script = pages::hand_over_downloads(&json);
+        for tab in self.tabs.borrow().iter() {
+            let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
+            if pages::Local::of(&uri) == Some(pages::Local::Home) {
+                tab.view.evaluate_javascript(
+                    &script,
+                    None,
+                    None,
+                    None::<&gio::Cancellable>,
+                    |_| {},
+                );
+            }
+        }
+    }
+
     fn toggle_bookmark(&self) {
         let Some(tab) = self.selected_tab() else {
             return;

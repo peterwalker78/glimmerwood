@@ -9,7 +9,7 @@ import { letter, placeCard, span } from "./place.js";
 
 declare global {
   interface Window {
-    wispHome: { show(data: HomeData): void; reveal(): void };
+    wispHome: { show(data: HomeData): void; reveal(): void; showDownloads(files: Download[]): void };
     // Left by the core in case it arrives before this script has run.
     wispHomeData?: HomeData;
   }
@@ -301,7 +301,7 @@ new ResizeObserver(seatWisp).observe(scene);
 // It settles in with the rest of the page; measure again once it has.
 about.addEventListener("animationend", seatWisp);
 
-window.wispHome = { show, reveal };
+window.wispHome = { show, reveal, showDownloads };
 
 if (window.wispHomeData) {
   show(window.wispHomeData);

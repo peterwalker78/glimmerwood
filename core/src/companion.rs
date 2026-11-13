@@ -785,7 +785,9 @@ impl Companion {
 
     pub fn download_progressed(self: &Rc<Self>, id: u32, fraction: Option<f64>) {
         if self.downloads.borrow_mut().progressed(id, fraction) {
-            self.refresh_pages();
+            for window in self.live_windows() {
+                window.refresh_downloads();
+            }
         }
     }
 

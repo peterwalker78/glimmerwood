@@ -89,6 +89,18 @@ impl Local {
     }
 }
 
+/// The script that brings Home's list of downloads up to date and leaves the
+/// rest of the page as it is, for a download moving along.
+pub fn hand_over_downloads(json: &str) -> String {
+    let (page, global) = (Local::Home.name(), Local::Home.global());
+    format!(
+        "if (location.href.startsWith('glimmerwood://{page}/')) \
+         {{ const files = {json}; \
+         if (window.{global}Data) window.{global}Data.downloads = files; \
+         window.{global}?.showDownloads(files); }}"
+    )
+}
+
 pub fn mime_type(path: &str) -> &'static str {
     match path.rsplit_once('.').map(|(_, ext)| ext) {
         Some("html") => "text/html",

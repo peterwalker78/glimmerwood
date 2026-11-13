@@ -179,6 +179,9 @@ impl host::Window for Window {
     fn refresh_pages(&self) {
         Window::refresh_pages(self);
     }
+    fn refresh_downloads(&self) {
+        Window::refresh_downloads(self);
+    }
     fn ask(&self, site: Option<String>) {
         Window::ask(self, site);
     }

@@ -29,6 +29,10 @@ pub trait Window {
     fn send_to_chrome(&self, message: &ToChrome);
     /// Home and Settings are showing something that has changed underneath.
     fn refresh_pages(&self);
+    /// Only the downloads on Home have moved along.
+    fn refresh_downloads(&self) {
+        self.refresh_pages();
+    }
     /// Ask about a site the wisp hasn't met, or take the question away.
     fn ask(&self, site: Option<String>);
     /// Offer someone to talk to, or take the offer away.
