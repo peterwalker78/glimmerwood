@@ -2,6 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
+use std::time::Duration;
 
 use gtk::{gdk, gio, glib, prelude::*};
 use webkit::prelude::*;
@@ -28,6 +29,14 @@ const SAVE_WIDTH_AFTER_MS: u64 = 600;
 /// Tabs reachable with Ctrl+number; Ctrl+9 is always the last tab.
 const NUMBERED_TABS: u32 = 8;
 
+/// A tab nobody has looked at or heard for this long lets its page go, and
+/// loads it again when it is next selected. In microseconds.
+const SLEEP_AFTER_US: i64 = 60 * 60 * 1_000_000;
+/// How often the tabs are looked over for ones to put to sleep.
+const SLEEP_CHECK_EVERY_S: u32 = 60;
+/// How long the page on screen has to be stuck before the toolbar says so.
+const HUNG_AFTER: Duration = Duration::from_secs(5);
+
 pub fn install_accels(app: &gtk::Application) {
     app.set_accels_for_action("win.focus-address", &["<Control>l", "<Alt>d", "F6"]);
     app.set_accels_for_action("win.back", &["<Alt>Left"]);
@@ -38,6 +47,7 @@ pub fn install_accels(app: &gtk::Application) {
     app.set_accels_for_action("win.bookmark", &["<Control>d"]);
     app.set_accels_for_action("win.home", &["<Alt>Home"]);
     app.set_accels_for_action("win.find", &["<Control>f"]);
+    app.set_accels_for_action("win.print", &["<Control>p"]);
     app.set_accels_for_action("win.settings", &["<Control>comma"]);
     app.set_accels_for_action(
         "win.zoom-in",
@@ -87,10 +97,19 @@ struct Tab {
     failure_pending: Cell<bool>,
     /// The site icon as a `data:` URL, encoded once when it changes.
     icon: RefCell<Option<String>>,
-    /// Where this tab was when the browser last closed, while it is still
-    /// only that: the column shows it, and the page is loaded the first time
-    /// the tab is asked for.
+    /// Where this tab was when the browser last closed, or when it went to
+    /// sleep, while it is still only that: the column shows it, and the page
+    /// is loaded the first time the tab is asked for.
     asleep: RefCell<Option<Sleeper>>,
+    /// It went to sleep after it had been open, so waking reloads it in
+    /// place and back and forward still lead where they did.
+    reload_on_wake: Cell<bool>,
+    /// The first tab of the ones opened from each other. A page that opens
+    /// another shares its process with it, so they can only sleep together.
+    family: u32,
+    /// The last time the tab was on screen or making a sound, on GLib's
+    /// monotonic clock.
+    noticed: Cell<i64>,
 }
 
 impl Tab {
@@ -144,6 +163,12 @@ pub struct Window {
     /// is shown; moving to the next match reports a count of one, which
     /// isn't news.
     find_pending: Cell<u32>,
+    /// The toolbar says the page on screen has stopped responding.
+    hung: Cell<bool>,
+    /// The tab whose page has the whole window, with the chrome put away.
+    fullscreen: Cell<Option<u32>>,
+    /// The bar's height, which pages sit below while the chrome is shown.
+    bar_height: Cell<i32>,
 }
 
 impl Window {
@@ -197,6 +222,9 @@ impl Window {
             finding: Cell::new(false),
             find_query: RefCell::new(String::new()),
             find_pending: Cell::new(0),
+            hung: Cell::new(false),
+            fullscreen: Cell::new(None),
+            bar_height: Cell::new(INITIAL_TOOLBAR_HEIGHT),
         });
 
         let weak = Rc::downgrade(&this);
@@ -244,6 +272,7 @@ impl Window {
 
         this.install_actions();
         this.watch_attention();
+        this.watch_sleep();
         // The tabs from the last run come back in the first window of the
         // run, behind the Home tab every window opens with.
         if !RESTORED.replace(true) {
@@ -423,6 +452,15 @@ impl Window {
     fn add_tab(self: &Rc<Self>, related: Option<&webkit::WebView>, select: bool) -> Rc<Tab> {
         let id = self.next_id.get();
         self.next_id.set(id + 1);
+        let family = related
+            .and_then(|related| {
+                self.tabs
+                    .borrow()
+                    .iter()
+                    .find(|t| &t.view == related)
+                    .map(|t| t.family)
+            })
+            .unwrap_or(id);
         let view = tabs::new_view(related);
         let tab = Rc::new(Tab {
             id,
@@ -432,6 +470,9 @@ impl Window {
             failure_pending: Cell::new(false),
             icon: RefCell::new(None),
             asleep: RefCell::new(None),
+            reload_on_wake: Cell::new(false),
+            family,
+            noticed: Cell::new(glib::monotonic_time()),
         });
         self.stack.add_child(&tab.view);
         self.tabs.borrow_mut().push(Rc::clone(&tab));
@@ -452,15 +493,83 @@ impl Window {
         self.push_tabs();
     }
 
-    /// The page a restored tab has been holding arrives the first time the
+    /// The page a sleeping tab has been holding arrives the first time the
     /// tab is selected; after that it is an ordinary tab. Says whether this
     /// tab was one of those.
     fn wake(&self, tab: &Tab) -> bool {
         let Some(sleeper) = tab.asleep.borrow_mut().take() else {
             return false;
         };
-        tab.view.load_uri(&sleeper.url);
+        let in_place = tab.reload_on_wake.replace(false)
+            && tab
+                .view
+                .back_forward_list()
+                .is_some_and(|list| list.current_item().is_some());
+        if in_place {
+            tab.view.reload();
+        } else {
+            tab.view.load_uri(&sleeper.url);
+        }
         true
+    }
+
+    /// Look the tabs over once in a while for ones to put to sleep.
+    fn watch_sleep(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        glib::timeout_add_seconds_local(SLEEP_CHECK_EVERY_S, move || {
+            let Some(this) = weak.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            this.sleep_idle_tabs(glib::monotonic_time());
+            glib::ControlFlow::Continue
+        });
+    }
+
+    /// A tab nobody has seen or heard for a while lets its page go, freeing
+    /// the memory it held. It keeps its place in the column and wakes when
+    /// it is selected.
+    fn sleep_idle_tabs(&self, now: i64) {
+        let tabs = self.tabs.borrow().clone();
+        for tab in &tabs {
+            if tab.id == self.selected.get() || tab.view.is_playing_audio() {
+                tab.noticed.set(now);
+            }
+        }
+        let idle = |tab: &Tab| {
+            tab.asleep.borrow().is_some()
+                || (tab.failed.borrow().is_none()
+                    && tab.view.uri().is_some()
+                    && now - tab.noticed.get() >= SLEEP_AFTER_US)
+        };
+        let sleepy: Vec<&Rc<Tab>> = tabs
+            .iter()
+            .filter(|tab| {
+                tab.asleep.borrow().is_none()
+                    && tabs
+                        .iter()
+                        .filter(|t| t.family == tab.family)
+                        .all(|t| idle(t))
+            })
+            .collect();
+        if sleepy.is_empty() {
+            return;
+        }
+        // Every one is marked before any page goes: a shared process takes
+        // the others with it.
+        for tab in &sleepy {
+            let title = tab
+                .view
+                .title()
+                .map(|title| title.to_string())
+                .unwrap_or_default();
+            let url = tab.uri();
+            tab.asleep.replace(Some(Sleeper { url, title }));
+            tab.reload_on_wake.set(true);
+        }
+        for tab in &sleepy {
+            tab.view.terminate_web_process();
+        }
+        self.push_tabs();
     }
 
     fn select_tab(self: &Rc<Self>, id: u32) {
@@ -469,7 +578,10 @@ impl Window {
             && previous.id != id
         {
             self.close_find(false);
+            self.end_fullscreen(&previous);
+            previous.noticed.set(glib::monotonic_time());
         }
+        tab.noticed.set(glib::monotonic_time());
         self.selected.set(id);
         self.keep_session();
         self.stack.set_visible_child(&tab.view);
@@ -488,6 +600,7 @@ impl Window {
         // Home's greeting depends on the moment it's seen.
         self.push_page(&tab);
         self.hum();
+        self.watch_hung();
         self.companion.refresh();
     }
 
@@ -567,6 +680,9 @@ impl Window {
     /// page's script can still be loading its modules when WebKit says the
     /// load finished.
     fn push_page(&self, tab: &Tab) {
+        if tab.asleep.borrow().is_some() {
+            return;
+        }
         let uri = tab.view.uri().map(|u| u.to_string()).unwrap_or_default();
         let Some(page) = pages::Local::of(&uri) else {
             return;
@@ -621,6 +737,7 @@ impl Window {
             return;
         };
         let tab = self.tabs.borrow_mut().remove(index);
+        self.end_fullscreen(&tab);
         tab.view.stop_loading();
         self.stack.remove(&tab.view);
         let next = {
@@ -803,6 +920,12 @@ impl Window {
             ToCore::Find { query } => self.find(query),
             ToCore::FindNext { backwards } => self.find_next(backwards),
             ToCore::CloseFind => self.close_find(true),
+            ToCore::StopPage => {
+                if let Some(tab) = tab {
+                    tab.view.terminate_web_process();
+                }
+                self.show_hung(false);
+            }
             ToCore::ToolbarLayout {
                 height,
                 overlay_height,
@@ -811,7 +934,10 @@ impl Window {
                 nook_width,
                 nook_height,
             } => {
-                self.paned.set_margin_top(height as i32);
+                self.bar_height.set(height as i32);
+                if self.fullscreen.get().is_none() {
+                    self.paned.set_margin_top(height as i32);
+                }
                 let cover = overlay_height.max(height) as i32;
                 if self.toolbar_cover.replace(cover) != cover
                     && let Some(toolbar) = self.toolbar.borrow().as_ref()
@@ -970,6 +1096,7 @@ impl Window {
             return;
         };
         tab.asleep.take();
+        tab.reload_on_wake.set(false);
         tab.view.load_uri(&target.uri);
         tab.fallback
             .replace(target.fallback.is_some().then_some(target));
@@ -1056,6 +1183,10 @@ impl Window {
         let weak_tab = Rc::downgrade(tab);
         let icon_changed = move |view: &webkit::WebView| {
             if let (Some(this), Some(tab)) = (weak.upgrade(), weak_tab.upgrade()) {
+                // A sleeping tab keeps the icon it had.
+                if tab.asleep.borrow().is_some() {
+                    return;
+                }
                 // Home and Settings have no favicon; they wear the wisp.
                 let icon = if view.uri().is_some_and(|uri| pages::is_local_page(&uri)) {
                     Some(home_icon())
@@ -1101,10 +1232,14 @@ impl Window {
         // Sound on screen keeps the user present; the speaker mark on the
         // tab follows it either way.
         let weak = Rc::downgrade(self);
+        let weak_tab = Rc::downgrade(tab);
         let sound_changed = move |_view: &webkit::WebView| {
             let Some(this) = weak.upgrade() else {
                 return;
             };
+            if let Some(tab) = weak_tab.upgrade() {
+                tab.noticed.set(glib::monotonic_time());
+            }
             this.push_tabs();
             this.hum();
             this.companion.refresh();
@@ -1152,18 +1287,24 @@ impl Window {
             }
         });
 
-        // A page's process crashed or was killed for memory: say so rather
-        // than leave a blank tab.
+        // A page's process crashed, was killed for memory, or was stopped
+        // because it stopped responding: say so rather than leave a blank
+        // tab. A tab put to sleep let its page go on purpose.
         let weak_tab = Rc::downgrade(tab);
         view.connect_web_process_terminated(move |view, reason| {
             let Some(tab) = weak_tab.upgrade() else {
                 return;
             };
+            let stopped = reason == webkit::WebProcessTerminationReason::TerminatedByApi;
+            if stopped && tab.asleep.borrow().is_some() {
+                return;
+            }
             let uri = view.uri().map(|u| u.to_string()).unwrap_or_default();
             let why = match reason {
                 webkit::WebProcessTerminationReason::ExceededMemoryLimit => {
                     "The page used more memory than it was allowed."
                 }
+                _ if stopped => "The page stopped responding, so it was stopped.",
                 _ => "The page stopped working.",
             };
             tab.failed.replace(Some(uri.clone()));
@@ -1175,13 +1316,49 @@ impl Window {
             );
         });
 
-        // A certificate problem is never a reason to retry without encryption.
+        // A certificate problem is never a reason to retry without encryption,
+        // and the certificate is never accepted: the tab says why it stopped.
         let weak_tab = Rc::downgrade(tab);
-        view.connect_load_failed_with_tls_errors(move |_, _, _, _| {
-            if let Some(tab) = weak_tab.upgrade() {
-                tab.fallback.take();
+        view.connect_load_failed_with_tls_errors(move |view, failing_uri, _, _| {
+            let Some(tab) = weak_tab.upgrade() else {
+                return false;
+            };
+            tab.fallback.take();
+            tab.failed.replace(Some(failing_uri.to_owned()));
+            tab.failure_pending.set(true);
+            view.load_alternate_html(
+                &failure::page(failing_uri, &Reason::Untrusted),
+                failing_uri,
+                None,
+            );
+            true
+        });
+
+        // A video that asks for the whole screen gets the whole window: the
+        // chrome is put away until it leaves, by Escape or otherwise. WebKit
+        // makes the window full screen itself.
+        let weak = Rc::downgrade(self);
+        view.connect_enter_fullscreen(move |_| {
+            if let Some(this) = weak.upgrade() {
+                this.show_chrome(Some(id));
             }
             false
+        });
+        let weak = Rc::downgrade(self);
+        view.connect_leave_fullscreen(move |_| {
+            if let Some(this) = weak.upgrade() {
+                this.show_chrome(None);
+            }
+            false
+        });
+
+        let weak = Rc::downgrade(self);
+        view.connect_is_web_process_responsive_notify(move |_| {
+            if let Some(this) = weak.upgrade()
+                && this.selected.get() == id
+            {
+                this.watch_hung();
+            }
         });
 
         let weak_tab = Rc::downgrade(tab);
@@ -1434,6 +1611,14 @@ impl Window {
         add("bookmark", Box::new(|w| w.toggle_bookmark()));
         add("home", Box::new(|w| w.go_home()));
         add("find", Box::new(|w| w.open_find()));
+        add(
+            "print",
+            Box::new(|w| {
+                if let Some(tab) = w.selected_tab() {
+                    webkit::PrintOperation::new(&tab.view).run_dialog(Some(&w.window));
+                }
+            }),
+        );
         add("settings", Box::new(|w| w.open_settings()));
         add("zoom-in", Box::new(|w| w.zoom(1)));
         add("zoom-out", Box::new(|w| w.zoom(-1)));
@@ -1591,8 +1776,74 @@ impl Window {
             progress: view.estimated_load_progress(),
             can_go_back: view.can_go_back(),
             can_go_forward: view.can_go_forward(),
+            hung: self.hung.get(),
         };
         self.send_to_chrome(&state);
+    }
+
+    /// Put the chrome away while a tab's page has the whole window, or bring
+    /// it back (`None`).
+    fn show_chrome(&self, fullscreen: Option<u32>) {
+        self.fullscreen.set(fullscreen);
+        let shown = fullscreen.is_none();
+        for view in [&self.toolbar, &self.sidebar] {
+            if let Some(view) = view.borrow().as_ref() {
+                view.set_visible(shown);
+            }
+        }
+        if let Some(wisp) = self.wisp.borrow().as_ref() {
+            wisp.widget().set_visible(shown);
+        }
+        self.paned
+            .set_margin_top(if shown { self.bar_height.get() } else { 0 });
+    }
+
+    /// A tab whose page has the whole window is going out of sight: let the
+    /// page know, and bring the chrome back either way.
+    fn end_fullscreen(&self, tab: &Tab) {
+        if self.fullscreen.get() != Some(tab.id) {
+            return;
+        }
+        tab.view.evaluate_javascript(
+            "document.exitFullscreen()",
+            None,
+            None,
+            None::<&gio::Cancellable>,
+            |_| {},
+        );
+        self.show_chrome(None);
+        self.window.unfullscreen();
+    }
+
+    /// The page on screen has stopped responding: after a few seconds of it,
+    /// the toolbar says so and offers to stop it. The line goes as soon as
+    /// the page recovers or another tab is shown.
+    fn watch_hung(self: &Rc<Self>) {
+        let id = self.selected.get();
+        let stuck = move |this: &Self| {
+            this.selected.get() == id
+                && this
+                    .selected_tab()
+                    .is_some_and(|tab| !tab.view.is_web_process_responsive())
+        };
+        if !stuck(self) {
+            self.show_hung(false);
+            return;
+        }
+        let weak = Rc::downgrade(self);
+        glib::timeout_add_local_once(HUNG_AFTER, move || {
+            if let Some(this) = weak.upgrade()
+                && stuck(&this)
+            {
+                this.show_hung(true);
+            }
+        });
+    }
+
+    fn show_hung(&self, hung: bool) {
+        if self.hung.replace(hung) != hung {
+            self.push_state();
+        }
     }
 }
 

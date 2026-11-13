@@ -451,3 +451,18 @@ span.icon {
 @media (prefers-reduced-motion: reduce) {
   .progress { transition: none; }
 }
+
+/* The page on screen has stopped responding: one quiet line in the bar,
+   beside the address, with a way to stop it. */
+.hung {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  color: var(--quiet);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hung[hidden] { display: none; }
+.hung button:focus-visible { outline: 1.5px solid var(--quiet); outline-offset: -1.5px; }

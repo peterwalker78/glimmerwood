@@ -27,6 +27,12 @@
              placeholder="Search, or type an address" aria-label="Address">
       <span id="security" class="security" hidden>not private</span>
     </form>
+    <!-- The page on screen has stopped responding: one quiet line and a way
+         to stop it. It goes as soon as the page recovers. -->
+    <div id="hung" class="hung" role="status" hidden>
+      <span>This page has stopped responding.</span>
+      <button id="hung-stop" class="ask-link" type="button">Stop it</button>
+    </div>
     <form id="find-form" class="find" role="search" hidden>
       <input id="find" type="text" spellcheck="false" autocomplete="off" autocapitalize="off"
              placeholder="Find in page" aria-label="Find in page" aria-describedby="find-summary">
