@@ -205,7 +205,9 @@ fn spelling_languages<'a>(names: impl Iterator<Item = &'a str>) -> Vec<String> {
 
 /// The window behind the chrome and the divider beside the tab column, in
 /// the chrome's own paper and hairline (`ui/chrome/chrome.css`) rather than
-/// the desktop theme's colours.
+/// the desktop theme's colours. Popovers (a page's `<select>` list, a right
+/// click's menu) take the pages' card, ink and hairline: GTK's theme would
+/// paint them its own grey.
 fn style_seams() {
     let (Some(display), Some(settings)) = (gtk::gdk::Display::default(), gtk::Settings::default())
     else {
@@ -224,10 +226,25 @@ fn style_seams() {
         } else {
             "rgba(42, 43, 40, 0.1)"
         };
+        // The pages' --card, --ink and --press (`ui/settings/settings.css`).
+        let (card, ink, press) = if dark {
+            ("#242522", "#dcddd7", "rgba(220, 221, 215, 0.08)")
+        } else {
+            ("#f7f6f2", "#2a2b28", "rgba(42, 43, 40, 0.07)")
+        };
         provider.load_from_string(&format!(
             "window.background:not(.dialog) {{ background-color: {paper}; }}\n\
              window.background:not(.dialog) paned > separator {{ \
-             background: none; background-color: {hairline}; }}\n",
+             background: none; background-color: {hairline}; }}\n\
+             popover > contents, popover > arrow {{ background-color: {card}; \
+             color: {ink}; border: 1px solid {hairline}; }}\n\
+             popover > contents {{ border-radius: 9px; }}\n\
+             popover listview, popover list, popover treeview, popover scrolledwindow, \
+             popover viewport {{ background: none; color: inherit; }}\n\
+             popover listview > row, popover modelbutton {{ border-radius: 7px; color: inherit; }}\n\
+             popover listview > row:hover, popover listview > row:selected, \
+             popover modelbutton:hover, popover treeview:selected {{ \
+             background: {press}; color: inherit; }}\n",
             paper = tabs::paper_for(dark).to_str(),
         ));
     };
